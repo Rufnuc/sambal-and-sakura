@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, CalendarCheck, Ticket, User } from "lucide-react";
+import { ShoppingBag, CalendarCheck, House, User } from "lucide-react";
 import { useCart, cartCount } from "@/lib/store/cart";
 import { useHydrated } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
@@ -19,8 +19,8 @@ export function MobileCtaBar() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       <div className="mx-auto grid max-w-md grid-cols-4">
-        <CtaItem href="/offers" label="Offers" active={pathname === "/offers"}>
-          <Ticket className="size-5" />
+        <CtaItem href="/" label="Home" active={pathname === "/"}>
+          <House className="size-5" />
         </CtaItem>
         <CtaItem href="/account" label="Account" active={pathname === "/account"}>
           <User className="size-5" />

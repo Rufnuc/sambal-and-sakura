@@ -24,13 +24,17 @@ export function MobileCtaBar() {
         <CtaItem href="/" label="Home" active={pathname === "/"}>
           <House className="size-5" />
         </CtaItem>
-        <CtaItem href="/account" label="Account" active={pathname === "/account"}>
-          <User className="size-5" />
-        </CtaItem>
+
         <CtaItem href="/book" label="Book" active={pathname === "/book"}>
           <CalendarCheck className="size-5" />
         </CtaItem>
-        <CtaItem href="/order" label="Order" active={pathname === "/order"} highlight>
+
+        <CtaItem
+          href="/order"
+          label="Order"
+          active={pathname === "/order"}
+          highlight
+        >
           <span className="relative">
             <ShoppingBag className="size-5" />
             {count > 0 && (
@@ -40,22 +44,42 @@ export function MobileCtaBar() {
             )}
           </span>
         </CtaItem>
+
+        <CtaItem
+          href="/account"
+          label="Account"
+          active={pathname === "/account"}
+        >
+          <User className="size-5" />
+        </CtaItem>
       </div>
     </div>
   );
 }
 
 function CtaItem({
-  href, label, children, active, highlight,
+  href,
+  label,
+  children,
+  active,
+  highlight,
 }: {
-  href: string; label: string; children: React.ReactNode; active?: boolean; highlight?: boolean;
+  href: string;
+  label: string;
+  children: React.ReactNode;
+  active?: boolean;
+  highlight?: boolean;
 }) {
   return (
     <Link
       href={href}
       className={cn(
         "flex min-h-[56px] flex-col items-center justify-center gap-1 py-2 text-xs font-medium transition",
-        highlight ? "text-gold-ink" : active ? "text-foreground" : "text-muted-foreground",
+        highlight
+          ? "text-gold-ink"
+          : active
+            ? "text-foreground"
+            : "text-muted-foreground",
       )}
     >
       {children}

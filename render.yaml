@@ -2,7 +2,7 @@
 # Secrets are NOT stored here: every `sync: false` value is typed into the Render dashboard.
 services:
   - type: web
-    name: sambal-and-sakura
+    name: sambalandsakura
     runtime: node
     plan: starter            # always-on (the free plan sleeps and would cost orders)
     region: frankfurt        # closest Render region to the UK

@@ -39,7 +39,7 @@ export function OffersTabs({
   return (
     <div>
       <header className="max-w-2xl">
-        <p className="font-medium uppercase tracking-widest text-gold">Rewards</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">Rewards</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Offers &amp; rewards</h1>
         <p className="mt-3 text-muted-foreground text-pretty">Deals, the Fortune Wheel and referrals - all exclusive to ordering direct.</p>
       </header>
@@ -65,8 +65,8 @@ export function OffersTabs({
               return (
                 <div key={o.id} className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm">
                   <div className="flex items-center justify-between">
-                    <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="size-5" /></span>
-                    {o.badge && <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold">{o.badge}</Badge>}
+                    <span className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-gold-ink"><Icon className="size-5" /></span>
+                    {o.badge && <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold-ink">{o.badge}</Badge>}
                   </div>
                   <h2 className="mt-4 font-display text-xl font-bold">{o.title}</h2>
                   <p className="mt-1 flex-1 text-sm text-muted-foreground">{o.description}</p>
@@ -86,7 +86,7 @@ export function OffersTabs({
                 <h2 className="flex items-center gap-2 font-display text-xl font-bold"><Gift className="size-5 text-sambal" /> What you can win</h2>
                 <ul className="mt-4 grid grid-cols-2 gap-2 text-sm">
                   {winnable.map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Sparkles className="size-4 text-gold" /> {p.label}</li>
+                    <li key={p.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Sparkles className="size-4 text-gold-ink" /> {p.label}</li>
                   ))}
                 </ul>
               </div>
@@ -109,7 +109,7 @@ export function OffersTabs({
                 const Icon = STEP_ICONS[i] ?? Share2;
                 return (
                   <li key={i} className="flex gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="size-5" /></span>
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-gold-ink"><Icon className="size-5" /></span>
                     <div>
                       <p className="font-display text-lg font-bold">Step {i + 1}</p>
                       <p className="text-muted-foreground">{step}</p>

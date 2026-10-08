@@ -34,7 +34,7 @@ function SignedOut() {
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   return (
     <div className="mx-auto max-w-lg text-center">
-      <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary"><UserIcon className="size-8" /></div>
+      <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-gold-ink"><UserIcon className="size-8" /></div>
       <h1 className="mt-5 font-display text-4xl font-extrabold tracking-tight">Your account</h1>
       <p className="mt-3 text-muted-foreground text-pretty">
         Sign in to earn {LOYALTY.pointsPerPound} points per £1, save wheel & referral rewards, and track your orders and bookings.
@@ -99,7 +99,7 @@ function Dashboard() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-medium uppercase tracking-widest text-gold">My account</p>
+          <p className="font-medium uppercase tracking-widest text-gold-ink">My account</p>
           <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight">Hi, {user.name.split(" ")[0]}</h1>
         </div>
         <Button variant="outline" className="h-10 gap-2" onClick={() => logout()}><LogOut className="size-4" /> Sign out</Button>
@@ -108,7 +108,7 @@ function Dashboard() {
       <Card className="bg-gradient-to-br from-gold/15 to-card">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="flex size-12 items-center justify-center rounded-xl bg-primary/15 text-primary"><Crown className="size-6" /></span>
+            <span className="flex size-12 items-center justify-center rounded-xl bg-primary/15 text-gold-ink"><Crown className="size-6" /></span>
             <div>
               <p className="text-sm text-muted-foreground">{current.name} member</p>
               <p className="font-display text-3xl font-bold">{user.points} <span className="text-base font-medium text-muted-foreground">points</span></p>
@@ -131,7 +131,7 @@ function Dashboard() {
         <Card id="rewards">
           <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Gift className="size-5 text-sambal" /> Rewards wallet</h2>
           {activeRewards.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active rewards yet. Spin the <Link href="/wheel" className="font-medium text-primary hover:underline">Fortune Wheel</Link> or redeem points.</p>
+            <p className="text-sm text-muted-foreground">No active rewards yet. Spin the <Link href="/wheel" className="font-medium text-gold-ink hover:underline">Fortune Wheel</Link> or redeem points.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {activeRewards.map((r) => (
@@ -149,12 +149,12 @@ function Dashboard() {
         </Card>
 
         <Card>
-          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Ticket className="size-5 text-gold" /> Refer & earn</h2>
+          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Ticket className="size-5 text-gold-ink" /> Refer & earn</h2>
           <p className="text-sm text-muted-foreground">Share your code - your friend gets £5 off, you get £5 when they spend £20+.</p>
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Your code</p>
-              <p className="font-mono text-2xl font-bold text-primary">{user.referralCode}</p>
+              <p className="font-mono text-2xl font-bold text-gold-ink">{user.referralCode}</p>
             </div>
             <CopyCode code={user.referralCode} />
           </div>
@@ -163,9 +163,9 @@ function Dashboard() {
       </div>
 
       <Card>
-        <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><ShoppingBag className="size-5 text-primary" /> Order history</h2>
+        <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><ShoppingBag className="size-5 text-gold-ink" /> Order history</h2>
         {orders.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No orders yet. <Link href="/menu" className="font-medium text-primary hover:underline">Start an order →</Link></p>
+          <p className="text-sm text-muted-foreground">No orders yet. <Link href="/menu" className="font-medium text-gold-ink hover:underline">Start an order →</Link></p>
         ) : (
           <ul className="divide-y divide-border">
             {orders.slice(0, 8).map((o) => (
@@ -185,9 +185,9 @@ function Dashboard() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><CalendarCheck className="size-5 text-primary" /> Your bookings</h2>
+        <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><CalendarCheck className="size-5 text-gold-ink" /> Your bookings</h2>
         {bookings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No bookings yet. <Link href="/book" className="font-medium text-primary hover:underline">Book a table →</Link></p>
+          <p className="text-sm text-muted-foreground">No bookings yet. <Link href="/book" className="font-medium text-gold-ink hover:underline">Book a table →</Link></p>
         ) : (
           <ul className="divide-y divide-border">
             {bookings.slice(0, 6).map((b) => {
@@ -211,7 +211,7 @@ function Dashboard() {
 
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-display text-xl font-bold"><UserIcon className="size-5 text-primary" /> Profile</h2>
+          <h2 className="flex items-center gap-2 font-display text-xl font-bold"><UserIcon className="size-5 text-gold-ink" /> Profile</h2>
           {!editing && <Button variant="ghost" className="h-9" onClick={() => setEditing(true)}>Edit</Button>}
         </div>
         {editing ? (
@@ -231,7 +231,7 @@ function Dashboard() {
           </dl>
         )}
         <Separator className="my-4" />
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Star className="size-3.5 text-gold" /> Member since {new Date(user.createdAt).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Star className="size-3.5 text-gold-ink" /> Member since {new Date(user.createdAt).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</p>
       </Card>
     </div>
   );

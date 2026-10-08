@@ -70,8 +70,8 @@ export function SettingsView() {
       </div>
 
       {/* Password */}
-      <SectionCard title="Change your password" action={<KeyRound className="size-5 text-gold" />}>
-        <form onSubmit={submitPassword} className="grid gap-3 sm:grid-cols-3">
+      <SectionCard title="Change your password" action={<KeyRound className="size-5 text-gold-ink" />}>
+        <form onSubmit={submitPassword} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div><Label htmlFor="pw-cur">Current</Label><Input id="pw-cur" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} className="mt-1.5 h-11" autoComplete="current-password" required /></div>
           <div><Label htmlFor="pw-new">New (min 8)</Label><Input id="pw-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1.5 h-11" minLength={8} autoComplete="new-password" required /></div>
           <div><Label htmlFor="pw-con">Confirm</Label><Input id="pw-con" type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} className="mt-1.5 h-11" minLength={8} autoComplete="new-password" required /></div>
@@ -100,12 +100,12 @@ export function SettingsView() {
 
       {/* Delivery zones CRUD */}
       <SectionCard title="Delivery zones" action={<Button size="sm" className="h-9 gap-1.5" onClick={saveZones}><Save className="size-4" /> Save zones</Button>}>
-        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground"><Bike className="size-4 text-primary" /> Add, edit or pause delivery zones. Postcodes are outward codes (e.g. TS1, TS4), comma-separated.</p>
+        <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground"><Bike className="size-4 text-gold-ink" /> Add, edit or pause delivery zones. Postcodes are outward codes (e.g. TS1, TS4), comma-separated.</p>
         <div className="flex flex-col gap-3">
           {zones.map((z, i) => {
             const paused = disabledZones.includes(z.id);
             return (
-              <div key={z.id} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-[1.4fr_2fr_0.8fr_0.8fr_auto] sm:items-end">
+              <div key={z.id} className="grid grid-cols-1 gap-2 rounded-xl border border-border p-3 sm:grid-cols-[1.4fr_2fr_0.8fr_0.8fr_auto] sm:items-end">
                 <div><Label className="text-xs">Name</Label><Input value={z.label} onChange={(e) => updateZone(i, { label: e.target.value })} className="mt-1 h-10" /></div>
                 <div><Label className="text-xs">Postcodes</Label><Input value={z.postcodes.join(", ")} onChange={(e) => updateZone(i, { postcodes: e.target.value.split(",").map((p) => p.trim().toUpperCase()).filter(Boolean) })} className="mt-1 h-10" /></div>
                 <div><Label className="text-xs">Fee £</Label><Input type="number" step="0.5" value={z.fee} onChange={(e) => updateZone(i, { fee: Number(e.target.value) })} className="mt-1 h-10" inputMode="decimal" /></div>
@@ -126,14 +126,14 @@ export function SettingsView() {
 
       {/* Max delivery range */}
       <SectionCard title="Maximum delivery range" action={<Button size="sm" className="h-9 gap-1.5" onClick={saveMiles}><Save className="size-4" /> Save</Button>}>
-        <p className="mb-3 flex items-center gap-2 text-sm text-muted-foreground"><Bike className="size-4 text-primary" /> Reject delivery orders further than this many miles from the restaurant (set 0 to disable). Checked against the customer&apos;s postcode at checkout.</p>
+        <p className="mb-3 flex items-center gap-2 text-sm text-muted-foreground"><Bike className="size-4 text-gold-ink" /> Reject delivery orders further than this many miles from the restaurant (set 0 to disable). Checked against the customer&apos;s postcode at checkout.</p>
         <div className="flex items-end gap-3">
           <div><Label className="text-xs">Max miles</Label><Input type="number" step="0.5" value={maxMiles} onChange={(e) => setMaxMiles(Number(e.target.value))} className="mt-1 h-10 w-32" inputMode="decimal" /></div>
         </div>
       </SectionCard>
 
       {/* Rules */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SectionCard title="Booking rules" action={<ShieldCheck className="size-5 text-jade" />}>
           <dl className="divide-y divide-border text-sm">
             <Rule label="Total covers" value={`${TOTAL_SEATS} seats`} />
@@ -143,7 +143,7 @@ export function SettingsView() {
             <Rule label="Max online party" value={`${MAX_ONLINE_PARTY} guests`} />
           </dl>
         </SectionCard>
-        <SectionCard title="Order rules" action={<Clock className="size-5 text-gold" />}>
+        <SectionCard title="Order rules" action={<Clock className="size-5 text-gold-ink" />}>
           <dl className="divide-y divide-border text-sm">
             <Rule label="Payment" value="Cash only" />
             <Rule label="Minimum delivery order" value={gbp(ORDERING.minOrder)} />

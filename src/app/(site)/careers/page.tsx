@@ -43,7 +43,7 @@ export default async function CareersPage() {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
       <header className="max-w-2xl">
-        <p className="font-medium uppercase tracking-widest text-gold">Join us</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">Join us</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Careers at Sambal &amp; Sakura</h1>
         <p className="mt-3 text-muted-foreground text-pretty">
           We&apos;re a warm, busy kitchen bringing authentic Chinese and Japanese food to Middlesbrough. If you love great food and great service, we&apos;d love to hear from you.
@@ -53,7 +53,7 @@ export default async function CareersPage() {
       {jobs.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
           No open roles right now - but we&apos;re always happy to hear from great people. Email{" "}
-          <a href={`mailto:${b.email}`} className="font-medium text-primary hover:underline">{b.email}</a>.
+          <a href={`mailto:${b.email}`} className="font-medium text-gold-ink hover:underline">{b.email}</a>.
         </div>
       ) : (
         <div className="mt-10 flex flex-col gap-5">
@@ -61,7 +61,7 @@ export default async function CareersPage() {
             <article key={j.id} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="flex items-center gap-2 font-display text-2xl font-bold"><Briefcase className="size-5 text-primary" /> {j.title}</h2>
+                  <h2 className="flex items-center gap-2 font-display text-2xl font-bold"><Briefcase className="size-5 text-gold-ink" /> {j.title}</h2>
                   <div className="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
                     <Badge variant="outline" className="gap-1"><Clock className="size-3" /> {j.type}</Badge>
                     <Badge variant="outline" className="gap-1"><MapPin className="size-3" /> {j.location}</Badge>
@@ -80,8 +80,8 @@ export default async function CareersPage() {
 
       <div className="mt-10 rounded-2xl border border-border bg-muted/40 p-6 text-sm text-muted-foreground">
         To apply, email your CV to{" "}
-        <a href={`mailto:${b.email}`} className="font-medium text-primary hover:underline">{b.email}</a>{" "}
-        or call <a href={telHref(b.phone)} className="font-medium text-primary hover:underline">{b.phone}</a>.
+        <a href={`mailto:${b.email}`} className="font-medium text-gold-ink hover:underline">{b.email}</a>{" "}
+        or call <a href={telHref(b.phone)} className="font-medium text-gold-ink hover:underline">{b.phone}</a>.
       </div>
     </div>
   );

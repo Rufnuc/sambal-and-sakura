@@ -81,7 +81,7 @@ export function AnalyticsView() {
         <p className="mt-2 text-xs text-muted-foreground">Tip: browse the menu, add items and place an order to watch these update live.</p>
       </SectionCard>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SectionCard title="All tracked events">
           <ul className="divide-y divide-border">
             {ANALYTICS_EVENTS.map((e) => (

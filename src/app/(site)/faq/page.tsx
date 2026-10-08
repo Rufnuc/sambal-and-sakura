@@ -25,10 +25,10 @@ export default async function FaqPage() {
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
       <FaqJsonLd />
       <header>
-        <p className="font-medium uppercase tracking-widest text-gold">Good to know</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">Good to know</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Frequently asked questions</h1>
         <p className="mt-3 text-muted-foreground">
-          Still stuck? <Link href="/contact" className="font-medium text-primary hover:underline">Contact us</Link> and we'll help.
+          Still stuck? <Link href="/contact" className="font-medium text-gold-ink hover:underline">Contact us</Link> and we'll help.
         </p>
       </header>
 

@@ -108,7 +108,7 @@ function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Part
   return (
     <>
       <SectionCard title="Contact & address">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Phone"><Input value={b.phone} onChange={(e) => setBusiness({ phone: e.target.value })} className="h-10" inputMode="tel" /></Field>
           <Field label="Email"><Input value={b.email} onChange={(e) => setBusiness({ email: e.target.value })} className="h-10" inputMode="email" /></Field>
           <Field label="Address line 1"><Input value={b.address.line1} onChange={(e) => setAddr({ line1: e.target.value })} className="h-10" /></Field>
@@ -122,7 +122,7 @@ function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Part
       </SectionCard>
 
       <SectionCard title="Tagline & description">
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Field label="Tagline" hint="Shown in the browser tab and search results."><Input value={b.tagline} onChange={(e) => setBusiness({ tagline: e.target.value })} className="h-10" /></Field>
           <Field label="Short description" hint="Shown on the home page, footer and Google search results."><Textarea value={b.blurb} onChange={(e) => setBusiness({ blurb: e.target.value })} rows={3} /></Field>
         </div>
@@ -130,7 +130,7 @@ function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Part
 
       <SectionCard title="Social media">
         <p className="mb-3 text-sm text-muted-foreground">Leave a box empty to hide that icon from the website.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Instagram link"><Input value={b.social.instagram} onChange={(e) => setSocial({ instagram: e.target.value })} className="h-10" placeholder="https://instagram.com/…" /></Field>
           <Field label="TikTok link"><Input value={b.social.tiktok} onChange={(e) => setSocial({ tiktok: e.target.value })} className="h-10" placeholder="https://tiktok.com/@…" /></Field>
           <Field label="Facebook link"><Input value={b.social.facebook} onChange={(e) => setSocial({ facebook: e.target.value })} className="h-10" placeholder="https://facebook.com/…" /></Field>
@@ -197,14 +197,14 @@ function HomeTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) =>
   return (
     <>
       <SectionCard title="Top banner (hero)">
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Field label="Small badge above the headline"><Input value={c.hero.badge} onChange={(e) => setHero({ badge: e.target.value })} className="h-10" /></Field>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="Headline - start"><Input value={c.hero.headlineStart} onChange={(e) => setHero({ headlineStart: e.target.value })} className="h-10" /></Field>
             <Field label="Headline - highlighted (gold)"><Input value={c.hero.headlineAccent} onChange={(e) => setHero({ headlineAccent: e.target.value })} className="h-10" /></Field>
             <Field label="Headline - end"><Input value={c.hero.headlineEnd} onChange={(e) => setHero({ headlineEnd: e.target.value })} className="h-10" /></Field>
           </div>
-          <p className="text-sm">Preview: <span className="font-display font-bold">{c.hero.headlineStart}<span className="text-gold">{c.hero.headlineAccent}</span>{c.hero.headlineEnd}</span></p>
+          <p className="text-sm">Preview: <span className="font-display font-bold">{c.hero.headlineStart}<span className="text-gold-ink">{c.hero.headlineAccent}</span>{c.hero.headlineEnd}</span></p>
         </div>
       </SectionCard>
 
@@ -215,7 +215,7 @@ function HomeTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) =>
         <p className="mb-3 text-sm text-muted-foreground">The row of short selling points under the banner. Up to 6; 4 looks best.</p>
         <div className="flex flex-col gap-3">
           {c.valueStrip.map((v, i) => (
-            <div key={i} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-[8rem_1fr_2fr_auto] sm:items-end">
+            <div key={i} className="grid grid-cols-1 gap-2 rounded-xl border border-border p-3 sm:grid-cols-[8rem_1fr_2fr_auto] sm:items-end">
               <Field label="Icon">
                 <select value={v.icon} onChange={(e) => setItem(i, { icon: e.target.value as typeof v.icon })} className="h-10 w-full rounded-lg border border-border bg-background px-2 text-sm capitalize">
                   {VALUE_ICONS.map((ic) => <option key={ic} value={ic}>{ic}</option>)}
@@ -231,7 +231,7 @@ function HomeTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) =>
       </SectionCard>
 
       <SectionCard title="Bottom banner">
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <Field label="Heading"><Input value={c.cta.heading} onChange={(e) => setCta({ heading: e.target.value })} className="h-10" /></Field>
           <Field label="Text underneath (optional)"><Input value={c.cta.subtext} onChange={(e) => setCta({ subtext: e.target.value })} className="h-10" /></Field>
         </div>
@@ -272,7 +272,7 @@ function ReviewsTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>)
       <div className="flex flex-col gap-3">
         {r.items.map((it, i) => (
           <SectionCard key={it.id}>
-            <div className="grid gap-3 sm:grid-cols-[1fr_6rem_1fr_1fr_auto] sm:items-end">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_6rem_1fr_1fr_auto] sm:items-end">
               <Field label="Customer name"><Input value={it.name} onChange={(e) => setItem(i, { name: e.target.value })} className="h-10" /></Field>
               <Field label="Stars">
                 <select value={it.rating} onChange={(e) => setItem(i, { rating: Number(e.target.value) })} className="h-10 w-full rounded-lg border border-border bg-background px-2 text-sm">
@@ -304,7 +304,7 @@ function FaqTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) => 
       <div className="flex flex-col gap-3">
         {c.faqs.map((f, i) => (
           <div key={i} className="rounded-xl border border-border p-3">
-            <div className="grid gap-2 sm:grid-cols-[11rem_1fr_auto] sm:items-end">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[11rem_1fr_auto] sm:items-end">
               <Field label="Topic">
                 <select value={f.group} onChange={(e) => setItem(i, { group: e.target.value as typeof f.group })} className="h-10 w-full rounded-lg border border-border bg-background px-2 text-sm">
                   {FAQ_GROUPS.map((g) => <option key={g} value={g}>{GROUP_LABELS[g]}</option>)}

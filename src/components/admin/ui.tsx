@@ -5,7 +5,7 @@ import type { BookingStatus } from "@/lib/booking";
 export function StatCard({
   label, value, sub, accent,
 }: { label: string; value: string; sub?: string; accent?: "gold" | "jade" | "sambal" | "sakura" }) {
-  const ring = accent === "jade" ? "text-jade" : accent === "sambal" ? "text-sambal" : accent === "sakura" ? "text-sakura" : "text-gold";
+  const ring = accent === "jade" ? "text-jade" : accent === "sambal" ? "text-sambal" : accent === "sakura" ? "text-sakura" : "text-gold-ink";
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -17,7 +17,7 @@ export function StatCard({
 
 export function SectionCard({ title, action, children, className }: { title?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5", className)}>
+    <section className={cn("min-w-0 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5", className)}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           {title && <h2 className="font-display text-lg font-bold">{title}</h2>}
@@ -30,7 +30,7 @@ export function SectionCard({ title, action, children, className }: { title?: st
 }
 
 const ORDER_STATUS_STYLE: Record<OrderStatus, string> = {
-  received: "bg-gold/15 text-gold border-gold/30",
+  received: "bg-gold/15 text-gold-ink border-gold/30",
   preparing: "bg-sakura/15 text-sambal border-sakura/30",
   "out-for-delivery": "bg-jade/15 text-jade border-jade/30",
   "ready-for-collection": "bg-jade/15 text-jade border-jade/30",
@@ -56,7 +56,7 @@ export function OrderStatusPill({ status }: { status: OrderStatus }) {
 }
 
 const BOOKING_STATUS_STYLE: Record<BookingStatus, string> = {
-  upcoming: "bg-gold/15 text-gold border-gold/30",
+  upcoming: "bg-gold/15 text-gold-ink border-gold/30",
   seated: "bg-jade/15 text-jade border-jade/30",
   completed: "bg-muted text-muted-foreground border-border",
   cancelled: "bg-sambal/10 text-sambal border-sambal/30",

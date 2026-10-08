@@ -46,8 +46,8 @@ export function TravelEstimate({ fulfilment }: { fulfilment: "delivery" | "colle
   return (
     <div className="rounded-xl border border-border bg-muted/40 p-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-        <span className="inline-flex items-center gap-1.5"><MapPin className="size-4 text-gold" /> ~{travel!.driveMiles} miles away</span>
-        {travel!.driveMins !== null && <span className="inline-flex items-center gap-1.5"><Clock className="size-4 text-gold" /> ~{travel!.driveMins} min drive</span>}
+        <span className="inline-flex items-center gap-1.5"><MapPin className="size-4 text-gold-ink" /> ~{travel!.driveMiles} miles away</span>
+        {travel!.driveMins !== null && <span className="inline-flex items-center gap-1.5"><Clock className="size-4 text-gold-ink" /> ~{travel!.driveMins} min drive</span>}
       </div>
       {fulfilment === "collection" && travel!.driveMins !== null && (
         <p className="mt-2 text-sm font-medium text-jade">

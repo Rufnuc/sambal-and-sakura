@@ -47,11 +47,11 @@ function Hero({ content }: { content: SiteContent }) {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
         <div className="max-w-xl">
-          <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold">
+          <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold-ink">
             <Sparkles className="size-3.5" /> {hero.badge}
           </Badge>
           <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl">
-            {hero.headlineStart}<span className="text-gold">{hero.headlineAccent}</span>{hero.headlineEnd}
+            {hero.headlineStart}<span className="text-gold-ink">{hero.headlineAccent}</span>{hero.headlineEnd}
           </h1>
           <p className="mt-5 max-w-md text-lg text-sidebar-foreground/75 text-pretty">
             {b.blurb}
@@ -68,7 +68,7 @@ function Hero({ content }: { content: SiteContent }) {
 
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-sidebar-foreground/70">
             <OpenStatus />
-            <a href={telHref(b.phone)} className="inline-flex items-center gap-1.5 hover:text-gold">
+            <a href={telHref(b.phone)} className="inline-flex items-center gap-1.5 hover:text-gold-ink">
               <Phone className="size-4" /> {b.phone}
             </a>
             {showRating && (
@@ -109,7 +109,7 @@ function ValueStrip({ items }: { items: SiteContent["valueStrip"] }) {
           const Icon = VALUE_ICON_MAP[it.icon] ?? Sparkles;
           return (
           <div key={idx} className="flex items-start gap-3 px-2 py-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-gold-ink">
               <Icon className="size-5" />
             </span>
             <div>
@@ -129,7 +129,7 @@ function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: st
   return (
     <div className="mb-8 flex items-end justify-between gap-4">
       <div>
-        <p className="font-medium uppercase tracking-widest text-gold">{eyebrow}</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">{eyebrow}</p>
         <h2 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">{title}</h2>
       </div>
       {action}
@@ -220,14 +220,14 @@ function VisitUs({ content }: { content: SiteContent }) {
         <div className="flex flex-col gap-5 rounded-3xl border border-border bg-card p-7">
           <OpenStatus />
           <div className="flex items-start gap-3">
-            <MapPin className="mt-0.5 size-5 text-gold" />
+            <MapPin className="mt-0.5 size-5 text-gold-ink" />
             <p>{b.address.line1}{b.address.line2 ? `, ${b.address.line2}` : ""}<br />{b.address.city} {b.address.postcode}</p>
           </div>
-          <a href={telHref(b.phone)} className="flex items-center gap-3 hover:text-gold">
-            <Phone className="size-5 text-gold" /> {b.phone}
+          <a href={telHref(b.phone)} className="flex items-center gap-3 hover:text-gold-ink">
+            <Phone className="size-5 text-gold-ink" /> {b.phone}
           </a>
           <div className="flex items-start gap-3">
-            <Clock className="mt-0.5 size-5 text-gold" />
+            <Clock className="mt-0.5 size-5 text-gold-ink" />
             <ul className="w-full space-y-1 text-sm">
               {b.hours.map((h) => (
                 <li key={h.day} className="flex justify-between gap-3">

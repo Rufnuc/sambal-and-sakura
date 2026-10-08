@@ -55,9 +55,9 @@ export function StaffView() {
         <p className="text-muted-foreground">Create staff accounts and choose what each person can access</p>
       </div>
 
-      <SectionCard title="Add a staff member" action={<UserPlus className="size-5 text-primary" />}>
+      <SectionCard title="Add a staff member" action={<UserPlus className="size-5 text-gold-ink" />}>
         <form onSubmit={create} className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label htmlFor="st-name">Name</Label><Input id="st-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 h-11" required /></div>
             <div><Label htmlFor="st-email">Email</Label><Input id="st-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" required /></div>
             <div><Label htmlFor="st-pass">Password</Label><Input id="st-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" minLength={8} required /></div>
@@ -66,7 +66,7 @@ export function StaffView() {
             <Label>Role</Label>
             <div className="mt-1.5 flex gap-2">
               {(["staff", "admin"] as const).map((r) => (
-                <button key={r} type="button" onClick={() => setRole(r)} className={cn("rounded-full border px-4 py-1.5 text-sm capitalize transition", role === r ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{r === "admin" ? "Admin (full access)" : "Staff"}</button>
+                <button key={r} type="button" onClick={() => setRole(r)} className={cn("rounded-full border px-4 py-1.5 text-sm capitalize transition", role === r ? "border-primary bg-primary/10 text-gold-ink" : "border-border hover:bg-muted")}>{r === "admin" ? "Admin (full access)" : "Staff"}</button>
               ))}
             </div>
           </div>
@@ -96,7 +96,7 @@ export function StaffView() {
             <li key={m.id} className="rounded-xl border border-border p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 font-medium">{m.name} {m.role === "admin" && <Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold"><Shield className="size-3" /> Admin</Badge>}</p>
+                  <p className="flex items-center gap-2 font-medium">{m.name} {m.role === "admin" && <Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold-ink"><Shield className="size-3" /> Admin</Badge>}</p>
                   <p className="truncate text-xs text-muted-foreground">{m.email}</p>
                 </div>
                 <Button size="icon-sm" variant="ghost" aria-label={`Remove ${m.name}`} onClick={() => remove(m)}><Trash2 className="size-4" /></Button>

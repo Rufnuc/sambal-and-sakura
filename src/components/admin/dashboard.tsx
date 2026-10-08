@@ -69,7 +69,7 @@ export function Dashboard() {
       </div>
 
       {/* Charts row */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard title="Revenue & orders" className="lg:col-span-2">
           <ChartContainer config={revenueConfig} className="h-64 w-full">
             <AreaChart data={revSeries} margin={{ left: 4, right: 8, top: 8 }}>
@@ -107,7 +107,7 @@ export function Dashboard() {
         </SectionCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard title="Most popular dishes">
           <ChartContainer config={dishConfig} className="h-64 w-full">
             <BarChart data={dishes} layout="vertical" margin={{ left: 8, right: 16 }}>
@@ -119,7 +119,7 @@ export function Dashboard() {
           </ChartContainer>
         </SectionCard>
 
-        <SectionCard title="Recent orders" action={<Link href="/admin/orders" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">All <ArrowUpRight className="size-4" /></Link>}>
+        <SectionCard title="Recent orders" action={<Link href="/admin/orders" className="inline-flex items-center gap-1 text-sm font-medium text-gold-ink hover:underline">All <ArrowUpRight className="size-4" /></Link>}>
           <ul className="divide-y divide-border">
             {recentOrders.map((o) => (
               <li key={o.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -137,11 +137,11 @@ export function Dashboard() {
         </SectionCard>
       </div>
 
-      <SectionCard title="Today's bookings" action={<Link href="/admin/bookings" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">Manage <ArrowUpRight className="size-4" /></Link>}>
+      <SectionCard title="Today's bookings" action={<Link href="/admin/bookings" className="inline-flex items-center gap-1 text-sm font-medium text-gold-ink hover:underline">Manage <ArrowUpRight className="size-4" /></Link>}>
         {todaysBookings.length === 0 ? (
           <p className="text-sm text-muted-foreground">No bookings for today yet.</p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {todaysBookings.map((b) => (
               <div key={b.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                 <div>

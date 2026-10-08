@@ -34,7 +34,7 @@ export function MapEmbed({ query, className, title = "Map" }: { query: string; c
 
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3 bg-muted p-6 text-center", className)}>
-      <MapPin className="size-7 text-gold" />
+      <MapPin className="size-7 text-gold-ink" />
       <p className="max-w-xs text-sm text-muted-foreground">
         The map loads from Google Maps, which may set cookies. Load it to see where we are.
       </p>

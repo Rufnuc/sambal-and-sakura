@@ -148,10 +148,10 @@ function ResultCard({ result }: { result: { label: string; kind: string; code?: 
   }
   return (
     <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center shadow-sm">
-      <Gift className="mx-auto size-8 text-primary" />
+      <Gift className="mx-auto size-8 text-gold-ink" />
       <p className="mt-2 font-display text-2xl font-bold">You won {result.label}!</p>
       {result.code && (
-        <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-dashed border-primary/50 bg-background px-4 py-2 font-mono text-lg font-bold text-primary">
+        <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-dashed border-primary/50 bg-background px-4 py-2 font-mono text-lg font-bold text-gold-ink">
           <Ticket className="size-4" /> {result.code}
         </div>
       )}

@@ -43,7 +43,7 @@ export default function StaffLogin() {
         </div>
       </div>
       <form onSubmit={submit} className="w-full max-w-sm rounded-2xl border border-sidebar-border bg-sidebar-accent/40 p-6">
-        <h1 className="flex items-center gap-2 font-display text-xl font-bold"><Lock className="size-5 text-gold" /> Staff sign-in</h1>
+        <h1 className="flex items-center gap-2 font-display text-xl font-bold"><Lock className="size-5 text-gold-ink" /> Staff sign-in</h1>
         <div className="mt-4">
           <Label htmlFor="s-email">Email</Label>
           <Input id="s-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11 bg-background text-foreground" autoComplete="username" required />

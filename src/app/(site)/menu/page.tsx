@@ -20,7 +20,7 @@ export default async function MenuPage() {
   return (
     <div className="px-4 sm:px-6">
       <section className="mx-auto max-w-7xl pt-10">
-        <p className="font-medium uppercase tracking-widest text-gold">The menu</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">The menu</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
           Everything, made to order
         </h1>
@@ -41,13 +41,13 @@ export default async function MenuPage() {
       {deal.active && deal.title && (
         <div className="mx-auto mt-6 max-w-7xl">
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-gold/30 bg-gradient-to-r from-gold/15 to-background p-5">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold"><Sparkles className="size-6" /></span>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold-ink"><Sparkles className="size-6" /></span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gold">{deal.badge}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gold-ink">{deal.badge}</p>
               <p className="font-display text-xl font-bold">{deal.title}</p>
               {deal.description && <p className="text-sm text-muted-foreground">{deal.description}</p>}
             </div>
-            {typeof deal.price === "number" && <span className="font-display text-2xl font-extrabold text-gold">{gbp(deal.price)}</span>}
+            {typeof deal.price === "number" && <span className="font-display text-2xl font-extrabold text-gold-ink">{gbp(deal.price)}</span>}
           </div>
         </div>
       )}

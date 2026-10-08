@@ -132,9 +132,9 @@ export function MenuView() {
                   <p className="truncate font-medium">{m.name}</p>
                   {m.spiceLevel ? <Flame className="size-3.5 text-sambal" /> : null}
                   {(m.tags.includes("vegetarian") || m.tags.includes("vegan")) && <Leaf className="size-3.5 text-jade" />}
-                  {m.leadTimeHours ? <Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold"><Clock className="size-3" />{m.leadTimeHours}h</Badge> : null}
+                  {m.leadTimeHours ? <Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold-ink"><Clock className="size-3" />{m.leadTimeHours}h</Badge> : null}
                   {realPhoto(m.image) && <Badge variant="outline" className="border-jade/30 bg-jade/10 text-jade">photo</Badge>}
-                  {overrides[m.id] && <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold">edited</Badge>}
+                  {overrides[m.id] && <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold-ink">edited</Badge>}
                 </div>
                 <p className="truncate text-xs text-muted-foreground">{CATEGORY_LABELS[m.category]}</p>
               </div>

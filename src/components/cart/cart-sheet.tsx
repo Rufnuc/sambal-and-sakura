@@ -16,12 +16,14 @@ import { ORDERING } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { useHydrated } from "@/lib/use-hydrated";
+import { useBump } from "@/lib/use-bump";
 import { cn } from "@/lib/utils";
 
 export function CartButton({ className }: { className?: string }) {
   const lines = useCart((s) => s.lines);
   const hydrated = useHydrated();
   const count = hydrated ? cartCount(lines) : 0;
+  const bump = useBump(count, hydrated);
   const [open, setOpen] = useState(false);
 
   return (
@@ -35,7 +37,7 @@ export function CartButton({ className }: { className?: string }) {
       >
         <ShoppingBag className="size-5" />
         {count > 0 && (
-          <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">
+          <span className={cn("absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground", bump && "cart-pop")}>
             {count}
           </span>
         )}

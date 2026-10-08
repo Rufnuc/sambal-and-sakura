@@ -270,7 +270,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod) => 
           </div>
           {!user && (
             <p className="mt-3 rounded-lg bg-gold/10 px-3 py-2 text-xs text-foreground">
-              <Star className="mr-1 inline size-3.5 text-gold" /> Create an account at checkout to earn {LOYALTY.pointsPerPound} points per £1 and save rewards.
+              <Star className="mr-1 inline size-3.5 text-gold-ink" /> Create an account at checkout to earn {LOYALTY.pointsPerPound} points per £1 and save rewards.
             </p>
           )}
         </Card>
@@ -373,7 +373,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function ToggleCard({ active, onClick, icon: Icon, label, sub }: { active: boolean; onClick: () => void; icon: React.ElementType; label: string; sub: string }) {
   return (
     <button onClick={onClick} aria-pressed={active} className={cn("flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition", active ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:bg-muted")}>
-      <Icon className={cn("size-5", active ? "text-primary" : "text-muted-foreground")} />
+      <Icon className={cn("size-5", active ? "text-gold-ink" : "text-muted-foreground")} />
       <span className="font-semibold">{label}</span>
       <span className="text-xs text-muted-foreground">{sub}</span>
     </button>
@@ -436,7 +436,7 @@ function Confirmation({ order, method }: { order: ApiOrder; method: PayMethod })
         </div>
         {order.userId && order.pointsEarned > 0 && (
           <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-sm text-foreground">
-            <Star className="size-4 text-gold" /> +{order.pointsEarned} points added to your account.
+            <Star className="size-4 text-gold-ink" /> +{order.pointsEarned} points added to your account.
           </div>
         )}
         {order.fulfilment === "collection" && (

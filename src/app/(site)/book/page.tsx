@@ -47,7 +47,7 @@ export default function BookPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
       <header className="max-w-2xl">
-        <p className="font-medium uppercase tracking-widest text-gold">Reservations</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">Reservations</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Book a table</h1>
         <p className="mt-3 flex items-center gap-2 text-muted-foreground">
           <ShieldCheck className="size-4 text-jade" /> We always keep tables free for walk-ins, so service stays relaxed.
@@ -135,7 +135,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
       <div className="flex min-w-0 flex-col gap-6">
         {/* Party */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Users className="size-5 text-primary" /> Party size</h2>
+          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Users className="size-5 text-gold-ink" /> Party size</h2>
           <div className="flex items-center gap-4">
             <div className="inline-flex items-center rounded-full border border-border">
               <button aria-label="Fewer guests" className="flex size-11 items-center justify-center rounded-full hover:bg-muted" onClick={() => { setParty((p) => Math.max(1, p - 1)); track("booking_started"); }}><Minus className="size-4" /></button>
@@ -146,7 +146,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
           </div>
           {tooBig && (
             <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-sm text-foreground">
-              <Phone className="size-4 text-gold" /> For parties over {MAX_ONLINE_PARTY}, please call us on <a className="font-medium underline" href={`tel:${BOOKING_POLICY.largePartyPhone}`}>{BOOKING_POLICY.largePartyPhone}</a>.
+              <Phone className="size-4 text-gold-ink" /> For parties over {MAX_ONLINE_PARTY}, please call us on <a className="font-medium underline" href={`tel:${BOOKING_POLICY.largePartyPhone}`}>{BOOKING_POLICY.largePartyPhone}</a>.
             </p>
           )}
           {deposit && !tooBig && (
@@ -158,7 +158,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
 
         {/* Date */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><CalendarDays className="size-5 text-primary" /> Date</h2>
+          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><CalendarDays className="size-5 text-gold-ink" /> Date</h2>
           <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {dates.map((d) => (
               <button
@@ -171,7 +171,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
               >
                 <span className="text-sm font-semibold">{d.label}</span>
                 <span className="text-xs opacity-80">{d.sub}</span>
-                {isPeak(d.value) && <span className={cn("mt-0.5 text-[10px]", date === d.value ? "text-gold-soft" : "text-gold")}>Peak</span>}
+                {isPeak(d.value) && <span className={cn("mt-0.5 text-[10px]", date === d.value ? "text-gold-soft" : "text-gold-ink")}>Peak</span>}
               </button>
             ))}
           </div>
@@ -179,7 +179,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
 
         {/* Time */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-bold"><Clock className="size-5 text-primary" /> Time</h2>
+          <h2 className="mb-1 flex items-center gap-2 font-display text-xl font-bold"><Clock className="size-5 text-gold-ink" /> Time</h2>
           <p className="mb-4 text-sm text-muted-foreground">
             {isPeak(date) ? "Peak night - more tables held for walk-ins." : "Pick a slot below."}
           </p>
@@ -205,7 +205,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
                   )}
                 >
                   {s.time}
-                  {s.state === "waitlist" && time !== s.time && <span className="block text-[10px] text-gold">waitlist</span>}
+                  {s.state === "waitlist" && time !== s.time && <span className="block text-[10px] text-gold-ink">waitlist</span>}
                 </button>
               ))}
             </div>
@@ -228,7 +228,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
             <Label>Occasion</Label>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {OCCASIONS.map((o) => (
-                <button key={o} onClick={() => setOccasion(o)} className={cn("rounded-full border px-3 py-1.5 text-sm transition", occasion === o ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>{o}</button>
+                <button key={o} onClick={() => setOccasion(o)} className={cn("rounded-full border px-3 py-1.5 text-sm transition", occasion === o ? "border-primary bg-primary/10 text-gold-ink" : "border-border hover:bg-muted")}>{o}</button>
               ))}
             </div>
           </div>
@@ -252,7 +252,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
 
           {selectedSlot?.state === "waitlist" && (
             <p className="mt-4 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-xs text-foreground">
-              <Info className="size-4 text-gold" /> This slot is on the waitlist - we'll confirm by text if a table frees up.
+              <Info className="size-4 text-gold-ink" /> This slot is on the waitlist - we'll confirm by text if a table frees up.
             </p>
           )}
 
@@ -285,7 +285,7 @@ function BookingConfirmation({ booking }: { booking: ApiBooking }) {
       </p>
       <div className="mt-6 rounded-2xl border border-border bg-card p-6 text-left shadow-sm">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className={waitlist ? "border-gold/30 bg-gold/10 text-gold" : "border-jade/30 bg-jade/10 text-jade"}>
+          <Badge variant="outline" className={waitlist ? "border-gold/30 bg-gold/10 text-gold-ink" : "border-jade/30 bg-jade/10 text-jade"}>
             {waitlist ? "Waitlisted" : "Confirmed"}
           </Badge>
           <span className="text-sm text-muted-foreground">{booking.party} guests</span>

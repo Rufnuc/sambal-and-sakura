@@ -103,7 +103,7 @@ export function MenuBrowser({ menu = MENU }: { menu?: MenuItem[] }) {
                   aria-pressed={on}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                    on ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted",
+                    on ? "border-primary bg-primary/10 text-gold-ink" : "border-border text-muted-foreground hover:bg-muted",
                   )}
                 >
                   <Icon className="size-3.5" /> {d.label}
@@ -132,7 +132,7 @@ export function MenuBrowser({ menu = MENU }: { menu?: MenuItem[] }) {
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-20 text-center">
             <Search className="size-8 text-muted-foreground" />
             <p className="font-medium">No dishes match your search.</p>
-            <button onClick={() => { setQuery(""); setActive("all"); setDiets(new Set()); }} className="text-sm font-medium text-primary hover:underline">
+            <button onClick={() => { setQuery(""); setActive("all"); setDiets(new Set()); }} className="text-sm font-medium text-gold-ink hover:underline">
               Clear filters
             </button>
           </div>

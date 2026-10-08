@@ -49,7 +49,7 @@ export function CareersView() {
       {jobs.map((j, i) => (
         <SectionCard key={j.id}>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 font-display text-lg font-bold"><Briefcase className="size-4 text-primary" /> {j.title || "Untitled role"}</h2>
+            <h2 className="flex items-center gap-2 font-display text-lg font-bold"><Briefcase className="size-4 text-gold-ink" /> {j.title || "Untitled role"}</h2>
             <div className="flex items-center gap-2">
               <button onClick={() => update(i, { active: !j.active })} role="switch" aria-checked={j.active} className={cn("relative inline-flex h-7 w-12 items-center rounded-full transition", j.active ? "bg-jade" : "bg-muted")}>
                 <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", j.active ? "translate-x-6" : "translate-x-1")} />
@@ -57,7 +57,7 @@ export function CareersView() {
               <button aria-label="Remove role" onClick={() => setJobs((js) => js.filter((_, idx) => idx !== i))} className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:text-sambal"><Trash2 className="size-4" /></button>
             </div>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label className="text-xs">Title</Label><Input value={j.title} onChange={(e) => update(i, { title: e.target.value })} className="mt-1 h-10" /></div>
             <div>
               <Label className="text-xs">Type</Label>

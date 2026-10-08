@@ -26,9 +26,9 @@ export function OpenStatus({ className, compact = false }: { className?: string;
         {state.open && (
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-jade opacity-70" />
         )}
-        <span className={cn("relative inline-flex size-2.5 rounded-full", state.open ? "bg-jade" : "bg-muted-foreground")} />
+        <span className={cn("relative inline-flex size-2.5 rounded-full", state.open ? "bg-jade" : "bg-current opacity-50")} />
       </span>
-      <span className={state.open ? "text-foreground" : "text-muted-foreground"}>
+      <span className={state.open ? undefined : "opacity-70"}>
         {compact ? (state.open ? "Open now" : "Closed") : state.label}
       </span>
     </span>

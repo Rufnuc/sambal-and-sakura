@@ -74,7 +74,7 @@ export function ReferralWidget() {
       <div className="mt-5 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Your code</p>
         <div className="mt-1 flex items-center justify-between gap-3">
-          <span className="font-mono text-2xl font-bold text-primary">{code}</span>
+          <span className="font-mono text-2xl font-bold text-gold-ink">{code}</span>
           <Button variant="outline" size="sm" className="h-9" onClick={() => copy(code)}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />} Copy
           </Button>

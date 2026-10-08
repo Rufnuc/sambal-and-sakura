@@ -85,7 +85,7 @@ export function CustomersView() {
               {rows.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.name}<span className="block text-xs text-muted-foreground">{c.email}</span></TableCell>
-                  <TableCell><Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold"><Crown className="size-3" /> {c.tier}</Badge></TableCell>
+                  <TableCell><Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold-ink"><Crown className="size-3" /> {c.tier}</Badge></TableCell>
                   <TableCell className="tabular-nums">{c.points.toLocaleString()}</TableCell>
                   <TableCell>{c.orders}</TableCell>
                   <TableCell className="font-semibold">{gbp(c.spend)}</TableCell>

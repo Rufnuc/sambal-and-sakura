@@ -24,7 +24,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
           {LOCALES.map((l) => (
             <DropdownMenuItem key={l} onClick={() => setLocale(l)} className="flex items-center justify-between">
               {LOCALE_LABELS[l]}
-              {locale === l && <Check className="size-4 text-primary" />}
+              {locale === l && <Check className="size-4 text-gold-ink" />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>

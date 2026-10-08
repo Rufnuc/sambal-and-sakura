@@ -20,7 +20,7 @@ export function CopyCode({ code, className }: { code: string; className?: string
         }
       }}
       className={cn(
-        "inline-flex items-center gap-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 px-3 py-1.5 font-mono text-sm font-semibold text-primary transition hover:bg-primary/10",
+        "inline-flex items-center gap-2 rounded-lg border border-dashed border-primary/50 bg-primary/5 px-3 py-1.5 font-mono text-sm font-semibold text-gold-ink transition hover:bg-primary/10",
         className,
       )}
       aria-label={`Copy code ${code}`}

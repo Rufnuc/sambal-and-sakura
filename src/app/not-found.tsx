@@ -7,7 +7,7 @@ export default function NotFound() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-sidebar px-6 text-center text-sidebar-foreground">
       <LogoMark className="size-16" />
       <div>
-        <p className="font-display text-7xl font-extrabold text-gold">404</p>
+        <p className="font-display text-7xl font-extrabold text-gold-ink">404</p>
         <h1 className="mt-2 font-display text-2xl font-bold">This dish isn't on the menu</h1>
         <p className="mt-2 max-w-sm text-sidebar-foreground/70">
           The page you're after has wandered off. Let's get you back to the good stuff.

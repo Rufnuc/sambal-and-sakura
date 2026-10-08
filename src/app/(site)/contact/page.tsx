@@ -18,7 +18,7 @@ export default async function ContactPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
       <header className="max-w-2xl">
-        <p className="font-medium uppercase tracking-widest text-gold">Say hello</p>
+        <p className="font-medium uppercase tracking-widest text-gold-ink">Say hello</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Contact & find us</h1>
         <p className="mt-3 text-muted-foreground">Questions, feedback, or a big booking? We'd love to hear from you.</p>
       </header>
@@ -30,7 +30,7 @@ export default async function ContactPage() {
             <ContactCard icon={Mail} label="Email" value={b.email} href={`mailto:${b.email}`} />
             <ContactCard icon={MapPin} label="Find us" value={formatAddress(b.address)} />
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <Bike className="size-5 text-primary" />
+              <Bike className="size-5 text-gold-ink" />
               <p className="mt-2 font-semibold">Delivery coverage</p>
               <p className="text-sm text-muted-foreground">{ORDERING.deliveryZones.map((z) => z.postcodes.join(", ")).join(" · ")}</p>
             </div>
@@ -38,7 +38,7 @@ export default async function ContactPage() {
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 font-display text-lg font-bold"><Clock className="size-5 text-primary" /> Opening hours</h2>
+              <h2 className="flex items-center gap-2 font-display text-lg font-bold"><Clock className="size-5 text-gold-ink" /> Opening hours</h2>
               <OpenStatus compact />
             </div>
             <ul className="space-y-1 text-sm">
@@ -68,7 +68,7 @@ export default async function ContactPage() {
 function ContactCard({ icon: Icon, label, value, href }: { icon: React.ElementType; label: string; value: string; href?: string }) {
   const inner = (
     <>
-      <Icon className="size-5 text-primary" />
+      <Icon className="size-5 text-gold-ink" />
       <p className="mt-2 font-semibold">{label}</p>
       <p className="text-sm text-muted-foreground">{value}</p>
     </>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Flame, Leaf, Star, ChefHat, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Check, Flame, Leaf, Star, ChefHat, Sparkles } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -20,12 +19,12 @@ import type { MenuItem } from "@/lib/data/menu";
 import { cn } from "@/lib/utils";
 
 const TAG_META: Record<string, { label: string; icon: React.ElementType; className: string }> = {
-  popular: { label: "Popular", icon: Star, className: "bg-gold/15 text-gold border-gold/30" },
+  popular: { label: "Popular", icon: Star, className: "bg-gold/15 text-gold-ink border-gold/30" },
   chef: { label: "Chef's pick", icon: ChefHat, className: "bg-jade/15 text-jade border-jade/30" },
   spicy: { label: "Spicy", icon: Flame, className: "bg-sambal/15 text-sambal border-sambal/30" },
   vegetarian: { label: "Veg", icon: Leaf, className: "bg-jade/15 text-jade border-jade/30" },
   vegan: { label: "Vegan", icon: Leaf, className: "bg-jade/15 text-jade border-jade/30" },
-  new: { label: "New", icon: Sparkles, className: "bg-sakura/20 text-sambal border-sakura/40" },
+  new: { label: "New", icon: Sparkles, className: "bg-sakura/20 text-sambal dark:text-sakura border-sakura/40" },
 };
 
 // Base menu data carries placeholder paths (/menu/*.jpg) that don't exist yet.
@@ -51,10 +50,21 @@ function SpiceDots({ level }: { level?: number }) {
 export function DishCard({ item, className, dense = false }: { item: MenuItem; className?: string; dense?: boolean }) {
   const addLine = useCart((s) => s.addLine);
 
+  // Adding to the cart must never block the screen: no popup. Instead the button briefly reads
+  // "Added" and the cart badge pops (see useBump). Screen readers get a polite announcement.
+  const [justAdded, setJustAdded] = useState(false);
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function flash() {
+    setJustAdded(true);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setJustAdded(false), 1100);
+  }
+  useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
+
   function quickAdd() {
     addLine(item, item.price, []);
     track("add_to_cart", { id: item.id, source: "quick" });
-    toast.success(`${item.name} added`, { description: gbp(item.price) });
+    flash();
   }
 
   const tags = item.tags.filter((t) => TAG_META[t]).slice(0, 2);
@@ -65,7 +75,7 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
       <div className="relative">
         <DishImage name={item.name} category={item.category} className={cn("w-full", dense ? "aspect-square sm:aspect-[4/3]" : "aspect-[4/3]")} rounded="rounded-none" src={photo} />
         {item.leadTimeHours ? (
-          <div className={cn("absolute rounded-full bg-background/90 font-semibold text-gold backdrop-blur", dense ? "bottom-2 left-2 px-2 py-0.5 text-[10px] sm:bottom-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-xs" : "bottom-3 left-3 px-2.5 py-1 text-xs")}>
+          <div className={cn("absolute rounded-full bg-background/90 font-semibold text-gold-ink backdrop-blur", dense ? "bottom-2 left-2 px-2 py-0.5 text-[10px] sm:bottom-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-xs" : "bottom-3 left-3 px-2.5 py-1 text-xs")}>
             Pre-order · {item.leadTimeHours}h notice
           </div>
         ) : null}
@@ -95,7 +105,7 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
         <p className={cn("mt-1 line-clamp-2 text-muted-foreground", dense ? "text-xs sm:text-sm" : "text-sm")}>{item.description}</p>
 
         {item.allergens.length > 0 && (
-          <p className={cn("mt-2 text-xs text-muted-foreground/80", dense && "hidden sm:block")}>
+          <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>
             Allergens: {item.allergens.join(", ")}
           </p>
         )}
@@ -109,19 +119,20 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
             <span className={cn("font-display font-bold", dense ? "text-base sm:text-xl" : "text-xl")}>{gbp(item.price)}</span>
           </div>
           {item.modifiers && item.modifiers.length > 0 ? (
-            <CustomiseDialog item={item} dense={dense} />
+            <CustomiseDialog item={item} dense={dense} onAdded={flash} />
           ) : (
             <Button size="sm" className={cn("gap-1", dense ? "h-8 px-2.5 sm:h-9 sm:px-3" : "h-9")} disabled={item.soldOut} onClick={quickAdd}>
-              <Plus className="size-4" /> Add
+              {justAdded ? <Check className="size-4" /> : <Plus className="size-4" />} {justAdded ? "Added" : "Add"}
             </Button>
           )}
         </div>
       </div>
+      <span className="sr-only" role="status" aria-live="polite">{justAdded ? `${item.name} added to cart` : ""}</span>
     </div>
   );
 }
 
-function CustomiseDialog({ item, dense = false }: { item: MenuItem; dense?: boolean }) {
+function CustomiseDialog({ item, dense = false, onAdded }: { item: MenuItem; dense?: boolean; onAdded?: () => void }) {
   const addLine = useCart((s) => s.addLine);
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState(1);
@@ -155,7 +166,7 @@ function CustomiseDialog({ item, dense = false }: { item: MenuItem; dense?: bool
   function confirm() {
     addLine(item, unitPrice, selected, qty);
     track("add_to_cart", { id: item.id, source: "customise", qty });
-    toast.success(`${qty}× ${item.name} added`, { description: gbp(unitPrice * qty) });
+    onAdded?.();
     setOpen(false);
     setQty(1);
   }

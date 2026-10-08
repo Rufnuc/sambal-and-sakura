@@ -44,7 +44,7 @@ export function FloorView() {
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Floor plan</h1>
         <p className="text-muted-foreground">
-          Live table status · {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })} {peak && <span className="text-gold">· Peak night</span>}
+          Live table status · {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })} {peak && <span className="text-gold-ink">· Peak night</span>}
         </p>
       </div>
 
@@ -70,7 +70,7 @@ export function FloorView() {
         <p className="mt-3 flex items-center gap-1.5 text-sm text-jade"><ShieldCheck className="size-4" /> Walk-in protection keeps {Math.round(reservePct * 100)}% of seats open - online booking can't consume them.</p>
       </SectionCard>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {zones.map((zone) => (
           <SectionCard key={zone} title={`${zone} zone`}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

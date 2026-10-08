@@ -48,7 +48,7 @@ export function DishAssistant({ item, compact = false }: { item: MenuItem; compa
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setAnswer(""); setQuestion(""); } }}>
       <DialogTrigger
-        className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:border-gold/40 hover:bg-gold/10 hover:text-gold"
+        className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:border-gold/40 hover:bg-gold/10 hover:text-gold-ink"
         aria-label={`Ask about ${item.name}`}
       >
         <Sparkles className="size-3.5" /> {compact ? (<><span className="sm:hidden">Ask</span><span className="hidden sm:inline">Ask about this</span></>) : "Ask about this"}
@@ -56,7 +56,7 @@ export function DishAssistant({ item, compact = false }: { item: MenuItem; compa
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-display text-xl">
-            <Sparkles className="size-5 text-gold" /> {item.name}
+            <Sparkles className="size-5 text-gold-ink" /> {item.name}
           </DialogTitle>
           <DialogDescription>
             Ask anything about this dish — ingredients, spice, or a change like &quot;no onions&quot; or &quot;extra sauce&quot;.

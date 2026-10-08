@@ -23,6 +23,8 @@
   --color-cream: var(--cream);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  /* text-safe gold: dark amber on light surfaces, bright on dark ones */
+  --color-gold-ink: var(--gold-ink);
   --color-sambal: var(--sambal);
   --color-sakura: var(--sakura);
   --color-sakura-soft: var(--sakura-soft);
@@ -74,10 +76,11 @@
   --cream: #fbf7ef;
   --gold: #d99a2b;
   --gold-soft: #f0c65a;
+  --gold-ink: #94620c; /* gold TEXT on light surfaces: 4.6:1+ (bright gold is only 2.3:1) */
   --sambal: #c0362c;
   --sakura: #e2869a;
   --sakura-soft: #f4c9d2;
-  --jade: #3e7c6a;
+  --jade: #33685a;
 
   /* semantic (light = warm cream canvas) */
   --background: #fbf7ef;
@@ -120,6 +123,7 @@
   --cream: #f3ecdd;
   --gold: #ecbb4e;
   --gold-soft: #f6d487;
+  --gold-ink: #ecbb4e;
   --sambal: #e0564a;
   --sakura: #e9a0b0;
   --sakura-soft: #3a2a2d;
@@ -202,3 +206,16 @@
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
 }
+
+/* Sections that are dark in both light and dark mode use the bright gold for text. */
+.bg-sidebar {
+  --gold-ink: #ecbb4e;
+}
+
+/* Cart badge: quick pop when an item is added (instant feedback, never blocks the UI). */
+@keyframes cart-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+.cart-pop { animation: cart-pop 450ms ease-out; }

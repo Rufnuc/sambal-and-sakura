@@ -66,7 +66,7 @@ export function PromosView() {
           </button>
           <span className="text-sm text-muted-foreground">{deal.active ? "Live on the menu page" : "Hidden"}</span>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr_1fr]">
           <div><Label className="text-xs">Title</Label><Input value={deal.title} onChange={(e) => setDeal({ ...deal, title: e.target.value })} className="mt-1 h-10" placeholder="e.g. Chicken Katsu Curry + drink" /></div>
           <div><Label className="text-xs">Price £ (optional)</Label><Input type="number" step="0.5" value={deal.price ?? ""} onChange={(e) => setDeal({ ...deal, price: e.target.value ? Number(e.target.value) : undefined })} className="mt-1 h-10" inputMode="decimal" /></div>
           <div><Label className="text-xs">Badge</Label><Input value={deal.badge} onChange={(e) => setDeal({ ...deal, badge: e.target.value })} className="mt-1 h-10" /></div>
@@ -90,7 +90,7 @@ export function PromosView() {
       <SectionCard title="Offers & vouchers" action={<Button size="sm" className="h-9 gap-1.5" onClick={saveOffers}><Save className="size-4" /> Save</Button>}>
         <div className="flex flex-col gap-3">
           {offers.map((o, i) => (
-            <div key={o.id} className="grid gap-2 rounded-xl border border-border p-3 sm:grid-cols-[1.3fr_2fr_0.8fr_0.8fr_auto] sm:items-end">
+            <div key={o.id} className="grid grid-cols-1 gap-2 rounded-xl border border-border p-3 sm:grid-cols-[1.3fr_2fr_0.8fr_0.8fr_auto] sm:items-end">
               <div><Label className="text-xs">Title</Label><Input value={o.title} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, title: e.target.value } : x))} className="mt-1 h-10" /></div>
               <div><Label className="text-xs">Description</Label><Input value={o.description} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} className="mt-1 h-10" /></div>
               <div><Label className="text-xs">Code</Label><Input value={o.code ?? ""} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, code: e.target.value.toUpperCase() } : x))} className="mt-1 h-10" /></div>
@@ -114,7 +114,7 @@ export function PromosView() {
             </div>
           ))}
         </div>
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="size-3.5 text-gold" /> Probability is each prize's weight ÷ total. One spin per customer per week.</p>
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="size-3.5 text-gold-ink" /> Probability is each prize's weight ÷ total. One spin per customer per week.</p>
       </SectionCard>
     </div>
   );

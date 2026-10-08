@@ -164,7 +164,7 @@ function BookingEditDialog({ booking, onClose, onSaved }: { booking: Booking | n
         {booking && (
           <>
             <DialogHeader><DialogTitle className="font-display">Edit booking · {booking.id}</DialogTitle></DialogHeader>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div><Label className="text-xs">Name</Label><Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 h-10" /></div>
               <div><Label className="text-xs">Phone</Label><Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 h-10" /></div>
               <div><Label className="text-xs">Date</Label><Input type="date" value={form.date ?? ""} onChange={(e) => setForm({ ...form, date: e.target.value })} className="mt-1 h-10" /></div>

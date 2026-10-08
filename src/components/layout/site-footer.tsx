@@ -16,7 +16,7 @@ export async function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="max-w-xs">
             <Wordmark className="[&_span]:text-sidebar-foreground" />
-            <p className="mt-4 text-sm text-sidebar-foreground/70">{b.blurb}</p>
+            <p className="mt-4 text-sm text-sidebar-foreground/80">{b.blurb}</p>
             <div className="mt-4">
               <OpenStatus />
             </div>
@@ -55,7 +55,7 @@ export async function SiteFooter() {
               <ul className="mt-4 flex flex-col gap-2.5">
                 {col.links.map((l) => (
                   <li key={l.href}>
-                    <Link href={l.href} className="text-sm text-sidebar-foreground/70 transition hover:text-gold">
+                    <Link href={l.href} className="text-sm text-sidebar-foreground/80 transition hover:text-gold-ink">
                       {l.label}
                     </Link>
                   </li>
@@ -67,19 +67,19 @@ export async function SiteFooter() {
 
         <div className="brand-divider my-10" />
 
-        <div className="grid gap-6 text-sm text-sidebar-foreground/70 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 text-sm text-sidebar-foreground/80 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex items-start gap-3">
-            <MapPin className="mt-0.5 size-4 shrink-0 text-gold" />
+            <MapPin className="mt-0.5 size-4 shrink-0 text-gold-ink" />
             <span>{b.address.line1}{b.address.line2 ? `, ${b.address.line2}` : ""}<br />{b.address.city} {b.address.postcode}</span>
           </div>
-          <a href={telHref(b.phone)} className="flex items-center gap-3 hover:text-gold">
-            <Phone className="size-4 shrink-0 text-gold" /> {b.phone}
+          <a href={telHref(b.phone)} className="flex items-center gap-3 hover:text-gold-ink">
+            <Phone className="size-4 shrink-0 text-gold-ink" /> {b.phone}
           </a>
-          <a href={`mailto:${b.email}`} className="flex items-center gap-3 hover:text-gold">
-            <Mail className="size-4 shrink-0 text-gold" /> {b.email}
+          <a href={`mailto:${b.email}`} className="flex items-center gap-3 hover:text-gold-ink">
+            <Mail className="size-4 shrink-0 text-gold-ink" /> {b.email}
           </a>
           <div className="flex items-start gap-3">
-            <Clock className="mt-0.5 size-4 shrink-0 text-gold" />
+            <Clock className="mt-0.5 size-4 shrink-0 text-gold-ink" />
             <ul className="space-y-0.5">
               {b.hours.map((h) => (
                 <li key={h.day} className="flex justify-between gap-4">
@@ -92,11 +92,11 @@ export async function SiteFooter() {
         </div>
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 text-xs text-sidebar-foreground/50 sm:flex-row">
-          <p>© {new Date().getFullYear()} {RESTAURANT.name}. <span className="text-[10px] opacity-60">All food halal.</span></p>
+          <p>© {new Date().getFullYear()} {RESTAURANT.name}. <span className="text-[10px]">All food halal.</span></p>
           <div className="flex gap-4">
-            <Link href="/legal/privacy" className="hover:text-gold">Privacy</Link>
-            <Link href="/legal/terms" className="hover:text-gold">Terms</Link>
-            <Link href="/legal/accessibility" className="hover:text-gold">Accessibility</Link>
+            <Link href="/legal/privacy" className="hover:text-gold-ink">Privacy</Link>
+            <Link href="/legal/terms" className="hover:text-gold-ink">Terms</Link>
+            <Link href="/legal/accessibility" className="hover:text-gold-ink">Accessibility</Link>
           </div>
         </div>
       </div>

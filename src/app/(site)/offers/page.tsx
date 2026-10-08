@@ -3,6 +3,7 @@ import { OffersTabs } from "@/components/offers/offers-tabs";
 import { getOffers, getWheelPrizes, getReferralConfig } from "@/server/config";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/offers" },
   title: "Offers & Rewards",
   description: "Current offers, the Fortune Wheel and our refer-a-friend rewards - exclusive to ordering direct with Sambal & Sakura.",
 };

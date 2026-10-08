@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
 import { RESTAURANT } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
+import { SITE_URL } from "@/lib/site-url";
 
 const display = Playfair_Display({
   subsets: ["latin"],
@@ -26,13 +27,20 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { business } = await getSiteContent();
-  const title = `${RESTAURANT.name} - ${business.tagline}`;
+  // Brand name first, then what it is and where: this is what Google shows as the blue link text.
+  const title = `${RESTAURANT.name} | Chinese & Japanese Restaurant in ${business.address.city}`;
+  const verification = process.env.GOOGLE_SITE_VERIFICATION;
+  const bingVerification = process.env.BING_SITE_VERIFICATION;
   return {
-    metadataBase: new URL("https://sambalandsakura.co.uk"),
+    metadataBase: new URL(SITE_URL),
     title: { default: title, template: `%s · ${RESTAURANT.name}` },
     description: business.blurb,
-    openGraph: { title, description: business.blurb, type: "website", locale: "en_GB" },
+    applicationName: RESTAURANT.name,
+    openGraph: { title, description: business.blurb, type: "website", locale: "en_GB", siteName: RESTAURANT.name },
     icons: { icon: "/logo-mark.svg" },
+    ...(verification || bingVerification
+      ? { verification: { ...(verification ? { google: verification } : {}), ...(bingVerification ? { other: { "msvalidate.01": bingVerification } } : {}) } }
+      : {}),
   };
 }
 

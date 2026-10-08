@@ -1,10 +1,14 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site-url";
 
-const BASE = "https://sambalandsakura.co.uk";
+const BASE = SITE_URL;
+
+// Built on each request (not at build time) so it always reflects the SITE_URL the site is running with.
+export const dynamic = "force-dynamic";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const routes = ["", "/menu", "/order", "/book", "/offers", "/careers", "/contact", "/faq", "/legal/privacy", "/legal/terms", "/legal/accessibility"];
+  const routes = ["", "/menu", "/order", "/book", "/offers", "/careers", "/contact", "/legal/privacy", "/legal/terms", "/legal/accessibility"];
   return routes.map((r) => ({
     url: BASE + r,
     lastModified: now,

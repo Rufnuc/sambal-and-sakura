@@ -39,7 +39,7 @@ Deep charcoal base + refined warm gold accent (never pure yellow), with sambal r
 - `/order` — checkout: delivery/collection, postcode→zone validation, scheduling, cash-only, voucher, order confirmation + status tracker
 - `/book` — reservations: party size, live date/time availability, **walk-in protection**, deposits, waitlist, confirmation
 - `/offers` · `/refer` · `/wheel` — promotions, referral link generator, fortune-cookie spin wheel
-- `/contact` · `/faq` · `/legal/{privacy,terms,accessibility}`
+- `/contact` (includes the FAQ; `/faq` redirects there) · `/legal/{privacy,terms,accessibility}`
 
 **Accounts** (`src/app/(site)/account/`, `src/lib/store/auth.ts`)
 - Sign up / sign in (demo auth, localStorage — no real passwords), header avatar menu.

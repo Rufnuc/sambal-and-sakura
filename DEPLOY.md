@@ -68,7 +68,55 @@ Set **all** of `WECHAT_APPID`, `WECHAT_MCHID`, `WECHAT_SERIAL_NO`, `WECHAT_PRIVA
 
 The payment-confirmation code is tested (signature verification, replay protection, amount check) against simulated WeChat messages, **but it has not been run against live WeChat**. Do one real small test payment before announcing it. Until all the keys are set, WeChat is hidden from customers and cash still works.
 
-## 6. Changing the database later
+## 6. Getting found on Google
+
+Google does not find a new site by itself quickly. The code already does its part (sitemap, robots file,
+canonical links, the restaurant's details in a format Google reads, and both spellings "Sambal & Sakura" /
+"Sambal and Sakura"). These steps are yours, because they need your Google account:
+
+1. **`SITE_URL` must match the real address.** It is set in `render.yaml`. If you connect your own domain later,
+   change `SITE_URL` in Render to it (e.g. `https://sambalandsakura.co.uk`) and let it redeploy. A wrong value
+   makes Google ignore the sitemap.
+2. **Google Search Console** (search.google.com/search-console):
+   1. Add property → **URL prefix** → paste your exact address.
+   2. Choose the **HTML tag** method and copy only the `content="..."` value.
+   3. In Render, set `GOOGLE_SITE_VERIFICATION` to that value, wait for the redeploy, then click **Verify**.
+   4. **Sitemaps** → submit `sitemap.xml`.
+   5. **URL inspection** → paste your home address → **Request indexing**.
+3. **Google Business Profile** (business.google.com). This matters most for a restaurant: it is what produces the
+   map card and the panel when someone searches the name. Claim the listing for the restaurant at
+   236-238 Linthorpe Road (it may exist under the old name), set the name to "Sambal & Sakura", and add the website.
+4. **Make the details real and consistent.** Replace the placeholder phone, email and social links in
+   Admin → Site content. Use the same name, address and phone on the website, Google Business Profile and social pages.
+5. **Link to the site** from the Instagram, Facebook and TikTok bios.
+
+Expect days to a few weeks before the name search shows the site. Nobody can make it instant. To check progress,
+search `site:` followed by your address, or look at Search Console → Pages.
+
+### Being found by AI assistants (ChatGPT, Perplexity, Gemini, Claude, Google AI answers)
+
+What the website already does: the opening hours, address, phone, delivery area and the whole menu are in the
+page text (not hidden behind JavaScript), the restaurant and the menu are described in the structured format
+search and AI tools read, both spellings "Sambal & Sakura" / "Sambal and Sakura" are declared, the FAQ answers are in
+the page, the Contact page has a plain-language "at a glance" summary built from your live settings, and there are
+`/llms.txt` and `/llms-full.txt` summaries. Nothing blocks AI crawlers in `robots.txt`.
+
+What it cannot do: AI assistants mostly repeat what trusted **other** places say about a business. These are yours to do:
+
+1. **Bing Webmaster Tools** (bing.com/webmaster): add the site, choose the HTML meta tag method, put the code in
+   Render as `BING_SITE_VERIFICATION`, then submit the sitemap. Bing's index feeds ChatGPT search and Copilot.
+2. **Google Business Profile**, plus **Apple Business Connect** (Apple Maps and Siri), **TripAdvisor** and **Facebook**:
+   claim each listing with the same name, address, phone and website. Consistency across these is the strongest signal.
+3. **Real reviews.** Ask genuine customers to review on Google and TripAdvisor. Assistants quote review sites heavily.
+4. **Keep the settings truthful.** The hours, delivery area and menu you set in the admin are what the website, the
+   summaries and Google all repeat. If they are wrong, assistants will repeat the wrong thing.
+5. **Check monthly.** Ask ChatGPT, Perplexity, Gemini and Google things like "Sambal and Sakura Middlesbrough opening hours"
+   and "does Sambal and Sakura deliver" and note what each says. New sites often take weeks or months to appear.
+
+Honest limits: no one can guarantee being named by an AI assistant, and no major AI company has confirmed that it reads
+`/llms.txt`. The page text and structured data above are the parts that are known to matter.
+
+## 7. Changing the database later
 
 Edit `prisma/schema.prisma` (the single source of truth), then:
 

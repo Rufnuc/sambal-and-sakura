@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Phone, Mail, MapPin, Clock, Bike } from "lucide-react";
 import { ContactForm } from "@/components/contact/contact-form";
+import { FaqSection } from "@/components/faq/faq-section";
+import { KeyFacts } from "@/components/seo/key-facts";
 import { OpenStatus } from "@/components/brand/open-status";
 import { MapEmbed } from "@/components/brand/map-embed";
 import { ORDERING } from "@/lib/data/site";
@@ -9,8 +11,9 @@ import { telHref, formatAddress } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/contact" },
   title: "Contact",
-  description: "Call, email or message us. Find our address, opening hours and delivery coverage.",
+  description: "Call, email or message us. Find our address, opening hours, delivery coverage and answers to common questions.",
 };
 
 export default async function ContactPage() {
@@ -61,6 +64,9 @@ export default async function ContactPage() {
           <ContactForm />
         </div>
       </div>
+
+      <KeyFacts />
+      <FaqSection />
     </div>
   );
 }

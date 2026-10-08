@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Banknote, Leaf, Flame } from "lucide-react";
 import { MenuBrowser } from "@/components/menu/menu-browser";
+import { MenuJsonLd } from "@/components/seo/structured-data";
 import { Sparkles } from "lucide-react";
 import { getEffectiveMenu, getDeal } from "@/server/config";
 import { gbp } from "@/lib/format";
@@ -11,6 +12,7 @@ import { telHref } from "@/lib/site-content";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/menu" },
   title: "Menu",
   description: "Explore our Chinese classics and Japanese specials - dim sum, salt & pepper, aromatic duck, katsu curry, chef specials and more.",
 };
@@ -19,6 +21,7 @@ export default async function MenuPage() {
   const [menu, deal, { business: b }] = await Promise.all([getEffectiveMenu(), getDeal(), getSiteContent()]);
   return (
     <div className="px-4 sm:px-6">
+      <MenuJsonLd menu={menu} />
       <section className="mx-auto max-w-7xl pt-10">
         <p className="font-medium uppercase tracking-widest text-gold-ink">The menu</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">

@@ -26,6 +26,15 @@ services:
         generateValue: true          # Render creates a strong random secret for you
 
       # --- Required ---
+      # The address the site is served from. Google uses it for the sitemap and canonical links.
+      # Keep it equal to your real address: change it to https://yourdomain.co.uk once that domain
+      # is connected, and fix it if Render added a suffix to the name below.
+      - key: SITE_URL
+        value: https://sambalandsakura.onrender.com
+      - key: GOOGLE_SITE_VERIFICATION   # from Google Search Console (HTML tag method) - see DEPLOY.md
+        sync: false
+      - key: BING_SITE_VERIFICATION     # from Bing Webmaster Tools (HTML meta tag) - Bing feeds ChatGPT search and Copilot
+        sync: false
       - key: DATABASE_URL            # Neon (direct connection string) or Render Postgres internal URL
         sync: false
       - key: ADMIN_EMAIL             # owner login, created on first deploy only

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight, Banknote, Bike, Sparkles, Star, Phone, MapPin, Clock, ChefHat, Leaf, Gift, ShieldCheck, Heart,
@@ -13,10 +14,12 @@ import { getEffectiveMenu } from "@/server/config";
 import { getSiteContent } from "@/server/site-content";
 import { telHref, averageRating, type SiteContent, type ValueIcon } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
-import { RestaurantJsonLd } from "@/components/seo/structured-data";
+import { RestaurantJsonLd, WebSiteJsonLd } from "@/components/seo/structured-data";
 import { MapEmbed } from "@/components/brand/map-embed";
 import { HeroSlideshow } from "@/components/brand/hero-slideshow";
 
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // Rendered on every request: this page shows admin-editable content, so it must NOT be frozen at build time.
 export const dynamic = "force-dynamic";
@@ -27,6 +30,7 @@ export default async function HomePage() {
   return (
     <>
       <RestaurantJsonLd />
+      <WebSiteJsonLd />
       <Hero content={content} />
       <ValueStrip items={content.valueStrip} />
       <SignatureDishes items={signature} />

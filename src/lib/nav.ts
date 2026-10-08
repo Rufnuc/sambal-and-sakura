@@ -13,7 +13,6 @@ export const PRIMARY_NAV: NavLink[] = [
 export const MORE_NAV: NavLink[] = [
   { href: "/#reviews", label: "Reviews" },
   { href: "/contact", label: "Contact" },
-  { href: "/faq", label: "FAQ" },
 ];
 
 export const FOOTER_NAV: { heading: string; links: NavLink[] }[] = [
@@ -38,7 +37,6 @@ export const FOOTER_NAV: { heading: string; links: NavLink[] }[] = [
     links: [
       { href: "/account", label: "My Account" },
       { href: "/#reviews", label: "Reviews" },
-      { href: "/faq", label: "FAQ" },
       { href: "/contact", label: "Contact" },
     ],
   },

@@ -1,0 +1,100 @@
+import { RESTAURANT, ORDERING } from "@/lib/data/site";
+import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
+import { CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/menu";
+import { formatHours } from "@/lib/hours";
+import { formatAddress } from "@/lib/site-content";
+import { getSiteContent } from "@/server/site-content";
+import { getZones, getMaxMiles, getEffectiveMenu } from "@/server/config";
+import { getDisabledZones } from "@/server/settings";
+import { getWeChatConfig } from "@/server/wechat";
+
+// One source of plain-language facts about the restaurant, built from the LIVE admin-edited data
+// (hours, delivery zones, mileage, menu). Used for the visible "at a glance" block on the Contact page
+// and for /llms.txt, so the website, search engines and AI tools always agree.
+
+export interface Fact { label: string; value: string }
+
+const gbp = (n: number) => `£${n % 1 === 0 ? n : n.toFixed(2)}`;
+// Monday first (data index 0 = Sunday).
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> {
+  const [{ business: b }, zones, disabled, maxMiles, menu] = await Promise.all([
+    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(),
+  ]);
+
+  const liveZones = zones.filter((z) => !disabled.includes(z.id));
+  const categories = (Object.keys(CATEGORY_LABELS) as MenuCategory[])
+    .filter((c) => menu.some((m) => m.category === c))
+    .map((c) => CATEGORY_LABELS[c]);
+
+  const summary =
+    `${RESTAURANT.name} (also written Sambal and Sakura) is a Chinese and Japanese restaurant in ${b.address.city}, ` +
+    `at ${formatAddress(b.address)}. ${b.blurb}`;
+
+  const facts: Fact[] = [
+    { label: "Address", value: formatAddress(b.address) },
+    { label: "Phone", value: b.phone },
+    { label: "Email", value: b.email },
+    {
+      label: "Opening hours",
+      value: DAY_ORDER.map((i) => `${b.hours[i].day}: ${formatHours(b.hours[i])}`).join("; "),
+    },
+    { label: "Ways to order", value: "Delivery or collection online, or book a table." },
+    {
+      label: "Table bookings",
+      value: `Book online for parties of up to ${MAX_ONLINE_PARTY}. Larger groups should phone ${b.phone}.`,
+    },
+  ];
+
+  if (liveZones.length) {
+    facts.push({
+      label: "Delivery",
+      value:
+        liveZones.map((z) => `${z.label.replace(/^Zone \d+ - /, "")} (${z.postcodes.join(", ")}): ${gbp(z.fee)}, about ${z.etaMins} minutes`).join("; ") +
+        `. Free delivery on orders over ${gbp(ORDERING.freeDeliveryThreshold)}. Minimum delivery order ${gbp(ORDERING.minOrder)}.` +
+        (maxMiles > 0 ? ` Delivery is available within about ${maxMiles} miles.` : ""),
+    });
+  }
+
+  facts.push(
+    { label: "Collection", value: `Ready in about ${ORDERING.prepTimeMin} to ${ORDERING.prepTimeMax} minutes.` },
+    {
+      label: "Payment",
+      value: getWeChatConfig()
+        ? "Cash on delivery or collection. WeChat Pay is also available when ordering online."
+        : "Cash on delivery or collection.",
+    },
+    {
+      label: "Allergies and diets",
+      value: `Allergens and vegetarian/vegan options are marked on every dish. For allergies, phone ${b.phone} to confirm before ordering.`,
+    },
+  );
+  if (RESTAURANT.halal) facts.push({ label: "Halal", value: "All food is halal." });
+  facts.push(
+    { label: "Menu", value: categories.join(", ") },
+    { label: "Website languages", value: "English, Chinese (中文), Vietnamese (Tiếng Việt) and Japanese (日本語)." },
+  );
+
+  return { summary, facts };
+}
+
+/** Plain-text version of the whole menu, for /llms-full.txt. */
+export function menuAsText(menu: MenuItem[]): string {
+  const lines: string[] = [];
+  for (const cat of Object.keys(CATEGORY_LABELS) as MenuCategory[]) {
+    const items = menu.filter((m) => m.category === cat);
+    if (!items.length) continue;
+    lines.push(`## ${CATEGORY_LABELS[cat]}`, "");
+    for (const m of items) {
+      const from = m.modifiers && m.modifiers.length > 0 ? "from " : "";
+      const diet = m.tags.includes("vegan") ? " Vegan." : m.tags.includes("vegetarian") ? " Vegetarian." : "";
+      const spice = m.spiceLevel ? ` Spice level ${m.spiceLevel}/3.` : "";
+      const allergens = m.allergens.length ? ` Contains: ${m.allergens.join(", ")}.` : "";
+      const sold = m.soldOut ? " (currently unavailable)" : "";
+      lines.push(`- ${m.name} (${from}${gbp(m.price)})${sold}: ${m.description}${diet}${spice}${allergens}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}

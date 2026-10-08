@@ -300,7 +300,7 @@ function FaqTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) => 
       title={`Frequently asked questions (${c.faqs.length})`}
       action={<Button variant="outline" size="sm" className="h-9 gap-1" disabled={c.faqs.length >= 60} onClick={() => set({ faqs: [...c.faqs, { q: "", a: "", group: "ordering" }] })}><Plus className="size-4" /> Add question</Button>}
     >
-      <p className="mb-3 text-sm text-muted-foreground">Shown on the FAQ page, grouped by topic, and offered to Google as rich answers.</p>
+      <p className="mb-3 text-sm text-muted-foreground">Shown at the bottom of the Contact page, grouped by topic, and offered to Google as rich answers.</p>
       <div className="flex flex-col gap-3">
         {c.faqs.map((f, i) => (
           <div key={i} className="rounded-xl border border-border p-3">

@@ -6,11 +6,14 @@ import { getCareers } from "@/server/config";
 import { RESTAURANT } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
 import { telHref } from "@/lib/site-content";
+import { SITE_URL } from "@/lib/site-url";
+import { ld } from "@/components/seo/structured-data";
 
 // Rendered on every request: this page shows admin-editable content, so it must NOT be frozen at build time.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/careers" },
   title: "Careers",
   description: "Join the Sambal & Sakura team in Middlesbrough - sushi chef, kitchen and delivery roles. Apply today.",
 };
@@ -28,7 +31,7 @@ export default async function CareersPage() {
     description: j.description,
     employmentType: EMP_TYPE[j.type] ?? "OTHER",
     datePosted: new Date().toISOString().slice(0, 10),
-    hiringOrganization: { "@type": "Organization", name: RESTAURANT.name, sameAs: "https://sambalandsakura.co.uk" },
+    hiringOrganization: { "@type": "Organization", name: RESTAURANT.name, sameAs: SITE_URL },
     jobLocation: {
       "@type": "Place",
       address: { "@type": "PostalAddress", streetAddress: b.address.line1, addressLocality: b.address.city, postalCode: b.address.postcode, addressCountry: "GB" },
@@ -40,7 +43,7 @@ export default async function CareersPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
       {jsonLd.length > 0 && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld(jsonLd) }} />
       )}
       <header className="max-w-2xl">
         <p className="font-medium uppercase tracking-widest text-gold-ink">Join us</p>

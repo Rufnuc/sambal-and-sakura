@@ -1,0 +1,204 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Sambal & Sakura brand system
+  Base: deep warm charcoal. Accent: refined warm gold (never pure yellow).
+  Support: sambal red, sakura pink, warm neutrals.
+  Default theme = warm light (appetising, readable); dark = charcoal canvas.
+*/
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-display);
+
+  /* brand utilities: bg-gold, text-sambal, bg-sakura, etc. */
+  --color-ink: var(--ink);
+  --color-cream: var(--cream);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-sambal: var(--sambal);
+  --color-sakura: var(--sakura);
+  --color-sakura-soft: var(--sakura-soft);
+  --color-jade: var(--jade);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* raw brand tokens */
+  --ink: #211d17;
+  --cream: #fbf7ef;
+  --gold: #d99a2b;
+  --gold-soft: #f0c65a;
+  --sambal: #c0362c;
+  --sakura: #e2869a;
+  --sakura-soft: #f4c9d2;
+  --jade: #3e7c6a;
+
+  /* semantic (light = warm cream canvas) */
+  --background: #fbf7ef;
+  --foreground: #211d17;
+  --card: #ffffff;
+  --card-foreground: #211d17;
+  --popover: #ffffff;
+  --popover-foreground: #211d17;
+  --primary: #d99a2b;           /* gold CTA */
+  --primary-foreground: #221302; /* near-black text on gold */
+  --secondary: #211d17;          /* charcoal "ink" CTA */
+  --secondary-foreground: #fbf7ef;
+  --muted: #f1e9da;
+  --muted-foreground: #6b6150;
+  --accent: #f6eedd;             /* soft hover tint */
+  --accent-foreground: #211d17;
+  --destructive: #c0362c;        /* sambal red */
+  --border: #e7dcc9;
+  --input: #e7dcc9;
+  --ring: #d99a2b;
+
+  --chart-1: #d99a2b; /* gold */
+  --chart-2: #c0362c; /* sambal */
+  --chart-3: #e2869a; /* sakura */
+  --chart-4: #3e7c6a; /* jade */
+  --chart-5: #8a6d3b; /* bronze */
+
+  --sidebar: #211d17;
+  --sidebar-foreground: #e9e0cf;
+  --sidebar-primary: #d99a2b;
+  --sidebar-primary-foreground: #221302;
+  --sidebar-accent: #2c2619;
+  --sidebar-accent-foreground: #f6efe0;
+  --sidebar-border: #352d1f;
+  --sidebar-ring: #d99a2b;
+}
+
+.dark {
+  --ink: #0f0d0a;
+  --cream: #f3ecdd;
+  --gold: #ecbb4e;
+  --gold-soft: #f6d487;
+  --sambal: #e0564a;
+  --sakura: #e9a0b0;
+  --sakura-soft: #3a2a2d;
+  --jade: #5aa58e;
+
+  --background: #17140f;
+  --foreground: #f3ecdd;
+  --card: #211c15;
+  --card-foreground: #f3ecdd;
+  --popover: #211c15;
+  --popover-foreground: #f3ecdd;
+  --primary: #ecbb4e;
+  --primary-foreground: #17120a;
+  --secondary: #2c2619;
+  --secondary-foreground: #f3ecdd;
+  --muted: #241f18;
+  --muted-foreground: #b8ad97;
+  --accent: #2c2619;
+  --accent-foreground: #f3ecdd;
+  --destructive: #e0564a;
+  --border: #39301f;
+  --input: #39301f;
+  --ring: #ecbb4e;
+
+  --chart-1: #ecbb4e;
+  --chart-2: #e0564a;
+  --chart-3: #e9a0b0;
+  --chart-4: #5aa58e;
+  --chart-5: #cda978;
+
+  --sidebar: #120f0b;
+  --sidebar-foreground: #e9e0cf;
+  --sidebar-primary: #ecbb4e;
+  --sidebar-primary-foreground: #17120a;
+  --sidebar-accent: #241f18;
+  --sidebar-accent-foreground: #f6efe0;
+  --sidebar-border: #2b241a;
+  --sidebar-ring: #ecbb4e;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "liga" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: var(--gold-soft);
+    color: #221302;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+/* Reusable brand flourishes */
+@layer components {
+  .brand-divider {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+}

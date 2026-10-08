@@ -1,0 +1,62 @@
+# Render Blueprint for Sambal & Sakura. See DEPLOY.md for the step-by-step.
+# Secrets are NOT stored here: every `sync: false` value is typed into the Render dashboard.
+services:
+  - type: web
+    name: sambal-and-sakura
+    runtime: node
+    plan: starter            # always-on (the free plan sleeps and would cost orders)
+    region: frankfurt        # closest Render region to the UK
+    autoDeploy: true
+    healthCheckPath: /api/health
+
+    # --include=dev: the build needs prisma, typescript and tailwind (dev dependencies).
+    # Production uses PostgreSQL, so we derive the Postgres Prisma schema from the dev schema first.
+    buildCommand: npm ci --include=dev && node scripts/prepare-postgres.mjs && npx prisma generate --schema prisma/postgres/schema.prisma && npm run build
+
+    # Runs on every deploy before the new version goes live: apply DB migrations, then create the
+    # owner account ONLY if no admin exists yet (never overwrites, never seeds demo data).
+    preDeployCommand: npx prisma migrate deploy --schema prisma/postgres/schema.prisma && node scripts/create-admin.mjs
+
+    startCommand: npm run start
+
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SESSION_SECRET
+        generateValue: true          # Render creates a strong random secret for you
+
+      # --- Required ---
+      - key: DATABASE_URL            # Neon (direct connection string) or Render Postgres internal URL
+        sync: false
+      - key: ADMIN_EMAIL             # owner login, created on first deploy only
+        sync: false
+      - key: ADMIN_PASSWORD          # min 12 characters; change it in the app afterwards
+        sync: false
+
+      # --- Features (each is optional; the site works without them) ---
+      - key: GOOGLE_TRANSLATE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME   # needed for menu photo uploads in production
+        sync: false
+      - key: CLOUDINARY_UPLOAD_PRESET
+        sync: false
+      - key: PRINTNODE_API_KEY
+        sync: false
+      - key: PRINTNODE_PRINTER_ID
+        sync: false
+      - key: WECHAT_APPID
+        sync: false
+      - key: WECHAT_MCHID
+        sync: false
+      - key: WECHAT_SERIAL_NO
+        sync: false
+      - key: WECHAT_PRIVATE_KEY
+        sync: false
+      - key: WECHAT_API_V3_KEY
+        sync: false
+      - key: WECHAT_PLATFORM_PUBLIC_KEY
+        sync: false
+      - key: WECHAT_NOTIFY_URL       # https://YOUR-DOMAIN/api/pay/wechat/notify
+        sync: false

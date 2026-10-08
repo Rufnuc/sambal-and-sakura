@@ -1,0 +1,141 @@
+// Sambal & Sakura — data model. SQLite for local dev; swap the datasource to
+// PostgreSQL for production (models are portable).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  phone        String
+  passwordHash String
+  role         String    @default("customer") // customer | staff | admin
+  permissions  String    @default("[]") // JSON array of admin section keys (staff only)
+  points       Int       @default(0)
+  referralCode String    @unique
+  createdAt    DateTime  @default(now())
+
+  orders   Order[]
+  bookings Booking[]
+  rewards  Reward[]
+  sessions Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Order {
+  id            String      @id
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  fulfilment    String      // delivery | collection
+  status        String      @default("received")
+  subtotal      Float
+  deliveryFee   Float       @default(0)
+  discount      Float       @default(0)
+  total         Float
+  voucherCode   String?
+  address       String?
+  postcode      String?
+  notes         String?
+  whenType      String      @default("asap") // asap | scheduled
+  scheduledTime String?
+  etaMins       Int         @default(25)
+  pointsEarned  Int         @default(0)
+  paymentMethod String      @default("cash")   // cash | wechat
+  paymentStatus String      @default("unpaid") // unpaid | paid (cash orders are settled in person)
+  paymentRef    String?                        // provider transaction id (e.g. WeChat transaction_id)
+  paidAt        DateTime?
+  createdAt     DateTime    @default(now())
+
+  lines OrderLine[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderLine {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId    String
+  name      String
+  unitPrice Float
+  qty       Int
+  modifiers String  @default("[]") // JSON array of {groupId,optionId,label}
+}
+
+model Booking {
+  id        String   @id
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name      String
+  phone     String
+  email     String?
+  date      String   // YYYY-MM-DD
+  time      String   // HH:MM
+  party     Int
+  status    String   @default("upcoming")
+  tableId   String?
+  occasion  String?
+  dietary   String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([date])
+}
+
+model Reward {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  code      String   @unique
+  kind      String   // percent | voucher | freebie
+  amount    Float?
+  source    String   // welcome | wheel | referral | loyalty
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+// Operator settings (blackout dates, disabled zones, etc.) as key/JSON rows.
+model Setting {
+  key   String @id
+  value String // JSON
+}
+
+// Persistent machine-translation cache: each English string is translated once
+// per locale, then reused forever (fast + effectively free after first hit).
+model Translation {
+  id        String   @id @default(cuid())
+  locale    String   // zh | vi | ja
+  hash      String   // sha256 of the source text
+  source    String   // original English text
+  value     String   // translated text
+  createdAt DateTime @default(now())
+
+  @@unique([locale, hash])
+  @@index([locale])
+}

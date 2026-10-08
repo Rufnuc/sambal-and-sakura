@@ -1,0 +1,86 @@
+import { prisma } from "@/server/db";
+import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
+import { MENU, type MenuItem, type MenuCategory } from "@/lib/data/menu";
+
+// Operator-editable config, stored as JSON Setting rows with static defaults.
+// Customer pages + server pricing read the EFFECTIVE values from here.
+
+async function getJson<T>(key: string, fallback: T): Promise<T> {
+  const row = await prisma.setting.findUnique({ where: { key } });
+  if (!row) return fallback;
+  try { return JSON.parse(row.value) as T; } catch { return fallback; }
+}
+async function setJson(key: string, value: unknown): Promise<void> {
+  const v = JSON.stringify(value);
+  await prisma.setting.upsert({ where: { key }, update: { value: v }, create: { key, value: v } });
+}
+
+/* ---- Referral ---- */
+export interface ReferralConfig { give: number; get: number; minSpend: number; maxPerUser: number }
+export const DEFAULT_REFERRAL: ReferralConfig = { give: 5, get: 5, minSpend: 20, maxPerUser: 10 };
+export const getReferralConfig = () => getJson<ReferralConfig>("referral", DEFAULT_REFERRAL);
+export const setReferralConfig = (v: ReferralConfig) => setJson("referral", v);
+
+/* ---- Delivery zones ---- */
+export interface ZoneConfig { id: string; label: string; postcodes: string[]; fee: number; etaMins: number }
+export const getZones = () => getJson<ZoneConfig[]>("zones", ORDERING.deliveryZones as ZoneConfig[]);
+export const setZones = (v: ZoneConfig[]) => setJson("zones", v);
+
+/* ---- Offers ---- */
+export const getOffers = () => getJson<Offer[]>("offers", OFFERS);
+export const setOffers = (v: Offer[]) => setJson("offers", v);
+
+/* ---- Wheel prizes ---- */
+export const getWheelPrizes = () => getJson<WheelPrize[]>("wheelPrizes", WHEEL_PRIZES);
+export const setWheelPrizes = (v: WheelPrize[]) => setJson("wheelPrizes", v);
+
+/* ---- Menu overrides (name / price / soldOut / image / category / lead-time per item) ---- */
+export type MenuOverride = {
+  name?: string; price?: number; soldOut?: boolean;
+  image?: string; category?: MenuCategory; leadTimeHours?: number; description?: string; aiNotes?: string;
+};
+export type MenuOverrides = Record<string, MenuOverride>;
+export const getMenuOverrides = () => getJson<MenuOverrides>("menuOverrides", {});
+export const setMenuOverrides = (v: MenuOverrides) => setJson("menuOverrides", v);
+
+/* ---- Careers ---- */
+export interface JobPosting {
+  id: string; title: string; type: string; location: string;
+  summary: string; description: string; active: boolean;
+}
+export const DEFAULT_CAREERS: JobPosting[] = [
+  { id: "sushi-chef", title: "Sushi Chef", type: "Full-time", location: "Middlesbrough, TS1", summary: "Craft authentic sushi and Japanese dishes alongside our Japan-trained head chef.", description: "We're looking for a skilled sushi chef to join our kitchen. Experience with nigiri, maki and Japanese technique preferred. Competitive pay, meals on shift, and a supportive team.", active: true },
+  { id: "kitchen-assistant", title: "Kitchen Assistant", type: "Part-time", location: "Middlesbrough, TS1", summary: "Support our chefs with prep and service in a busy, friendly kitchen.", description: "Help with food prep, plating and keeping the kitchen running smoothly. No experience needed - full training given. Flexible evenings and weekends.", active: true },
+  { id: "delivery-driver", title: "Delivery Driver", type: "Part-time", location: "Middlesbrough", summary: "Deliver fresh orders across Middlesbrough. Own vehicle preferred.", description: "Reliable drivers wanted for evening delivery shifts. Cash handling, friendly service and good local knowledge. Fuel contribution and tips.", active: true },
+];
+export const getCareers = () => getJson<JobPosting[]>("careers", DEFAULT_CAREERS);
+export const setCareers = (v: JobPosting[]) => setJson("careers", v);
+
+/* ---- Deal of the day ---- */
+export interface DealOfDay { active: boolean; title: string; description: string; itemId?: string; price?: number; badge: string }
+export const DEFAULT_DEAL: DealOfDay = { active: false, title: "", description: "", badge: "Deal of the Day" };
+export const getDeal = () => getJson<DealOfDay>("dealOfDay", DEFAULT_DEAL);
+export const setDeal = (v: DealOfDay) => setJson("dealOfDay", v);
+
+/* ---- Max delivery mileage ---- */
+export const getMaxMiles = () => getJson<number>("maxDeliveryMiles", 6);
+export const setMaxMiles = (v: number) => setJson("maxDeliveryMiles", v);
+
+export async function getEffectiveMenu(): Promise<MenuItem[]> {
+  const ov = await getMenuOverrides();
+  return MENU.map((m) => {
+    const o = ov[m.id];
+    if (!o) return m;
+    return {
+      ...m,
+      name: o.name ?? m.name,
+      description: o.description ?? m.description,
+      price: typeof o.price === "number" ? o.price : m.price,
+      soldOut: typeof o.soldOut === "boolean" ? o.soldOut : m.soldOut,
+      image: o.image ?? m.image,
+      category: o.category ?? m.category,
+      leadTimeHours: typeof o.leadTimeHours === "number" ? o.leadTimeHours : m.leadTimeHours,
+      aiNotes: o.aiNotes ?? m.aiNotes,
+    };
+  });
+}

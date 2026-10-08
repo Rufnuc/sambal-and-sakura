@@ -19,7 +19,10 @@ import { cn } from "@/lib/utils";
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const phoneHref = telHref(useSiteContent().business.phone);
+  const { business, showReviews } = useSiteContent();
+  const phoneHref = telHref(business.phone);
+  // No reviews section on the page => no "Reviews" link pointing at it.
+  const moreNav = MORE_NAV.filter((l) => l.href !== "/#reviews" || showReviews);
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -57,7 +60,7 @@ export function SiteHeader() {
               {l.label}
             </Link>
           ))}
-          {MORE_NAV.map((l) => (
+          {moreNav.map((l) => (
             <Link key={l.href} href={l.href} className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
               {l.label}
             </Link>
@@ -104,7 +107,7 @@ export function SiteHeader() {
                 <OpenStatus className="mt-1" />
               </SheetHeader>
               <nav className="flex flex-col gap-1 px-4 py-4">
-                {[...PRIMARY_NAV, ...MORE_NAV].map((l) => (
+                {[...PRIMARY_NAV, ...moreNav].map((l) => (
                   <Link
                     key={l.href}
                     href={l.href}

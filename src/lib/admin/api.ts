@@ -117,7 +117,7 @@ export interface DealCfg { active: boolean; title: string; description: string; 
 export interface AdminConfig {
   referral: ReferralCfg; zones: ZoneCfg[]; offers: OfferCfg[];
   wheelPrizes: WheelPrizeCfg[]; menuOverrides: Record<string, MenuOverrideCfg>;
-  careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent;
+  careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent; siteVersion: string;
 }
 export interface MenuOverrideCfg {
   name?: string; price?: number; soldOut?: boolean;
@@ -144,13 +144,15 @@ export async function saveConfig(patch: Partial<AdminConfig>): Promise<AdminConf
   return res.json();
 }
 
-export async function saveSite(site: SiteContent): Promise<{ ok: true; site: SiteContent } | { ok: false; error: string }> {
+export async function saveSite(site: SiteContent, baseVersion: string): Promise<
+  { ok: true; site: SiteContent; version: string } | { ok: false; error: string; conflict?: boolean }
+> {
   const res = await fetch("/api/admin/config", {
-    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site }),
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site, siteBaseVersion: baseVersion }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) return { ok: false, error: data.error ?? "Could not save." };
-  return { ok: true, site: data.site as SiteContent };
+  if (!res.ok) return { ok: false, error: data.error ?? "Could not save.", conflict: res.status === 409 };
+  return { ok: true, site: data.site as SiteContent, version: data.siteVersion as string };
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {

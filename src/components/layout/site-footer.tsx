@@ -9,7 +9,8 @@ import { telHref } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
 
 export async function SiteFooter() {
-  const { business: b } = await getSiteContent();
+  const { business: b, reviews } = await getSiteContent();
+  const showReviews = reviews.show && reviews.items.length > 0;
   return (
     <footer className="mt-auto bg-sidebar text-sidebar-foreground">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
@@ -53,7 +54,7 @@ export async function SiteFooter() {
             <div key={col.heading}>
               <h3 className="font-display text-sm font-bold uppercase tracking-wide text-sidebar-foreground/90">{col.heading}</h3>
               <ul className="mt-4 flex flex-col gap-2.5">
-                {col.links.map((l) => (
+                {col.links.filter((l) => l.href !== "/#reviews" || showReviews).map((l) => (
                   <li key={l.href}>
                     <Link href={l.href} className="text-sm text-sidebar-foreground/80 transition hover:text-gold-ink">
                       {l.label}

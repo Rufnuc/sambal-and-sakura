@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
@@ -64,8 +65,31 @@ export const getSiteContent = cache(async (): Promise<SiteContent> => {
   }
 });
 
-/** Validates the full content object and saves it. Returns the issues if invalid. */
-export async function setSiteContent(input: unknown): Promise<{ ok: true; content: SiteContent } | { ok: false; error: string }> {
+/** Fingerprint of what is stored right now. Lets the editor detect that someone else saved in the meantime. */
+export async function getSiteContentVersion(): Promise<string> {
+  try {
+    const row = await prisma.setting.findUnique({ where: { key: KEY } });
+    return row ? createHash("sha1").update(row.value).digest("hex").slice(0, 16) : "default";
+  } catch {
+    return "default";
+  }
+}
+
+export const CONFLICT_MESSAGE =
+  "This page is out of date: the site content was changed somewhere else since you opened it. Reload to see the latest, then make your change again.";
+
+/**
+ * Validates the full content object and saves it. Returns the issues if invalid.
+ * If `baseVersion` is given and no longer matches what is stored, nothing is saved (a stale copy of the
+ * editor must not silently undo someone else's change).
+ */
+export async function setSiteContent(
+  input: unknown,
+  baseVersion?: string,
+): Promise<{ ok: true; content: SiteContent; version: string } | { ok: false; error: string; conflict?: boolean }> {
+  if (baseVersion !== undefined && baseVersion !== (await getSiteContentVersion())) {
+    return { ok: false, error: CONFLICT_MESSAGE, conflict: true };
+  }
   const parsed = siteContentSchema.safeParse(input);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -73,5 +97,5 @@ export async function setSiteContent(input: unknown): Promise<{ ok: true; conten
   }
   const value = JSON.stringify(parsed.data);
   await prisma.setting.upsert({ where: { key: KEY }, update: { value }, create: { key: KEY, value } });
-  return { ok: true, content: parsed.data as unknown as SiteContent };
+  return { ok: true, content: parsed.data as unknown as SiteContent, version: createHash("sha1").update(value).digest("hex").slice(0, 16) };
 }

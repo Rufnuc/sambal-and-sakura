@@ -12,7 +12,7 @@ import {
   type ReferralConfig, type ZoneConfig, type MenuOverrides, type JobPosting, type DealOfDay,
 } from "@/server/config";
 import type { Offer, WheelPrize } from "@/lib/data/site";
-import { getSiteContent, setSiteContent } from "@/server/site-content";
+import { getSiteContent, getSiteContentVersion, setSiteContent } from "@/server/site-content";
 
 async function guard() {
   const u = await currentUser();
@@ -25,7 +25,8 @@ export async function GET() {
     getReferralConfig(), getZones(), getOffers(), getWheelPrizes(), getMenuOverrides(),
     getCareers(), getDeal(), getMaxMiles(), getSiteContent(),
   ]);
-  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site });
+  const siteVersion = await getSiteContentVersion();
+  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion });
 }
 
 export async function PUT(req: Request) {
@@ -37,8 +38,9 @@ export async function PUT(req: Request) {
 
   // Site content is validated strictly; reject the whole request with a readable reason if invalid.
   if (body.site !== undefined) {
-    const r = await setSiteContent(body.site);
-    if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+    const base = typeof body.siteBaseVersion === "string" ? body.siteBaseVersion : undefined;
+    const r = await setSiteContent(body.site, base);
+    if (!r.ok) return NextResponse.json({ error: r.error, conflict: !!r.conflict }, { status: r.conflict ? 409 : 400 });
   }
 
   try {

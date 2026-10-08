@@ -6,9 +6,9 @@ import { SiteContentProvider } from "@/components/site-content-provider";
 import { getSiteContent } from "@/server/site-content";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const { business } = await getSiteContent();
+  const { business, reviews } = await getSiteContent();
   return (
-    <SiteContentProvider content={{ business }}>
+    <SiteContentProvider content={{ business, showReviews: reviews.show && reviews.items.length > 0 }}>
       <SiteHeader />
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
       <SiteFooter />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Save, Plus, Trash2, ArrowUp, ArrowDown, TriangleAlert, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -39,10 +39,25 @@ function move<T>(arr: T[], i: number, dir: -1 | 1): T[] {
 
 export function ContentView() {
   const [c, setC] = useState<SiteContent | null>(null);
+  const [saved, setSaved] = useState<SiteContent | null>(null); // last version stored on the server
+  const [version, setVersion] = useState("");                     // fingerprint of that stored version
+  const [stale, setStale] = useState(false);                      // someone else saved since this page loaded
   const [tab, setTab] = useState<TabId>("business");
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchConfig().then((cfg) => setC(cfg.site)); }, []);
+  function load() {
+    return fetchConfig().then((cfg) => { setC(cfg.site); setSaved(cfg.site); setVersion(cfg.siteVersion); setStale(false); });
+  }
+  useEffect(() => { load(); }, []);
+
+  // Edits only reach the website when saved, so make "not saved yet" impossible to miss.
+  const dirty = useMemo(() => !!c && !!saved && JSON.stringify(c) !== JSON.stringify(saved), [c, saved]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   if (!c) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
 
@@ -52,10 +67,10 @@ export function ContentView() {
   async function save() {
     if (!c) return;
     setSaving(true);
-    const res = await saveSite(c);
+    const res = await saveSite(c, version);
     setSaving(false);
-    if (res.ok) { setC(res.site); toast.success("Saved - the website is updated"); }
-    else toast.error(res.error);
+    if (res.ok) { setC(res.site); setSaved(res.site); setVersion(res.version); setStale(false); toast.success("Saved - the website is updated"); }
+    else { if (res.conflict) setStale(true); toast.error(res.error, { duration: 8000 }); }
   }
 
   return (
@@ -63,13 +78,13 @@ export function ContentView() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-extrabold tracking-tight">Site content</h1>
-          <p className="text-muted-foreground">Edit what customers read on the website. Changes go live as soon as you save.</p>
+          <p className="text-muted-foreground">Edit what customers read on the website. <strong className="font-semibold text-foreground">Changes only go live when you press Save.</strong></p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="h-10 gap-1.5" render={<a href="/" target="_blank" rel="noopener noreferrer" />}>
             <ExternalLink className="size-4" /> View site
           </Button>
-          <Button className="h-10 gap-1.5" onClick={save} disabled={saving}><Save className="size-4" /> {saving ? "Saving…" : "Save all"}</Button>
+          <Button className="h-10 gap-1.5" onClick={save} disabled={saving}><Save className="size-4" /> {saving ? "Saving…" : dirty ? "Save changes" : "Save all"}</Button>
         </div>
       </div>
 
@@ -86,6 +101,25 @@ export function ContentView() {
       {tab === "home" && <HomeTab c={c} set={set} />}
       {tab === "reviews" && <ReviewsTab c={c} set={set} />}
       {tab === "faq" && <FaqTab c={c} set={set} />}
+
+      {dirty && (
+        <div role="status" className="sticky bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-card p-3 pl-4 shadow-lg">
+          {stale ? (
+            <>
+              <p className="text-sm"><strong className="font-semibold text-sambal">This page is out of date.</strong> <span className="text-muted-foreground">The content was changed somewhere else, so your save was blocked to avoid undoing it. Reload the latest, then make your change again.</span></p>
+              <Button className="h-10" onClick={() => load()}>Reload latest</Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm"><strong className="font-semibold">You have unsaved changes.</strong> <span className="text-muted-foreground">The website won&apos;t change until you save.</span></p>
+              <div className="flex gap-2">
+                <Button variant="outline" className="h-10" onClick={() => setC(saved)} disabled={saving}>Discard</Button>
+                <Button className="h-10 gap-1.5" onClick={save} disabled={saving}><Save className="size-4" /> {saving ? "Saving…" : "Save changes"}</Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -264,7 +298,7 @@ function ReviewsTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>)
           <button onClick={() => setR({ show: !r.show })} role="switch" aria-checked={r.show} aria-label="Show reviews" className={cn("relative inline-flex h-7 w-12 items-center rounded-full transition", r.show ? "bg-jade" : "bg-muted")}>
             <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", r.show ? "translate-x-6" : "translate-x-1")} />
           </button>
-          <span className="text-sm text-muted-foreground">{r.show ? "Reviews are shown on the home page" : "Reviews are hidden (also removes the star rating from the home page and Google)"}</span>
+          <span className="text-sm text-muted-foreground">{r.show ? "Reviews are shown on the home page" : "Reviews will be hidden once you press Save (also removes the star rating from the home page and Google)"}</span>
         </div>
         <div className="mt-3 max-w-md"><Field label="Where they're from (shown next to the rating)"><Input value={r.sourceNote} onChange={(e) => setR({ sourceNote: e.target.value })} className="h-10" placeholder="across Google & TripAdvisor" /></Field></div>
       </SectionCard>

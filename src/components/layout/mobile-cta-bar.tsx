@@ -22,13 +22,14 @@ export function MobileCtaBar() {
         <CtaItem href="/" label="Home" active={pathname === "/"}>
           <House className="size-5" />
         </CtaItem>
-        <CtaItem href="/account" label="Account" active={pathname === "/account"}>
-          <User className="size-5" />
-        </CtaItem>
+        
         <CtaItem href="/book" label="Book" active={pathname === "/book"}>
           <CalendarCheck className="size-5" />
         </CtaItem>
         <CtaItem href="/order" label="Order" active={pathname === "/order"} highlight>
+        <CtaItem href="/account" label="Account" active={pathname === "/account"}>
+          <User className="size-5" />
+        </CtaItem>
           <span className="relative">
             <ShoppingBag className="size-5" />
             {count > 0 && (

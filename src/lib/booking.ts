@@ -1,5 +1,5 @@
 import { RESTAURANT } from "@/lib/data/site";
-import { TABLES, TOTAL_SEATS, LARGEST_TABLE, BOOKING_POLICY } from "@/lib/data/tables";
+import { TABLES, TOTAL_SEATS, BOOKING_POLICY } from "@/lib/data/tables";
 
 export type BookingStatus =
   | "upcoming" | "seated" | "completed" | "cancelled" | "no-show" | "delayed" | "waitlist";
@@ -19,6 +19,7 @@ export interface Booking {
   notes?: string;
   email?: string;
   userId?: string;
+  requiresCall?: boolean;
 }
 
 export type SlotState = "available" | "waitlist" | "full";
@@ -28,9 +29,8 @@ function toMin(hhmm: string) { const [h, m] = hhmm.split(":").map(Number); retur
 function toHHMM(min: number) { const h = Math.floor(min / 60); const m = min % 60; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
 
 export function dayIndexFromDate(date: string): number {
-  // date is YYYY-MM-DD, construct local date
   const [y, m, d] = date.split("-").map(Number);
-  return new Date(y, m - 1, d).getDay();
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // timezone-proof
 }
 
 export function isPeak(date: string): boolean {
@@ -45,101 +45,104 @@ export function needsDeposit(party: number): boolean {
   return party >= BOOKING_POLICY.depositThresholdParty;
 }
 
-/** Can a single table or an allowed 2-table combo seat the party? */
+/** Can a single table or an allowed 2-table combo seat the party (ignoring what's already booked)? */
 export function canSeatParty(party: number): boolean {
-  if (party <= LARGEST_TABLE) return true;
-  // try combos
-  for (const t of TABLES) {
-    if (!t.combinesWith) continue;
-    for (const otherId of t.combinesWith) {
-      const other = TABLES.find((x) => x.id === otherId);
-      if (other && t.seats + other.seats >= party) return true;
+  return fitsTables([party]);
+}
+
+/**
+ * Can these parties all be seated at once? Greedy: biggest party first, each takes the smallest
+ * free table that fits, or (for parties bigger than any table) a free pair of combinable tables.
+ */
+export function fitsTables(parties: number[]): boolean {
+  const free = new Set(TABLES.map((t) => t.id));
+  for (const party of [...parties].sort((a, b) => b - a)) {
+    const single = TABLES.filter((t) => free.has(t.id) && t.seats >= party).sort((a, b) => a.seats - b.seats)[0];
+    if (single) { free.delete(single.id); continue; }
+    // No single table free: try two combinable tables pushed together (e.g. 2+2 for a party of 4).
+    let best: [string, string, number] | null = null;
+    for (const t of TABLES) {
+      if (!free.has(t.id)) continue;
+      for (const otherId of t.combinesWith ?? []) {
+        const o = TABLES.find((x) => x.id === otherId);
+        if (o && free.has(o.id) && t.seats + o.seats >= party && (!best || t.seats + o.seats < best[2])) best = [t.id, o.id, t.seats + o.seats];
+      }
     }
+    if (!best) return false;
+    free.delete(best[0]); free.delete(best[1]);
   }
-  return false;
+  return true;
 }
 
-/** Seats already committed at a given slot (overlapping turn windows). */
-function committedSeats(bookings: Booking[], date: string, time: string): number {
-  const slotStart = toMin(time);
-  return bookings
-    .filter((b) => b.date === date && (b.status === "upcoming" || b.status === "seated" || b.status === "delayed"))
-    .filter((b) => {
-      const bStart = toMin(b.time);
-      const bEnd = bStart + turnTime(b.party) + BOOKING_POLICY.bufferMins;
-      // overlap if slotStart falls within an existing booking's window
-      return slotStart >= bStart && slotStart < bEnd;
-    })
-    .reduce((n, b) => n + b.party, 0);
+const OCCUPYING = new Set<BookingStatus>(["upcoming", "seated", "delayed"]);
+const stayWindow = (b: { time: string; party: number }) => {
+  const start = toMin(b.time);
+  return [start, start + turnTime(b.party) + BOOKING_POLICY.bufferMins] as const;
+};
+
+/**
+ * For a new party arriving at `time`, look at EVERY moment of its stay (not just the arrival time:
+ * a group booked for 19:30 is still at the table when an earlier group would be).
+ * Returns the most seats taken at any moment, and whether the tables can hold everyone at every moment.
+ */
+function stayCheck(bookings: Booking[], date: string, time: string, party: number): { peakSeats: number; tablesFit: boolean } {
+  const [start, end] = stayWindow({ time, party });
+  const others = bookings.filter((b) => b.date === date && OCCUPYING.has(b.status)).map((b) => ({ party: b.party, w: stayWindow(b) }));
+  let peakSeats = 0;
+  let tablesFit = true;
+  // Occupancy only changes when someone arrives, so check our arrival and every arrival during our stay.
+  const moments = new Set([start, ...others.map((o) => o.w[0]).filter((t) => t > start && t < end)]);
+  for (const t of moments) {
+    const present = others.filter((o) => o.w[0] <= t && t < o.w[1]).map((o) => o.party);
+    peakSeats = Math.max(peakSeats, present.reduce((n, p) => n + p, 0));
+    if (tablesFit && !fitsTables([...present, party])) tablesFit = false;
+  }
+  return { peakSeats, tablesFit };
 }
 
-export function slotsForDate(date: string, party: number, bookings: Booking[], openingHours: typeof RESTAURANT.hours = RESTAURANT.hours): Slot[] {
-  const dayIdx = dayIndexFromDate(date);
-  const hours = openingHours[dayIdx];
+/**
+ * Bookable slots for a date. `notBefore` (minutes since midnight, UK time) hides slots that are
+ * already past or too soon, when the date is today.
+ */
+export function slotsForDate(
+  date: string, party: number, bookings: Booking[],
+  openingHours: typeof RESTAURANT.hours = RESTAURANT.hours, notBefore = -1,
+): Slot[] {
+  const hours = openingHours[dayIndexFromDate(date)];
   if (!hours?.sessions.length) return [];
 
   const step = BOOKING_POLICY.slotStepMins;
   const reservePct = isPeak(date) ? BOOKING_POLICY.walkInReservePct.peak : BOOKING_POLICY.walkInReservePct.standard;
-  const reserve = Math.round(TOTAL_SEATS * reservePct);
-  const bookableCapacity = TOTAL_SEATS - reserve;
+  const bookableCapacity = TOTAL_SEATS - Math.round(TOTAL_SEATS * reservePct); // walk-in reserve is never booked online
+  const seatable = canSeatParty(party);
 
   const slots: Slot[] = [];
   for (const session of hours.sessions) {
     const open = toMin(session.open);
     const last = toMin(session.close) - turnTime(party); // last seating leaves time to finish
     for (let t = open; t <= last; t += step) {
+      if (t < notBefore) continue;
       const time = toHHMM(t);
-      const committed = committedSeats(bookings, date, time);
-      const seatsLeft = bookableCapacity - committed;
+      const { peakSeats, tablesFit } = stayCheck(bookings, date, time, party);
+      const seatsLeft = bookableCapacity - peakSeats;
       let state: SlotState;
-      if (!canSeatParty(party)) state = "full";
+      if (!seatable || !tablesFit || TOTAL_SEATS - peakSeats < party) state = "full";
       else if (seatsLeft >= party) state = "available";
-      else if (TOTAL_SEATS - committed >= party) state = "waitlist";
-      else state = "full";
+      else state = "waitlist"; // would eat into the walk-in reserve: staff decide
       slots.push({ time, state, seatsLeft: Math.max(0, seatsLeft) });
     }
   }
   return slots;
 }
 
-const BOOKINGS_KEY = "ss_bookings";
-
-export function bookingRef(): string {
-  return "BK-" + Math.random().toString(36).slice(2, 7).toUpperCase();
-}
-
-export function readBookings(): Booking[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(BOOKINGS_KEY);
-    return raw ? (JSON.parse(raw) as Booking[]) : [];
-  } catch { return []; }
-}
-
-export function saveBooking(b: Booking) {
-  if (typeof window === "undefined") return;
-  try {
-    const list = readBookings();
-    list.unshift(b);
-    window.localStorage.setItem(BOOKINGS_KEY, JSON.stringify(list.slice(0, 200)));
-  } catch { /* ignore */ }
-}
-
-export function updateBooking(id: string, patch: Partial<Booking>) {
-  if (typeof window === "undefined") return;
-  try {
-    const list = readBookings().map((b) => (b.id === id ? { ...b, ...patch } : b));
-    window.localStorage.setItem(BOOKINGS_KEY, JSON.stringify(list));
-  } catch { /* ignore */ }
-}
-
-/** Assign the smallest suitable free table (greedy) for admin/demo. */
+/** Assign the smallest suitable free table (greedy) for admin seating. */
 export function suggestTable(party: number, date: string, time: string, bookings: Booking[]): string | undefined {
+  const t = toMin(time);
   const taken = new Set(
     bookings
-      .filter((b) => b.date === date && b.time === time && b.tableId)
+      .filter((b) => b.date === date && b.tableId && OCCUPYING.has(b.status) && stayWindow(b)[0] <= t && t < stayWindow(b)[1])
       .map((b) => b.tableId as string),
   );
-  const candidates = TABLES.filter((t) => t.seats >= party && !taken.has(t.id)).sort((a, b) => a.seats - b.seats);
+  const candidates = TABLES.filter((tb) => tb.seats >= party && !taken.has(tb.id)).sort((a, b) => a.seats - b.seats);
   return candidates[0]?.id;
 }

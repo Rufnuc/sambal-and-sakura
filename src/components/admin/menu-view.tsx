@@ -12,7 +12,7 @@ import { SectionCard, StatCard } from "@/components/admin/ui";
 import { DishImage } from "@/components/brand/dish-image";
 import { realPhoto } from "@/components/menu/dish-card";
 import { MENU, CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/menu";
-import { fetchConfig, saveConfig, uploadImage, type AdminConfig, type MenuOverrideCfg } from "@/lib/admin/api";
+import { saveConfig, uploadImage, fetchMenuAvailability, setSoldOut, type AdminConfig, type MenuOverrideCfg } from "@/lib/admin/api";
 import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +26,9 @@ export function MenuView() {
   const [sort, setSort] = useState<"default" | "price-asc" | "price-desc" | "name">("default");
   const [ready, setReady] = useState(false);
   const [editing, setEditing] = useState<MenuItem | null>(null);
+  const [canEdit, setCanEdit] = useState(false); // owner: full edits; staff: sold-out switch only
 
-  useEffect(() => { fetchConfig().then((c) => { setOverrides(c.menuOverrides ?? {}); setReady(true); }); }, []);
+  useEffect(() => { fetchMenuAvailability().then((r) => { setOverrides(r?.menuOverrides ?? {}); setCanEdit(!!r?.canEdit); setReady(true); }); }, []);
 
   function effective(m: MenuItem): MenuItem {
     const o = overrides[m.id];
@@ -45,14 +46,24 @@ export function MenuView() {
     };
   }
 
-  async function persist(next: Overrides) {
+  async function persist(next: Overrides): Promise<boolean> {
+    const before = overrides;
     setOverrides(next);
-    const c = await saveConfig({ menuOverrides: next });
-    setOverrides(c.menuOverrides ?? next);
+    try {
+      const c = await saveConfig({ menuOverrides: next });
+      setOverrides(c.menuOverrides ?? next);
+      return true;
+    } catch (e) {
+      setOverrides(before);
+      toast.error((e as Error).message);
+      return false;
+    }
   }
   async function toggleSoldOut(m: MenuItem) {
     const eff = effective(m);
-    await persist({ ...overrides, [m.id]: { ...overrides[m.id], soldOut: !eff.soldOut } });
+    const next = await setSoldOut(m.id, !eff.soldOut);
+    if (!next) { toast.error("Could not update. Check your connection."); return; }
+    setOverrides(next);
     toast.success(`${eff.name} marked ${!eff.soldOut ? "sold out" : "available"}`);
   }
   async function saveEdit(id: string, patch: MenuOverrideCfg) {
@@ -71,7 +82,7 @@ export function MenuView() {
     if (typeof overrides[id]?.soldOut === "boolean") o.soldOut = overrides[id]!.soldOut; // keep existing sold-out state
     const next = { ...overrides, [id]: o };
     if (Object.keys(o).length === 0) delete next[id];
-    await persist(next);
+    if (!(await persist(next))) return; // error already shown; keep the dialog open to fix it
     toast.success("Item updated");
     setEditing(null);
   }
@@ -139,7 +150,7 @@ export function MenuView() {
                 <p className="truncate text-xs text-muted-foreground">{CATEGORY_LABELS[m.category]}</p>
               </div>
               <span className="w-16 text-right font-semibold">{gbp(m.price)}</span>
-              <Button size="icon-sm" variant="ghost" aria-label={`Edit ${m.name}`} onClick={() => setEditing(m)}><Pencil className="size-4" /></Button>
+              {canEdit && <Button size="icon-sm" variant="ghost" aria-label={`Edit ${m.name}`} onClick={() => setEditing(m)}><Pencil className="size-4" /></Button>}
               <button onClick={() => toggleSoldOut(m)} role="switch" aria-checked={!m.soldOut} aria-label={`${m.name} availability`} className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", m.soldOut ? "bg-muted" : "bg-jade")}>
                 <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", m.soldOut ? "translate-x-1" : "translate-x-6")} />
               </button>

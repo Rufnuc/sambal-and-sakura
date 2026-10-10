@@ -1,6 +1,15 @@
 // Seed the dev database. Run: node --env-file=.env prisma/seed.mjs
+// DESTRUCTIVE: deletes all orders, bookings, rewards, sessions and customers, and creates demo
+// logins with known passwords. It therefore refuses to run against anything but a local SQLite
+// file, so it can never wipe or open up the live restaurant database.
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+
+const url = process.env.DATABASE_URL ?? "";
+if (!url.startsWith("file:") || process.env.NODE_ENV === "production") {
+  console.error("Refusing to seed: DATABASE_URL is not a local SQLite file (this script deletes data and creates demo passwords).");
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 

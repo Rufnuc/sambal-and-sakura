@@ -26,9 +26,11 @@ export function CareersView() {
     setJobs((j) => [...j, { id: "job" + Date.now().toString(36), title: "New role", type: "Full-time", location: "Middlesbrough, TS1", summary: "", description: "", active: true }]);
   }
   async function save() {
-    const c = await saveConfig({ careers: jobs });
-    setJobs(c.careers ?? jobs);
-    toast.success("Careers saved - live on /careers");
+    try {
+      const c = await saveConfig({ careers: jobs });
+      setJobs(c.careers ?? jobs);
+      toast.success("Careers saved - live on /careers");
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;

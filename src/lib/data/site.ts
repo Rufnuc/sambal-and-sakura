@@ -118,6 +118,11 @@ export const FAQS: Faq[] = [
     a: "Cancel a booking free up to 2 hours before. For orders, you can cancel before the kitchen starts preparing - after that we may not be able to refund as it's cash on the day." },
 ];
 
+// Features that are built in the UI but not switched on for customers yet.
+// referrals: hidden until referral rewards are actually paid out by the server (advertising a
+// reward that never arrives would be a misleading commercial practice).
+export const FEATURES = { referrals: false };
+
 export const REFERRAL = {
   giveLabel: "£5 off",
   getLabel: "£5 off",
@@ -131,14 +136,15 @@ export const REFERRAL = {
     "One reward per new customer. Rewards apply to website orders only and can't be combined with first-order offers. Self-referrals and duplicate accounts are void. Rewards expire 90 days after issue.",
 };
 
-export interface WheelPrize { id: string; label: string; kind: "percent" | "freebie" | "voucher" | "none"; weight: number; color: "gold" | "red" | "pink" | "charcoal" }
+// amount: % off for "percent", £ off for "voucher" (must match the label customers see).
+export interface WheelPrize { id: string; label: string; kind: "percent" | "freebie" | "voucher" | "none"; weight: number; color: "gold" | "red" | "pink" | "charcoal"; amount?: number }
 export const WHEEL_PRIZES: WheelPrize[] = [
-  { id: "p10", label: "10% off", kind: "percent", weight: 22, color: "gold" },
+  { id: "p10", label: "10% off", kind: "percent", amount: 10, weight: 22, color: "gold" },
   { id: "freedrink", label: "Free drink", kind: "freebie", weight: 18, color: "pink" },
   { id: "freeside", label: "Free side", kind: "freebie", weight: 14, color: "red" },
   { id: "freedessert", label: "Free dessert", kind: "freebie", weight: 10, color: "pink" },
-  { id: "v5", label: "£5 next order", kind: "voucher", weight: 12, color: "gold" },
-  { id: "p15", label: "15% off", kind: "percent", weight: 6, color: "gold" },
+  { id: "v5", label: "£5 next order", kind: "voucher", amount: 5, weight: 12, color: "gold" },
+  { id: "p15", label: "15% off", kind: "percent", amount: 15, weight: 6, color: "gold" },
   { id: "again", label: "So close!", kind: "none", weight: 18, color: "charcoal" },
 ];
 

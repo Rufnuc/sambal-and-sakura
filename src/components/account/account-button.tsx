@@ -80,7 +80,7 @@ export function AccountButton({ variant = "icon" }: { variant?: "icon" | "nav" |
             <User className="size-4" /> My account
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={logout}>
+          <DropdownMenuItem onClick={() => logout()}>
             <LogOut className="size-4" /> Sign out
           </DropdownMenuItem>
         </DropdownMenuGroup>

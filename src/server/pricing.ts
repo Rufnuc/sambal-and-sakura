@@ -3,9 +3,10 @@ import { ORDERING } from "@/lib/data/site";
 import type { ZoneConfig } from "@/server/config";
 
 /**
- * Server-authoritative pricing. The client sends only item ids + selected
- * modifier option ids + quantities; the server computes every price, fee and
- * discount from trusted config. Client-sent prices are ignored.
+ * Server-authoritative pricing. The client sends only item ids + selected modifier option ids +
+ * quantities; the server computes every price, fee and discount from trusted config.
+ * Nothing is changed silently: unavailable items and invalid options are reported back so the
+ * customer can confirm, instead of being dropped or swapped for a default.
  */
 
 export interface IncomingLine {
@@ -19,32 +20,35 @@ export interface PricedLine {
   unitPrice: number;
   qty: number;
   modifiers: { groupId: string; optionId: string; label: string }[];
+  free?: boolean; // added by an offer (e.g. free gyoza), price 0
 }
+export interface LineIssue { itemId: string; name: string; problem: "unavailable" | "invalid-options" }
 
-export function priceLine(line: IncomingLine, menu: MenuItem[]): PricedLine | null {
+export const round2 = (n: number) => Math.round(n * 100) / 100;
+
+type PriceResult = { line: PricedLine } | { issue: LineIssue };
+
+export function priceLine(line: IncomingLine, menu: MenuItem[]): PriceResult {
   const item = menu.find((m) => m.id === line.itemId);
-  if (!item || item.soldOut) return null;
+  if (!item || item.soldOut) return { issue: { itemId: line.itemId, name: item?.name ?? "An item", problem: "unavailable" } };
   const qty = Math.max(1, Math.min(50, Math.floor(line.qty || 1)));
+  const bad = { issue: { itemId: item.id, name: item.name, problem: "invalid-options" as const } };
+
+  const groups = item.modifiers ?? [];
+  const known = new Set(groups.flatMap((g) => g.options.map((o) => o.id)));
+  const selected = new Set(line.optionIds ?? []);
+  if ([...selected].some((id) => !known.has(id))) return bad; // option from another dish / made up
 
   let unitPrice = item.price;
   const modifiers: PricedLine["modifiers"] = [];
-  const selected = new Set(line.optionIds ?? []);
-
-  for (const group of item.modifiers ?? []) {
+  for (const group of groups) {
     const chosen = group.options.filter((o) => selected.has(o.id));
-    if (group.type === "single") {
-      // exactly one for required single groups; take the first valid selection
-      const opt = chosen[0] ?? (group.required ? group.options[0] : undefined);
-      if (opt) { unitPrice += opt.priceDelta; modifiers.push({ groupId: group.id, optionId: opt.id, label: opt.label }); }
-    } else {
-      for (const opt of chosen) { unitPrice += opt.priceDelta; modifiers.push({ groupId: group.id, optionId: opt.id, label: opt.label }); }
-    }
+    if (group.type === "single" && chosen.length > 1) return bad;
+    if (group.required && chosen.length === 0) return bad; // never pick a default the customer didn't choose
+    for (const opt of chosen) { unitPrice += opt.priceDelta; modifiers.push({ groupId: group.id, optionId: opt.id, label: opt.label }); }
   }
-
-  return { itemId: item.id, name: item.name, unitPrice: round2(unitPrice), qty, modifiers };
+  return { line: { itemId: item.id, name: item.name, unitPrice: round2(unitPrice), qty, modifiers } };
 }
-
-function round2(n: number) { return Math.round(n * 100) / 100; }
 
 export function outwardCode(pc: string): string {
   const n = pc.toUpperCase().replace(/\s+/g, "");
@@ -52,10 +56,9 @@ export function outwardCode(pc: string): string {
 }
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
-const OUTWARD = /^[A-Z]{1,2}\d[A-Z\d]?$/i;
+/** A full UK postcode (outward + inward). Delivery needs the full postcode, not just "TS1". */
 export function isValidPostcodeServer(pc: string): boolean {
-  const n = pc.toUpperCase().replace(/\s+/g, "");
-  return UK_POSTCODE.test(n) || OUTWARD.test(n);
+  return UK_POSTCODE.test(pc.toUpperCase().replace(/\s+/g, ""));
 }
 
 export interface Zone { id: string; label: string; fee: number; etaMins: number }
@@ -67,13 +70,27 @@ export function findZone(postcode: string, zones: ZoneConfig[], disabledZones: s
   return { id: z.id, label: z.label, fee: z.fee, etaMins: z.etaMins };
 }
 
-export interface Voucher { code: string; label: string; amountOff?: number; pctOff?: number; minSpend?: number }
+export interface Voucher {
+  code: string;
+  label: string;
+  amountOff?: number;
+  pctOff?: number;
+  minSpend?: number;
+  freeItemId?: string;        // adds this dish free instead of money off
+  onePerCustomer?: string;    // redemption group: one use per phone number, ever (e.g. "first-order")
+  firstOrderOnly?: boolean;   // only if this phone / account has never ordered before
+}
+
+// Public offer codes. Limits are enforced on the server (see server/orders.ts), so it doesn't
+// matter that the codes are advertised on the Offers page.
 const VOUCHERS: Record<string, Voucher> = {
-  SAKURA10: { code: "SAKURA10", label: "10% off first order", pctOff: 10, minSpend: 12 },
+  SAKURA10: { code: "SAKURA10", label: "10% off first order", pctOff: 10, minSpend: 12, firstOrderOnly: true, onePerCustomer: "first-order" },
+  WELCOME10: { code: "WELCOME10", label: "10% welcome", pctOff: 10, minSpend: 12, firstOrderOnly: true, onePerCustomer: "first-order" },
   FAMILY52: { code: "FAMILY52", label: "Happy Family Feast", amountOff: 8, minSpend: 52 },
-  FREEGYOZA: { code: "FREEGYOZA", label: "Free Chicken Gyoza", amountOff: 5.5, minSpend: 25 },
-  WELCOME10: { code: "WELCOME10", label: "10% welcome", pctOff: 10, minSpend: 12 },
+  FREEGYOZA: { code: "FREEGYOZA", label: "Free Chicken Gyoza", freeItemId: "chicken-gyoza", minSpend: 25 },
 };
+
+export const AUTO_FREE_ITEM = { itemId: "chicken-gyoza", minSpend: 25 };
 
 export function globalVoucher(code: string): Voucher | null {
   return VOUCHERS[code.toUpperCase().trim()] ?? null;
@@ -81,6 +98,7 @@ export function globalVoucher(code: string): Voucher | null {
 
 export interface Totals {
   lines: PricedLine[];
+  issues: LineIssue[];
   subtotal: number;
   deliveryFee: number;
   discount: number;
@@ -88,6 +106,7 @@ export interface Totals {
   zone: Zone | null;
   minMet: boolean;
   inArea: boolean;
+  voucherApplied: boolean; // false if the voucher's minimum spend wasn't reached
 }
 
 export function computeTotals(opts: {
@@ -95,34 +114,47 @@ export function computeTotals(opts: {
   fulfilment: "delivery" | "collection";
   postcode?: string;
   voucher?: Voucher | null;
-  rewardAmount?: number; // £ discount for an owned account reward/voucher
-  rewardPct?: number;
   disabledZones: string[];
   menu: MenuItem[];
   zones: ZoneConfig[];
 }): Totals {
-  const priced = opts.lines.map((l) => priceLine(l, opts.menu)).filter((l): l is PricedLine => l !== null);
+  const priced: PricedLine[] = [];
+  const issues: LineIssue[] = [];
+  for (const l of opts.lines) {
+    const r = priceLine(l, opts.menu);
+    if ("line" in r) priced.push(r.line); else issues.push(r.issue);
+  }
   const subtotal = round2(priced.reduce((s, l) => s + l.unitPrice * l.qty, 0));
 
   const zone = opts.fulfilment === "delivery" && opts.postcode ? findZone(opts.postcode, opts.zones, opts.disabledZones) : null;
   const inArea = opts.fulfilment === "collection" || !!zone;
-  const deliveryFee =
-    opts.fulfilment === "collection" || !zone || subtotal >= ORDERING.freeDeliveryThreshold ? 0 : zone.fee;
+  const deliveryFee = opts.fulfilment === "collection" || !zone || subtotal >= ORDERING.freeDeliveryThreshold ? 0 : zone.fee;
 
   let discount = 0;
+  let voucherApplied = false;
   const v = opts.voucher;
   if (v && (!v.minSpend || subtotal >= v.minSpend)) {
+    voucherApplied = true;
     if (v.pctOff) discount += round2((subtotal * v.pctOff) / 100);
     if (v.amountOff) discount += Math.min(v.amountOff, subtotal);
+    if (v.freeItemId) {
+      const freeItem = opts.menu.find((m) => m.id === v.freeItemId && !m.soldOut);
+      if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free - ${v.code})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
+      else voucherApplied = false; // the free dish is sold out: the offer can't apply
+    }
   }
-  if (opts.rewardPct) discount += round2((subtotal * opts.rewardPct) / 100);
-  if (opts.rewardAmount) discount += Math.min(opts.rewardAmount, subtotal);
+  // "Free Chicken Gyoza over £25" is auto-applied when no other offer is used ("one per order").
+  if (!voucherApplied && subtotal >= AUTO_FREE_ITEM.minSpend) {
+    const freeItem = opts.menu.find((m) => m.id === AUTO_FREE_ITEM.itemId && !m.soldOut);
+    if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free over £${AUTO_FREE_ITEM.minSpend})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
+  }
   discount = round2(Math.min(discount, subtotal));
 
   const total = round2(Math.max(0, subtotal + deliveryFee - discount));
+  // The delivery minimum is on the food subtotal before discounts.
   const minMet = opts.fulfilment === "collection" ? subtotal > 0 : subtotal >= ORDERING.minOrder;
 
-  return { lines: priced, subtotal, deliveryFee, discount, total, zone, minMet, inArea };
+  return { lines: priced, issues, subtotal, deliveryFee, discount, total, zone, minMet, inArea, voucherApplied };
 }
 
 export const LOYALTY_POINTS_PER_POUND = 10;

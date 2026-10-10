@@ -1,10 +1,14 @@
 import { z } from "zod";
+import { isPlausiblePhone } from "@/server/phone";
+
+const phone = z.string().trim().min(7).max(20).refine(isPlausiblePhone, "Enter a valid phone number.");
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(120).toLowerCase(),
-  phone: z.string().trim().min(7).max(20),
+  phone,
   password: z.string().min(8).max(100),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 export const loginSchema = z.object({
@@ -14,7 +18,12 @@ export const loginSchema = z.object({
 
 export const updateAccountSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
-  phone: z.string().trim().min(7).max(20).optional(),
+  phone: phone.optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(100),
+  newPassword: z.string().min(8).max(100),
 });
 
 const incomingLine = z.object({
@@ -23,24 +32,35 @@ const incomingLine = z.object({
   qty: z.number().int().min(1).max(50),
 });
 
+export const quoteSchema = z.object({
+  lines: z.array(incomingLine).min(1).max(60),
+  fulfilment: z.enum(["delivery", "collection"]),
+  postcode: z.string().trim().max(10).optional(),
+  voucherCode: z.string().trim().max(40).optional(),
+  phone: z.string().trim().max(20).optional(),
+});
+
 export const createOrderSchema = z.object({
   lines: z.array(incomingLine).min(1).max(60),
   fulfilment: z.enum(["delivery", "collection"]),
   postcode: z.string().trim().max(10).optional(),
   address: z.string().trim().max(300).optional(),
   name: z.string().trim().min(2).max(80),
-  phone: z.string().trim().min(7).max(20),
+  phone,
   email: z.string().trim().email().max(120).optional().or(z.literal("")),
   notes: z.string().trim().max(500).optional(),
   whenType: z.enum(["asap", "scheduled"]).default("asap"),
-  scheduledTime: z.string().trim().max(10).optional(),
+  scheduledFor: z.string().trim().max(16).optional(), // "YYYY-MM-DD HH:MM", UK time
   voucherCode: z.string().trim().max(40).optional(),
   payMethod: z.enum(["cash", "wechat"]).default("cash"),
+  expectedTotal: z.number().nonnegative().max(100000).optional(),
+  idempotencyKey: z.string().regex(/^[A-Za-z0-9-]{16,64}$/).optional(),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 export const createBookingSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  phone: z.string().trim().min(7).max(20),
+  phone,
   email: z.string().trim().email().max(120).optional().or(z.literal("")),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}$/),
@@ -48,10 +68,12 @@ export const createBookingSchema = z.object({
   occasion: z.string().trim().max(40).optional(),
   dietary: z.string().trim().max(200).optional(),
   notes: z.string().trim().max(300).optional(),
+  turnstileToken: z.string().max(2048).optional(),
 });
 
 export const orderStatusSchema = z.object({
   status: z.enum(["received", "preparing", "out-for-delivery", "ready-for-collection", "completed", "cancelled"]),
+  reason: z.string().trim().max(200).optional(),
 });
 
 export const bookingStatusSchema = z.object({

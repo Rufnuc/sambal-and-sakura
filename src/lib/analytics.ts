@@ -1,43 +1,22 @@
 "use client";
 
 import type { AnalyticsEvent } from "@/lib/data/site";
+import { getConsent } from "@/lib/consent";
 
 /**
- * Lightweight analytics shim. In production, swap the `sink` for GA4 / Segment /
- * a server endpoint. Events are also mirrored to a session buffer the admin
- * "Analytics" view can read, so the demo shows live event flow.
+ * First-party analytics: events go to our own server (/api/events) and appear in Admin → Analytics.
+ * Nothing is sent unless the visitor has accepted analytics cookies, and no personal details are
+ * sent (the server also strips anything that looks like a name, phone, email or address).
  */
-const BUFFER_KEY = "ss_events";
-
-export interface TrackedEvent {
-  name: AnalyticsEvent;
-  props?: Record<string, unknown>;
-  ts: number;
-}
-
 export function track(name: AnalyticsEvent, props?: Record<string, unknown>) {
-  const evt: TrackedEvent = { name, props, ts: Date.now() };
-  if (typeof window === "undefined") return;
-  // eslint-disable-next-line no-console
-  console.debug("[analytics]", name, props ?? {});
+  if (typeof window === "undefined" || getConsent() !== "accepted") return;
   try {
-    const raw = window.localStorage.getItem(BUFFER_KEY);
-    const list: TrackedEvent[] = raw ? JSON.parse(raw) : [];
-    list.push(evt);
-    // keep last 200
-    window.localStorage.setItem(BUFFER_KEY, JSON.stringify(list.slice(-200)));
-    window.dispatchEvent(new CustomEvent("ss:event", { detail: evt }));
+    const body = JSON.stringify({ name, props });
+    const blob = new Blob([body], { type: "application/json" });
+    if (!navigator.sendBeacon?.("/api/events", blob)) {
+      void fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {});
+    }
   } catch {
-    /* storage unavailable - analytics is best-effort */
-  }
-}
-
-export function readEvents(): TrackedEvent[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(BUFFER_KEY);
-    return raw ? (JSON.parse(raw) as TrackedEvent[]) : [];
-  } catch {
-    return [];
+    /* analytics is best-effort */
   }
 }

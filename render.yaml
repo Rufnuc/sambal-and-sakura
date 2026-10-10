@@ -4,18 +4,20 @@ services:
   - type: web
     name: sambalandsakura
     runtime: node
-    plan: starter            # always-on (the free plan sleeps and would cost orders)
+    # FREE while building and demoing (sleeps after ~15 min idle: first visit then takes 30-60 s).
+    # AT GO-LIVE change to `plan: starter` ($7/mo, always on) - see DEPLOY.md "Going live".
+    plan: free
     region: frankfurt        # closest Render region to the UK
     autoDeploy: true
     healthCheckPath: /api/health
 
     # --include=dev: the build needs prisma, typescript and tailwind (dev dependencies).
     # Production uses PostgreSQL, so we derive the Postgres Prisma schema from the dev schema first.
-    buildCommand: npm ci --include=dev && node scripts/prepare-postgres.mjs && npx prisma generate --schema prisma/postgres/schema.prisma && npm run build
-
-    # Runs on every deploy before the new version goes live: apply DB migrations, then create the
-    # owner account ONLY if no admin exists yet (never overwrites, never seeds demo data).
-    preDeployCommand: npx prisma migrate deploy --schema prisma/postgres/schema.prisma && node scripts/create-admin.mjs
+    # Then apply DB migrations and create the owner account ONLY if no admin exists yet (never
+    # overwrites, never seeds demo data). Migrations use DIRECT_DATABASE_URL when it is set.
+    # (These run in the build because the free plan has no pre-deploy step. At go-live you may move
+    # the last two commands to `preDeployCommand:` - see DEPLOY.md "Going live".)
+    buildCommand: npm ci --include=dev && node scripts/prepare-postgres.mjs && npx prisma generate --schema prisma/postgres/schema.prisma && DATABASE_URL="${DIRECT_DATABASE_URL:-$DATABASE_URL}" npx prisma migrate deploy --schema prisma/postgres/schema.prisma && node scripts/create-admin.mjs && npm run build
 
     startCommand: npm run start
 
@@ -35,7 +37,9 @@ services:
         sync: false
       - key: BING_SITE_VERIFICATION     # from Bing Webmaster Tools (HTML meta tag) - Bing feeds ChatGPT search and Copilot
         sync: false
-      - key: DATABASE_URL            # Neon (direct connection string) or Render Postgres internal URL
+      - key: DATABASE_URL            # Neon POOLED string (host contains -pooler) + &pgbouncer=true&connection_limit=5
+        sync: false
+      - key: DIRECT_DATABASE_URL     # optional: Neon direct (non-pooled) string, used only for migrations
         sync: false
       - key: ADMIN_EMAIL             # owner login, created on first deploy only
         sync: false
@@ -49,9 +53,27 @@ services:
         sync: false
       - key: CLOUDINARY_CLOUD_NAME   # needed for menu photo uploads in production
         sync: false
-      - key: CLOUDINARY_UPLOAD_PRESET
+      - key: CLOUDINARY_API_KEY      # signed uploads (preferred over an unsigned preset)
         sync: false
-      - key: PRINTNODE_API_KEY
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # --- Security switches (see DEPLOY.md "Security switches") ---
+      - key: TURNSTILE_SITE_KEY      # Cloudflare Turnstile bot check on guest checkout / sign-up / bookings
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: ALERT_WEBHOOK_URL       # owner push alerts, e.g. https://ntfy.sh/<secret-topic>
+        sync: false
+      - key: CLIENT_IP_HEADER        # only if Admin → Settings → Connection check shows the wrong IP
+        sync: false
+      - key: SUNMI_APP_ID            # Sunmi cloud printer (preferred) - see DEPLOY.md "Sunmi kitchen printer"
+        sync: false
+      - key: SUNMI_APP_KEY
+        sync: false
+      - key: SUNMI_PRINTER_SN
+        sync: false
+      - key: PRINTNODE_API_KEY       # alternative to Sunmi (only used if the Sunmi keys are not set)
         sync: false
       - key: PRINTNODE_PRINTER_ID
         sync: false

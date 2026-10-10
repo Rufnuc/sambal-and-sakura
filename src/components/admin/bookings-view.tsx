@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, X, UserCheck, Clock, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,8 @@ const FILTERS = [
 ] as const;
 
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // The restaurant's date (UK), whatever timezone this device is set to.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 export function BookingsView() {
@@ -34,7 +34,14 @@ export function BookingsView() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("today");
   const [editing, setEditing] = useState<Booking | null>(null);
 
-  useEffect(() => { fetchBookings().then((b) => { setBookings(b); setReady(true); }); }, []);
+  // Upcoming bookings by default (never cut off by old ones); "Past" loads the last 60 days.
+  const wantPast = filter === "past";
+  const reload = useCallback(() => fetchBookings(wantPast).then((b) => { setBookings(b); setReady(true); }), [wantPast]);
+  useEffect(() => {
+    void reload();
+    const id = setInterval(() => { if (document.visibilityState === "visible") void reload(); }, 30_000);
+    return () => clearInterval(id);
+  }, [reload]);
 
   const today = todayStr();
   const rows = useMemo(() => {
@@ -50,7 +57,7 @@ export function BookingsView() {
 
   async function set(b: Booking, patch: Partial<Booking>, msg: string) {
     const ok = await patchBookingStatus(b.id, patch.status as BookingStatus, patch.tableId);
-    if (ok) { setBookings(await fetchBookings()); toast.success(msg); }
+    if (ok) { await reload(); toast.success(msg); }
     else toast.error("Could not update booking.");
   }
 
@@ -117,7 +124,10 @@ export function BookingsView() {
               {rows.map((b) => (
                 <TableRow key={b.id}>
                   <TableCell className="font-medium">{b.time}{b.tableId && <span className="block text-xs text-muted-foreground">{b.tableId}</span>}</TableCell>
-                  <TableCell>{b.name}<span className="block text-xs text-muted-foreground">{b.id}</span></TableCell>
+                  <TableCell>
+                    {b.name}<span className="block text-xs text-muted-foreground">{b.id} · <a className="underline" href={`tel:${b.phone}`}>{b.phone}</a></span>
+                    {b.requiresCall && <span className="block text-[11px] font-semibold text-sambal">Large party - call to confirm &amp; take deposit</span>}
+                  </TableCell>
                   <TableCell>{b.party}</TableCell>
                   <TableCell className="hidden sm:table-cell">{new Date(b.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</TableCell>
                   <TableCell className="hidden max-w-40 truncate md:table-cell text-muted-foreground">{b.occasion ?? ""}{b.dietary ? ` · ${b.dietary}` : ""}</TableCell>

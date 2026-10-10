@@ -28,7 +28,6 @@ export const FOOTER_NAV: { heading: string; links: NavLink[] }[] = [
     heading: "Rewards",
     links: [
       { href: "/offers", label: "Offers & Vouchers" },
-      { href: "/refer", label: "Refer & Earn" },
       { href: "/wheel", label: "Fortune Wheel" },
     ],
   },

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/store/auth";
+import { Turnstile } from "@/components/turnstile";
 import { cn } from "@/lib/utils";
 
 export function AuthDialog({
@@ -23,14 +24,25 @@ export function AuthDialog({
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [siteKey, setSiteKey] = useState<string | null>(null);
+  const [humanToken, setHumanToken] = useState("");
+  const [resetKey, setResetKey] = useState(0);
+
+  // The bot check (only shown when it's switched on) protects sign-up from mass fake accounts.
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/public-config").then((r) => r.json()).then((d) => setSiteKey(d.turnstileSiteKey ?? null)).catch(() => {});
+  }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "signup" && siteKey && !humanToken) { toast.error("Please complete the security check."); return; }
     setBusy(true);
-    const res = mode === "signin" ? await login(email, password) : await register(name, email, phone, password);
+    const res = mode === "signin" ? await login(email, password) : await register(name, email, phone, password, humanToken);
     setBusy(false);
+    if (mode === "signup" && !res.ok) { setHumanToken(""); setResetKey((n) => n + 1); }
     if (res.ok) {
-      toast.success(mode === "signin" ? "Welcome back!" : "Account created - welcome! 50 points added.");
+      toast.success(mode === "signin" ? "Welcome back!" : "Account created - welcome! Your 50 bonus points unlock with your first completed order.");
       onOpenChange(false);
       setName(""); setEmail(""); setPhone(""); setPassword("");
     } else {
@@ -48,7 +60,7 @@ export function AuthDialog({
           <DialogDescription>
             {mode === "signin"
               ? "Sign in to track orders, earn points and claim rewards."
-              : "Join to earn points on every order, save rewards and refer friends."}
+              : "Join to earn points on every completed order and save your rewards."}
           </DialogDescription>
         </DialogHeader>
 
@@ -87,9 +99,11 @@ export function AuthDialog({
             <Input id="au-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required />
             {mode === "signup" && <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>}
           </div>
+          {mode === "signup" && <Turnstile siteKey={siteKey} onToken={setHumanToken} resetKey={resetKey} />}
           <Button type="submit" className="mt-2 h-12 text-base font-semibold" disabled={busy}>
-            {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account & claim 50 points"}
+            {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
           </Button>
+          {mode === "signup" && <p className="text-center text-xs text-muted-foreground">Includes 50 bonus points, added when your first order is completed.</p>}
         </form>
       </DialogContent>
     </Dialog>

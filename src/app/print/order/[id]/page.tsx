@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/server/db";
-import { currentUser, isStaff } from "@/server/auth";
+import { currentUser, staffFor } from "@/server/auth";
 import { RESTAURANT } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
 import { gbp } from "@/lib/format";
@@ -13,8 +13,8 @@ type Mod = { groupId: string; optionId: string; label: string };
 function parseMods(s: string): Mod[] { try { return JSON.parse(s); } catch { return []; } }
 
 export default async function OrderTicketPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await currentUser();
-  if (!user || !isStaff(user)) redirect("/staff/login");
+  if (!(await currentUser())) redirect("/staff/login");
+  if (!(await staffFor("orders"))) redirect("/admin");
 
   const { id } = await params;
   const { business: b } = await getSiteContent();

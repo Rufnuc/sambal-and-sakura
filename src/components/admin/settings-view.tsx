@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarX, Plus, Trash2, Bike, ShieldCheck, Clock, KeyRound, Save } from "lucide-react";
+import { CalendarX, Plus, Trash2, Bike, ShieldCheck, Clock, KeyRound, Save, Printer, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionCard } from "@/components/admin/ui";
+import { OwnerTools } from "@/components/admin/owner-tools";
 import { ORDERING } from "@/lib/data/site";
 import { BOOKING_POLICY, MAX_ONLINE_PARTY, TOTAL_SEATS } from "@/lib/data/tables";
 import {
-  fetchSettings, saveSettings, fetchConfig, saveConfig, changePassword, type ZoneCfg,
+  fetchSettings, saveSettings, fetchConfig, saveConfig, changePassword, fetchPrinterInfo, sendTestPrint, type ZoneCfg, type PrintResult,
 } from "@/lib/admin/api";
 import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,11 @@ export function SettingsView() {
   const [maxMiles, setMaxMiles] = useState(6);
   const [ready, setReady] = useState(false);
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [printer, setPrinter] = useState<{ provider: "sunmi" | "printnode" | null; printerSn: string | null } | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<PrintResult | null>(null);
+
+  useEffect(() => { fetchPrinterInfo().then(setPrinter); }, []);
 
   useEffect(() => {
     Promise.all([fetchSettings(), fetchConfig()]).then(([s, c]) => {
@@ -30,16 +36,28 @@ export function SettingsView() {
     });
   }, []);
 
-  async function saveMiles() { const c = await saveConfig({ maxMiles }); setMaxMiles(c.maxMiles ?? maxMiles); toast.success("Delivery range saved"); }
+  async function runTestPrint() {
+    setTesting(true); setTestResult(null);
+    const r = await sendTestPrint();
+    setTesting(false); setTestResult(r);
+    if (r.ok) toast.success("Test ticket sent - check the printer"); else toast.error(r.message);
+  }
+
+  async function saveMiles() {
+    try { const c = await saveConfig({ maxMiles }); setMaxMiles(c.maxMiles ?? maxMiles); toast.success("Delivery range saved"); }
+    catch (e) { toast.error((e as Error).message); }
+  }
 
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
 
   async function addDate() {
     if (!newDate || blackouts.includes(newDate)) return;
-    const s = await saveSettings({ blackouts: [...blackouts, newDate].sort() });
-    setBlackouts(s.blackouts);
-    toast.success("Date closed for bookings");
-    setNewDate("");
+    try {
+      const s = await saveSettings({ blackouts: [...blackouts, newDate].sort() });
+      setBlackouts(s.blackouts);
+      toast.success("Date closed for bookings and orders");
+      setNewDate("");
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   function updateZone(i: number, patch: Partial<ZoneCfg>) {
@@ -49,9 +67,11 @@ export function SettingsView() {
     setZones((z) => [...z, { id: "z" + (z.length + 1) + Date.now().toString(36).slice(-3), label: "New zone", postcodes: [], fee: 2.99, etaMins: 40 }]);
   }
   async function saveZones() {
-    const c = await saveConfig({ zones });
-    setZones(c.zones);
-    toast.success("Delivery zones saved");
+    try {
+      const c = await saveConfig({ zones });
+      setZones(c.zones);
+      toast.success("Delivery zones saved");
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   async function submitPassword(e: React.FormEvent) {
@@ -73,8 +93,8 @@ export function SettingsView() {
       <SectionCard title="Change your password" action={<KeyRound className="size-5 text-gold-ink" />}>
         <form onSubmit={submitPassword} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div><Label htmlFor="pw-cur">Current</Label><Input id="pw-cur" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} className="mt-1.5 h-11" autoComplete="current-password" required /></div>
-          <div><Label htmlFor="pw-new">New (min 8)</Label><Input id="pw-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1.5 h-11" minLength={8} autoComplete="new-password" required /></div>
-          <div><Label htmlFor="pw-con">Confirm</Label><Input id="pw-con" type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} className="mt-1.5 h-11" minLength={8} autoComplete="new-password" required /></div>
+          <div><Label htmlFor="pw-new">New (min 10)</Label><Input id="pw-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1.5 h-11" minLength={10} autoComplete="new-password" required /></div>
+          <div><Label htmlFor="pw-con">Confirm</Label><Input id="pw-con" type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} className="mt-1.5 h-11" minLength={10} autoComplete="new-password" required /></div>
           <Button type="submit" className="h-11 w-fit gap-1.5 sm:col-span-3">Update password</Button>
         </form>
       </SectionCard>
@@ -91,7 +111,7 @@ export function SettingsView() {
             {blackouts.map((d) => (
               <li key={d} className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-sm">
                 {new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-                <button aria-label={`Remove ${d}`} onClick={async () => { const s = await saveSettings({ blackouts: blackouts.filter((x) => x !== d) }); setBlackouts(s.blackouts); toast("Date re-opened"); }} className="text-muted-foreground hover:text-sambal"><Trash2 className="size-3.5" /></button>
+                <button aria-label={`Remove ${d}`} onClick={async () => { try { const s = await saveSettings({ blackouts: blackouts.filter((x) => x !== d) }); setBlackouts(s.blackouts); toast("Date re-opened"); } catch (e) { toast.error((e as Error).message); } }} className="text-muted-foreground hover:text-sambal"><Trash2 className="size-3.5" /></button>
               </li>
             ))}
           </ul>
@@ -111,7 +131,7 @@ export function SettingsView() {
                 <div><Label className="text-xs">Fee £</Label><Input type="number" step="0.5" value={z.fee} onChange={(e) => updateZone(i, { fee: Number(e.target.value) })} className="mt-1 h-10" inputMode="decimal" /></div>
                 <div><Label className="text-xs">ETA min</Label><Input type="number" value={z.etaMins} onChange={(e) => updateZone(i, { etaMins: Number(e.target.value) })} className="mt-1 h-10" inputMode="numeric" /></div>
                 <div className="flex items-center gap-1">
-                  <button onClick={async () => { const next = paused ? disabledZones.filter((x) => x !== z.id) : [...disabledZones, z.id]; const s = await saveSettings({ disabledZones: next }); setDisabledZones(s.disabledZones); }} role="switch" aria-checked={!paused} aria-label="Zone active" className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", paused ? "bg-muted" : "bg-jade")}>
+                  <button onClick={async () => { const next = paused ? disabledZones.filter((x) => x !== z.id) : [...disabledZones, z.id]; try { const s = await saveSettings({ disabledZones: next }); setDisabledZones(s.disabledZones); } catch (e) { toast.error((e as Error).message); } }} role="switch" aria-checked={!paused} aria-label="Zone active" className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", paused ? "bg-muted" : "bg-jade")}>
                     <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", paused ? "translate-x-1" : "translate-x-6")} />
                   </button>
                   <button aria-label="Remove zone" onClick={() => setZones((zz) => zz.filter((_, idx) => idx !== i))} className="flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:text-sambal"><Trash2 className="size-4" /></button>
@@ -132,6 +152,33 @@ export function SettingsView() {
         </div>
       </SectionCard>
 
+      {/* Kitchen printer */}
+      <SectionCard title="Kitchen printer" action={<Printer className="size-5 text-gold-ink" />}>
+        {printer?.provider ? (
+          <p className="mb-3 text-sm text-muted-foreground">
+            Connected to your <strong className="text-foreground">{printer.provider === "sunmi" ? "Sunmi cloud printer" : "PrintNode printer"}</strong>
+            {printer.printerSn ? ` (serial ${printer.printerSn})` : ""}. New cash orders print automatically, and WeChat orders print once they are paid.
+          </p>
+        ) : (
+          <p className="mb-3 text-sm text-muted-foreground">
+            No kitchen printer is connected yet, so tickets are only printable by hand from each order. Add the Sunmi details on the server (see DEPLOY.md, &quot;Sunmi kitchen printer&quot;).
+          </p>
+        )}
+        <Button variant="outline" className="h-10 gap-1.5" onClick={runTestPrint} disabled={testing || !printer?.provider}>
+          {testing ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />} Send test print
+        </Button>
+        {testResult && (
+          <div className={cn("mt-3 rounded-lg border p-3 text-sm", testResult.ok ? "border-jade/30 bg-jade/10" : "border-sambal/30 bg-sambal/10")}>
+            <p className="font-semibold">{testResult.ok ? "Test ticket sent." : "That did not work."}</p>
+            <p>{testResult.message}</p>
+            {testResult.online && <p className="mt-1 text-muted-foreground">Printer online check: {testResult.online.ok ? "reached Sunmi" : testResult.online.message}</p>}
+            {(testResult.detail || testResult.online?.raw) && (
+              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">Sunmi replied: {testResult.detail ?? testResult.online?.raw}</p>
+            )}
+          </div>
+        )}
+      </SectionCard>
+
       {/* Rules */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SectionCard title="Booking rules" action={<ShieldCheck className="size-5 text-jade" />}>
@@ -145,13 +192,16 @@ export function SettingsView() {
         </SectionCard>
         <SectionCard title="Order rules" action={<Clock className="size-5 text-gold-ink" />}>
           <dl className="divide-y divide-border text-sm">
-            <Rule label="Payment" value="Cash only" />
+            <Rule label="Payment" value="Cash (WeChat Pay for Chinese-language guests when set up)" />
             <Rule label="Minimum delivery order" value={gbp(ORDERING.minOrder)} />
             <Rule label="Free delivery threshold" value={gbp(ORDERING.freeDeliveryThreshold)} />
             <Rule label="Average prep time" value={`${ORDERING.prepTimeMins} min`} />
+            <Rule label="Last ASAP order" value={`${ORDERING.asapCutoffBeforeCloseMins} min before closing`} />
           </dl>
         </SectionCard>
       </div>
+
+      <OwnerTools />
     </div>
   );
 }

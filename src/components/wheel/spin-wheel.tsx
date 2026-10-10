@@ -49,7 +49,7 @@ export function SpinWheel({ prizes = WHEEL_PRIZES }: { prizes?: WheelPrize[] }) 
     const res = await fetch("/api/wheel/spin", { method: "POST" });
     const data = await res.json().catch(() => ({}));
 
-    if (res.status === 429) {
+    if (res.status === 429 || data.needsOrder) {
       setSpinning(false);
       setCooldownMsg(data.error ?? "One spin a week - come back soon.");
       return;
@@ -117,7 +117,7 @@ export function SpinWheel({ prizes = WHEEL_PRIZES }: { prizes?: WheelPrize[] }) 
             <Button className="h-14 w-full text-lg font-semibold" onClick={() => setAuthOpen(true)}>
               <LogIn className="size-5" /> Sign in to spin
             </Button>
-            <p className="mt-3 text-sm text-muted-foreground">One spin per account each week - sign in or create an account to play.</p>
+            <p className="mt-3 text-sm text-muted-foreground">One spin a week once you've placed your first order - sign in or create an account to play.</p>
             <AuthDialog open={authOpen} onOpenChange={setAuthOpen} defaultMode="signup" />
           </>
         ) : result ? (

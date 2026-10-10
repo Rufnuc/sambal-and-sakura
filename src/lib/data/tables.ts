@@ -28,5 +28,4 @@ export const BOOKING_POLICY = {
   slotStepMins: 30,
   depositThresholdParty: 7, // parties this size+ need a deposit
   depositPerHead: 10,
-  largePartyPhone: "+44 161 496 0137",
 };

@@ -7,7 +7,8 @@ import { gbp } from "@/lib/format";
 
 // Renders a WeChat Pay Native QR for a placed order. Falls back to a clear
 // "pay cash" message when WeChat Pay isn't configured on the server.
-export function WeChatPay({ orderId, total }: { orderId: string; total: number }) {
+// `payToken` proves this browser placed the order (only it can start or check the payment).
+export function WeChatPay({ orderId, total, payToken }: { orderId: string; total: number; payToken: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
@@ -18,7 +19,7 @@ export function WeChatPay({ orderId, total }: { orderId: string; total: number }
     (async () => {
       try {
         const res = await fetch("/api/pay/wechat", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }),
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, payToken }),
         });
         const data = await res.json().catch(() => ({}));
         if (!active) return;
@@ -34,20 +35,20 @@ export function WeChatPay({ orderId, total }: { orderId: string; total: number }
       }
     })();
     return () => { active = false; };
-  }, [orderId]);
+  }, [orderId, payToken]);
 
   // Once the QR is showing, poll until WeChat confirms payment (customer's phone → WeChat → our notify endpoint).
   useEffect(() => {
     if (state !== "ready" || paid) return;
     const id = setInterval(async () => {
       try {
-        const r = await fetch(`/api/pay/wechat/status?orderId=${encodeURIComponent(orderId)}`, { cache: "no-store" });
+        const r = await fetch(`/api/pay/wechat/status?orderId=${encodeURIComponent(orderId)}&t=${encodeURIComponent(payToken)}`, { cache: "no-store" });
         const d = await r.json();
         if (d.paid) setPaid(true);
       } catch { /* keep polling */ }
     }, 4000);
     return () => clearInterval(id);
-  }, [state, paid, orderId]);
+  }, [state, paid, orderId, payToken]);
 
   if (paid) {
     return (

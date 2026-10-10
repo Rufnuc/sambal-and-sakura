@@ -17,21 +17,24 @@ import { BOOKING_POLICY, MAX_ONLINE_PARTY } from "@/lib/data/tables";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/store/auth";
+import { useSiteContent } from "@/components/site-content-provider";
+import { telHref } from "@/lib/site-content";
+import { Turnstile } from "@/components/turnstile";
 import { cn } from "@/lib/utils";
 
 interface ApiBooking {
   id: string; name: string; phone: string; date: string; time: string;
-  party: number; status: string; occasion?: string | null;
+  party: number; status: string; occasion?: string | null; requiresCall?: boolean;
 }
 
 const OCCASIONS = ["None", "Birthday", "Anniversary", "Date night", "Business", "Celebration"];
 
 function nextDates(count: number): { value: string; label: string; sub: string }[] {
   const out = [];
-  const now = new Date();
+  // Start from today's date in the UK (the restaurant's calendar), whatever this device's timezone.
+  const [y, m, dd] = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).split("-").map(Number);
   for (let i = 0; i < count; i++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + i);
+    const d = new Date(y, m - 1, dd + i, 12);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const label = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-GB", { weekday: "short" });
     const sub = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -79,10 +82,18 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
   const [occasion, setOccasion] = useState("None");
   const [dietary, setDietary] = useState("");
   const [notes, setNotes] = useState("");
+  const { business: b } = useSiteContent();
+  const [siteKey, setSiteKey] = useState<string | null>(null);
+  const [humanToken, setHumanToken] = useState("");
+  const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
     if (user) { setName((n) => n || user.name); setPhone((p) => p || user.phone); }
   }, [user]);
+  useEffect(() => {
+    fetch("/api/public-config").then((r) => r.json()).then((d) => setSiteKey(d.turnstileSiteKey ?? null)).catch(() => {});
+  }, []);
+  const needsHuman = !user && !!siteKey;
 
   // Server-authoritative availability.
   useEffect(() => {
@@ -100,7 +111,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
   const deposit = needsDeposit(party);
   const selectedSlot = slots.find((s) => s.time === time) ?? null;
 
-  const canConfirm = !tooBig && !!time && name.trim().length > 1 && phone.trim().length >= 7 && !submitting;
+  const canConfirm = !tooBig && !!time && name.trim().length > 1 && phone.trim().length >= 7 && !submitting && (!needsHuman || !!humanToken);
 
   async function confirm() {
     if (!canConfirm || !selectedSlot) return;
@@ -109,6 +120,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
       name: name.trim(), phone: phone.trim(), date, time,
       party, occasion: occasion !== "None" ? occasion : undefined,
       dietary: dietary.trim() || undefined, notes: notes.trim() || undefined,
+      turnstileToken: humanToken || undefined,
     };
     try {
       const res = await fetch("/api/bookings", {
@@ -117,6 +129,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data.error ?? "Could not create booking.");
+        if (needsHuman) { setHumanToken(""); setResetKey((n) => n + 1); }
         // refresh availability in case the slot just filled
         fetch(`/api/bookings/availability?date=${date}&party=${party}`, { cache: "no-store" }).then((r) => r.json()).then((d) => setSlots(d.slots ?? [])).catch(() => {});
         setSubmitting(false);
@@ -146,7 +159,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
           </div>
           {tooBig && (
             <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-sm text-foreground">
-              <Phone className="size-4 text-gold-ink" /> For parties over {MAX_ONLINE_PARTY}, please call us on <a className="font-medium underline" href={`tel:${BOOKING_POLICY.largePartyPhone}`}>{BOOKING_POLICY.largePartyPhone}</a>.
+              <Phone className="size-4 text-gold-ink" /> For parties over {MAX_ONLINE_PARTY}, please call us on <a className="font-medium underline" href={telHref(b.phone)}>{b.phone}</a>.
             </p>
           )}
           {deposit && !tooBig && (
@@ -256,6 +269,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
             </p>
           )}
 
+          {needsHuman && <Turnstile siteKey={siteKey} onToken={setHumanToken} resetKey={resetKey} />}
           <Button className="mt-5 h-13 w-full text-base font-semibold" disabled={!canConfirm} onClick={confirm}>
             {selectedSlot?.state === "waitlist" ? "Join the waitlist" : "Confirm booking"}
           </Button>
@@ -272,6 +286,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 function BookingConfirmation({ booking }: { booking: ApiBooking }) {
   const waitlist = booking.status === "waitlist";
+  const { business: b } = useSiteContent();
   return (
     <div className="mx-auto mt-6 max-w-xl text-center">
       <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-jade/15 text-jade">
@@ -281,7 +296,7 @@ function BookingConfirmation({ booking }: { booking: ApiBooking }) {
         {waitlist ? "You're on the waitlist" : "Table booked!"}
       </h2>
       <p className="mt-2 text-muted-foreground">
-        {booking.name.split(" ")[0]}, your reference is <span className="font-semibold text-foreground">{booking.id}</span>.
+        <span className="notranslate" translate="no">{booking.name.split(" ")[0]}</span>, your reference is <span className="font-semibold text-foreground notranslate" translate="no">{booking.id}</span>.
       </p>
       <div className="mt-6 rounded-2xl border border-border bg-card p-6 text-left shadow-sm">
         <div className="flex items-center justify-between">
@@ -294,8 +309,16 @@ function BookingConfirmation({ booking }: { booking: ApiBooking }) {
           {new Date(booking.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
         </p>
         <p className="text-lg">{booking.time}</p>
+        {booking.requiresCall && (
+          <div className="mt-4 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-sm text-foreground">
+            <Phone className="size-4 text-gold-ink" /> For a party this size we&apos;ll phone you to confirm and take the deposit.
+          </div>
+        )}
+        {waitlist && (
+          <p className="mt-4 text-sm text-muted-foreground">We&apos;ll phone you if a table frees up. Your table isn&apos;t confirmed until we do.</p>
+        )}
         <div className="mt-4 flex items-center gap-1.5 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
-          <CheckCircle2 className="size-4" /> We'll text a reminder to {booking.phone} the day before.
+          <CheckCircle2 className="size-4" /> Need to change or cancel? Call <a className="underline" href={telHref(b.phone)}>{b.phone}</a> and quote your reference.
         </div>
       </div>
       <div className="mt-8 flex flex-wrap justify-center gap-3">

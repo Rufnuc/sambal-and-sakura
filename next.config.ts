@@ -1,6 +1,39 @@
 import type { NextConfig } from "next";
 
+const PROD = process.env.NODE_ENV === "production";
+
+// Content Security Policy: which sources the browser may load. Only our own scripts (plus
+// Cloudflare's bot check), no plugins, and nobody may put the site in a frame (clickjacking).
+// Inline scripts stay allowed because Next.js and the JSON-LD blocks use them.
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${PROD ? "" : " 'unsafe-eval'"}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  `connect-src 'self' https://challenges.cloudflare.com${PROD ? "" : " ws: wss:"}`,
+  "frame-src https://www.google.com https://challenges.cloudflare.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  ...(PROD ? ["upgrade-insecure-requests"] : []),
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), payment=(), geolocation=(self)" },
+  ...(PROD ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
+];
+
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   // The FAQ moved onto the Contact page. A server-level 308 (not a page-level redirect, which can only
   // redirect client-side under a loading boundary) keeps old links and Google results working.
   async redirects() {

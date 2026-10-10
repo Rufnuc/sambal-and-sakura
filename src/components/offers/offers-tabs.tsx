@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { CopyCode } from "@/components/copy-code";
 import { SpinWheel } from "@/components/wheel/spin-wheel";
 import { ReferralWidget } from "@/components/refer/referral-widget";
-import type { Offer, WheelPrize } from "@/lib/data/site";
+import { FEATURES, type Offer, type WheelPrize } from "@/lib/data/site";
 import { cn } from "@/lib/utils";
 
 const KIND_ICON: Record<string, React.ElementType> = { "first-order": Sparkles, bundle: Ticket, freebie: Gift, percent: BadgePercent };
@@ -22,7 +22,7 @@ export function OffersTabs({
   referral: { give: number; get: number; minSpend: number };
   initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<Tab>(initialTab === "refer" && !FEATURES.referrals ? "offers" : initialTab);
   const winnable = prizes.filter((p) => p.kind !== "none");
   const steps = [
     "Share your unique link or code with a friend.",
@@ -33,7 +33,7 @@ export function OffersTabs({
   const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "offers", label: "Offers", icon: Ticket },
     { id: "wheel", label: "Fortune Wheel", icon: Sparkles },
-    { id: "refer", label: "Refer & Earn", icon: Gift },
+    ...(FEATURES.referrals ? [{ id: "refer" as const, label: "Refer & Earn", icon: Gift }] : []),
   ];
 
   return (
@@ -41,7 +41,7 @@ export function OffersTabs({
       <header className="max-w-2xl">
         <p className="font-medium uppercase tracking-widest text-gold-ink">Rewards</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Offers &amp; rewards</h1>
-        <p className="mt-3 text-muted-foreground text-pretty">Deals, the Fortune Wheel and referrals - all exclusive to ordering direct.</p>
+        <p className="mt-3 text-muted-foreground text-pretty">Deals and the Fortune Wheel - all exclusive to ordering direct.</p>
       </header>
 
       {/* Tabs */}
@@ -102,7 +102,7 @@ export function OffersTabs({
           </div>
         )}
 
-        {tab === "refer" && (
+        {tab === "refer" && FEATURES.referrals && (
           <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
             <ol className="flex flex-col gap-5">
               {steps.map((step, i) => {

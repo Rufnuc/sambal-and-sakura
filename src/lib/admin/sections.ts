@@ -9,7 +9,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   { key: "floor", label: "Floor plan", href: "/admin/floor" },
   { key: "customers", label: "Customers", href: "/admin/customers" },
   { key: "menu", label: "Menu", href: "/admin/menu" },
-  { key: "promos", label: "Promotions", href: "/admin/promos" },
+  { key: "promos", label: "Promotions", href: "/admin/promos", adminOnly: true }, // prices & offers: owner only
   { key: "content", label: "Site content", href: "/admin/content", adminOnly: true },
   { key: "careers", label: "Careers", href: "/admin/careers", adminOnly: true },
   { key: "analytics", label: "Analytics", href: "/admin/analytics" },

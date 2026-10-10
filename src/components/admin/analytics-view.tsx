@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, LabelList } from "recharts"
 import { Activity } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { SectionCard, StatCard } from "@/components/admin/ui";
-import { readEvents, type TrackedEvent } from "@/lib/analytics";
+import { fetchAnalytics } from "@/lib/admin/api";
 import { ANALYTICS_EVENTS, type AnalyticsEvent } from "@/lib/data/site";
 
 const funnelConfig = { count: { label: "Events", color: "var(--chart-1)" } } satisfies ChartConfig;
@@ -23,23 +23,17 @@ const LABELS: Record<AnalyticsEvent, string> = {
   dish_assistant_ask: "Asked dish AI",
 };
 
+// Real events from every visitor who accepted analytics cookies (stored on our server, 90 days).
 export function AnalyticsView() {
-  const [events, setEvents] = useState<TrackedEvent[]>([]);
+  const [days, setDays] = useState(14);
+  const [data, setData] = useState<{ counts: Record<string, number>; recent: { name: string; createdAt: string }[] } | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setEvents(readEvents());
-    setReady(true);
-    const onEvt = () => setEvents(readEvents());
-    window.addEventListener("ss:event", onEvt);
-    return () => window.removeEventListener("ss:event", onEvt);
-  }, []);
+    fetchAnalytics(days).then((d) => { setData(d); setReady(true); });
+  }, [days]);
 
-  const counts = useMemo(() => {
-    const map = new Map<AnalyticsEvent, number>();
-    for (const e of events) map.set(e.name, (map.get(e.name) ?? 0) + 1);
-    return map;
-  }, [events]);
+  const counts = useMemo(() => new Map<AnalyticsEvent, number>(Object.entries(data?.counts ?? {}) as [AnalyticsEvent, number][]), [data]);
 
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
 
@@ -50,13 +44,18 @@ export function AnalyticsView() {
   const placed = counts.get("order_placed") ?? 0;
   const rate = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-  const recent = [...events].sort((a, b) => b.ts - a.ts).slice(0, 14);
+  const recent = (data?.recent ?? []).map((e) => ({ name: e.name, ts: Date.parse(e.createdAt) }));
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground">Live event tracking · this session (wire to GA4 / Segment in production)</p>
+        <p className="text-muted-foreground">Visitors who accepted analytics cookies · last {days} days</p>
+      </div>
+      <div className="flex gap-2">
+        {[7, 14, 30, 90].map((d) => (
+          <button key={d} onClick={() => setDays(d)} className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${days === d ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted"}`}>{d} days</button>
+        ))}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -78,7 +77,7 @@ export function AnalyticsView() {
             </Bar>
           </BarChart>
         </ChartContainer>
-        <p className="mt-2 text-xs text-muted-foreground">Tip: browse the menu, add items and place an order to watch these update live.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Only counts visitors who accepted analytics cookies, so real totals are higher. Orders and bookings themselves are always exact on the Dashboard.</p>
       </SectionCard>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -95,13 +94,13 @@ export function AnalyticsView() {
 
         <SectionCard title="Recent activity" action={<Activity className="size-4 text-jade" />}>
           {recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No events yet this session.</p>
+            <p className="text-sm text-muted-foreground">No events in this period yet.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {recent.map((e, i) => (
                 <li key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
                   <span className="font-mono">{e.name}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(e.ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(e.ts).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                 </li>
               ))}
             </ul>

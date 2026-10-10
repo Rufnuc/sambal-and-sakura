@@ -1,64 +1,51 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
-import { hashPassword, createSession, referralCode, publicUser } from "@/server/auth";
+import { hashPassword, createSession, publicUser } from "@/server/auth";
 import { registerSchema } from "@/server/validation";
-
-const MAX_ACCOUNTS_PER_IP_24H = 3;
-
-function clientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for") ?? "";
-  const ip = xff.split(",")[0].trim() || req.headers.get("x-real-ip") || "";
-  return ip;
-}
+import { referralCode, rewardCode, withFreshIds } from "@/server/ids";
+import { clientIp, limitOr429 } from "@/server/rate-limit";
+import { verifyHuman } from "@/server/turnstile";
+import { canonicalPhone, phoneKey } from "@/server/phone";
+import { WELCOME_POINTS } from "@/server/points";
+import { log } from "@/server/log";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Please check your details and try again." }, { status: 400 });
+  const { name, email, phone, password, turnstileToken } = parsed.data;
+  const ip = clientIp(req);
 
-  const { name, email, phone, password } = parsed.data;
+  // Duplicate-account farming: limit per network (trusted IP, see rate-limit.ts) and per phone.
+  const limited = await limitOr429([
+    { name: "register-ip", id: ip, limit: 3, windowSec: 86400 },
+    { name: "register-phone", id: phoneKey(phone), limit: 2, windowSec: 30 * 86400 },
+  ], "Too many accounts created recently. Please contact us if you need help.");
+  if (limited) return limited;
+  if (!(await verifyHuman(turnstileToken, ip))) {
+    return NextResponse.json({ error: "Please complete the security check and try again." }, { status: 400 });
+  }
+
   if (await prisma.user.findUnique({ where: { email } })) {
     return NextResponse.json({ error: "An account with that email already exists - sign in instead." }, { status: 409 });
   }
 
-  // Limit duplicate accounts from the same network (skips local/unknown IPs).
-  const ip = clientIp(req);
-  const localhost = !ip || ip === "::1" || ip === "127.0.0.1" || ip.startsWith("192.168.") || ip.startsWith("10.");
-  const ipKey = localhost ? null : "ipreg:" + Buffer.from(ip).toString("base64").slice(0, 24);
-  if (ipKey) {
-    const row = await prisma.setting.findUnique({ where: { key: ipKey } });
-    const now = Date.now();
-    const recent: number[] = (row ? JSON.parse(row.value) : []).filter((t: number) => now - t < 86400000);
-    if (recent.length >= MAX_ACCOUNTS_PER_IP_24H) {
-      return NextResponse.json({ error: "Too many accounts created from this network recently. Please contact us." }, { status: 429 });
-    }
-  }
-
   const expiresAt = new Date(Date.now() + 30 * 86400000);
-  const user = await prisma.user.create({
+  const passwordHash = await hashPassword(password);
+  const user = await withFreshIds(() => prisma.user.create({
     data: {
-      name, email, phone,
-      passwordHash: await hashPassword(password),
+      name, email, phone: canonicalPhone(phone),
+      passwordHash,
       referralCode: referralCode(name),
-      points: 50,
-      rewards: {
-        create: {
-          label: "10% off your next order",
-          code: "WELC" + Math.random().toString(36).slice(2, 6).toUpperCase(),
-          kind: "percent", amount: 10, source: "welcome", expiresAt,
-        },
-      },
+      points: 0,
+      // The sign-up bonus is pending: it becomes spendable when the first order is completed,
+      // so creating accounts on its own earns nothing.
+      pointsEntries: { create: { delta: WELCOME_POINTS, reason: "welcome", status: "pending" } },
+      // The welcome reward is a first-order offer: one per phone number (enforced at checkout).
+      rewards: { create: { label: "10% off your first order", code: rewardCode("WELC"), kind: "percent", amount: 10, source: "welcome", expiresAt } },
     },
-  });
-
-  if (ipKey) {
-    const now = Date.now();
-    const row = await prisma.setting.findUnique({ where: { key: ipKey } });
-    const recent: number[] = (row ? JSON.parse(row.value) : []).filter((t: number) => now - t < 86400000);
-    recent.push(now);
-    await prisma.setting.upsert({ where: { key: ipKey }, update: { value: JSON.stringify(recent) }, create: { key: ipKey, value: JSON.stringify(recent) } });
-  }
-
-  await createSession(user.id);
+  }), ["referralCode", "code"]);
+  log.info("account_created", { userId: user.id });
+  await createSession(user);
   return NextResponse.json({ user: publicUser(user) });
 }

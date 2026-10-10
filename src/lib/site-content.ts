@@ -1,7 +1,7 @@
 // Admin-editable website content: shared by server pages, client components and the admin editor.
 // This module has NO server-only imports. Static defaults come from lib/data/site.ts; whatever the
 // restaurant saves in Admin -> Site content is stored in the database and layered on top.
-import { RESTAURANT, TESTIMONIALS, FAQS, ORDERING, type DayHours, type Testimonial, type Faq } from "@/lib/data/site";
+import { RESTAURANT, FAQS, ORDERING, type DayHours, type Testimonial, type Faq } from "@/lib/data/site";
 
 export const VALUE_ICONS = ["banknote", "bike", "sparkles", "chef", "leaf", "clock", "star", "gift", "shield", "heart"] as const;
 export type ValueIcon = (typeof VALUE_ICONS)[number];
@@ -18,6 +18,7 @@ export interface SiteContent {
     email: string;
     address: { line1: string; line2: string; city: string; postcode: string };
     mapQuery: string;
+    googleReviewUrl: string; // where /review sends people (the "write a review" link from Google Business Profile)
     social: { instagram: string; tiktok: string; facebook: string; rednote: string; wechat: string };
     hours: DayHours[]; // index 0 = Sunday
   };
@@ -39,6 +40,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       city: RESTAURANT.address.city, postcode: RESTAURANT.address.postcode,
     },
     mapQuery: RESTAURANT.mapQuery,
+    googleReviewUrl: "",
     social: { ...RESTAURANT.social },
     hours: RESTAURANT.hours.map((h) => ({ day: h.day, sessions: h.sessions.map((s) => ({ ...s })) })),
   },
@@ -58,10 +60,12 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     heading: "Hungry yet? Order direct and taste the difference.",
     subtext: "Rewards on every order, and food made to be remembered.",
   },
+  // Off and empty until the owner adds GENUINE reviews (with permission). The demo testimonials
+  // are fictional: publishing them would be a fake-review offence under the DMCC Act 2024.
   reviews: {
-    show: true,
-    sourceNote: "across Google, TripAdvisor & Instagram",
-    items: TESTIMONIALS.map((t) => ({ ...t })),
+    show: false,
+    sourceNote: "",
+    items: [],
   },
   faqs: FAQS.map((f) => ({ ...f })),
 };

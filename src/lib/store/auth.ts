@@ -14,6 +14,7 @@ export interface Reward {
 export interface Account {
   id: string; name: string; email: string; phone: string;
   role: string; points: number; referralCode: string; createdAt: string;
+  pendingPoints?: number; // earned on orders not completed yet (not spendable)
 }
 
 export const LOYALTY = {
@@ -45,9 +46,9 @@ interface AuthState {
   rewards: Reward[];
   loaded: boolean;
   refresh: () => Promise<void>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<Result>;
+  register: (name: string, email: string, phone: string, password: string, turnstileToken?: string) => Promise<Result>;
   login: (email: string, password: string) => Promise<Result>;
-  logout: () => Promise<void>;
+  logout: (everywhere?: boolean) => Promise<void>;
   redeemPoints: () => Promise<Result>;
   updateProfile: (patch: { name?: string; phone?: string }) => Promise<Result>;
 }
@@ -77,8 +78,8 @@ export const useAuth = create<AuthState>()((set, get) => ({
     }
   },
 
-  register: async (name, email, phone, password) => {
-    const { res, data } = await postJson("/api/auth/register", { name, email, phone, password });
+  register: async (name, email, phone, password, turnstileToken) => {
+    const { res, data } = await postJson("/api/auth/register", { name, email, phone, password, turnstileToken: turnstileToken || undefined });
     if (!res.ok) return { ok: false, error: data.error };
     await get().refresh();
     return { ok: true };
@@ -91,8 +92,8 @@ export const useAuth = create<AuthState>()((set, get) => ({
     return { ok: true };
   },
 
-  logout: async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+  logout: async (everywhere = false) => {
+    await fetch(`/api/auth/logout${everywhere ? "?all=1" : ""}`, { method: "POST" });
     set({ user: null, rewards: [] });
   },
 

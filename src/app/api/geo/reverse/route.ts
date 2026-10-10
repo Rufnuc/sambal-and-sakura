@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { clientIp, limitOr429 } from "@/server/rate-limit";
 
 // Nearest UK postcode for a lat/lon (for "use my location"). postcodes.io, free.
 export async function GET(req: Request) {
+  const limited = await limitOr429([{ name: "geo-ip", id: clientIp(req), limit: 40, windowSec: 600 }]);
+  if (limited) return limited;
   const sp = new URL(req.url).searchParams;
   const lat = Number(sp.get("lat"));
   const lon = Number(sp.get("lon"));

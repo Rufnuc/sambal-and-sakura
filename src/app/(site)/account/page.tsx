@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Star, Gift, Ticket, LogOut, ShoppingBag, CalendarCheck, User as UserIcon, Sparkles, Crown,
+  Star, Gift, LogOut, ShoppingBag, CalendarCheck, User as UserIcon, Sparkles, Crown, ShieldCheck, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ function SignedOut() {
       <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-gold-ink"><UserIcon className="size-8" /></div>
       <h1 className="mt-5 font-display text-4xl font-extrabold tracking-tight">Your account</h1>
       <p className="mt-3 text-muted-foreground text-pretty">
-        Sign in to earn {LOYALTY.pointsPerPound} points per £1, save wheel & referral rewards, and track your orders and bookings.
+        Sign in to earn {LOYALTY.pointsPerPound} points per £1 on completed orders, save your rewards, and track your orders and bookings.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button className="h-12 px-6 font-semibold" onClick={() => { setMode("signup"); setOpen(true); }}>Create account</Button>
@@ -100,7 +100,7 @@ function Dashboard() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-medium uppercase tracking-widest text-gold-ink">My account</p>
-          <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight">Hi, {user.name.split(" ")[0]}</h1>
+          <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight">Hi, <span className="notranslate" translate="no">{user.name.split(" ")[0]}</span></h1>
         </div>
         <Button variant="outline" className="h-10 gap-2" onClick={() => logout()}><LogOut className="size-4" /> Sign out</Button>
       </div>
@@ -112,6 +112,7 @@ function Dashboard() {
             <div>
               <p className="text-sm text-muted-foreground">{current.name} member</p>
               <p className="font-display text-3xl font-bold">{user.points} <span className="text-base font-medium text-muted-foreground">points</span></p>
+              {!!user.pendingPoints && <p className="text-xs text-muted-foreground">+{user.pendingPoints} pending - added when your orders are completed</p>}
             </div>
           </div>
           <Button className="h-11 gap-2" disabled={!canRedeem} onClick={redeem}>
@@ -122,7 +123,7 @@ function Dashboard() {
           <Progress value={progress} className="h-2" />
           <p className="mt-2 text-sm text-muted-foreground">
             {next ? <>{next.min - user.points} points to <span className="font-medium text-foreground">{next.name}</span></> : <>You've reached the top tier - {current.name}!</>}
-            {" · "}Earn {LOYALTY.pointsPerPound} pts per £1 spent.
+            {" · "}Earn {LOYALTY.pointsPerPound} pts per £1 on completed orders.
           </p>
         </div>
       </Card>
@@ -148,18 +149,7 @@ function Dashboard() {
           {rewards.some((r) => r.used) && <p className="mt-3 text-xs text-muted-foreground">{rewards.filter((r) => r.used).length} reward(s) used.</p>}
         </Card>
 
-        <Card>
-          <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Ticket className="size-5 text-gold-ink" /> Refer & earn</h2>
-          <p className="text-sm text-muted-foreground">Share your code - your friend gets £5 off, you get £5 when they spend £20+.</p>
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Your code</p>
-              <p className="font-mono text-2xl font-bold text-gold-ink">{user.referralCode}</p>
-            </div>
-            <CopyCode code={user.referralCode} />
-          </div>
-          <Button asChild variant="secondary" className="mt-3 h-11 w-full"><Link href="/refer">Referral details</Link></Button>
-        </Card>
+        <SecurityCard onSignOutEverywhere={() => logout(true)} />
       </div>
 
       <Card>
@@ -171,7 +161,7 @@ function Dashboard() {
             {orders.slice(0, 8).map((o) => (
               <li key={o.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="font-medium">{o.id} · <span className="capitalize">{o.fulfilment}</span></p>
+                  <p className="font-medium"><span className="notranslate" translate="no">{o.id}</span> · <span className="capitalize">{o.fulfilment}</span></p>
                   <p className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {o.lines.reduce((n, l) => n + l.qty, 0)} items</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -225,14 +215,61 @@ function Dashboard() {
           </div>
         ) : (
           <dl className="grid gap-2 text-sm sm:grid-cols-3">
-            <div><dt className="text-muted-foreground">Name</dt><dd className="font-medium">{user.name}</dd></div>
-            <div><dt className="text-muted-foreground">Email</dt><dd className="font-medium">{user.email}</dd></div>
-            <div><dt className="text-muted-foreground">Phone</dt><dd className="font-medium">{user.phone}</dd></div>
+            <div><dt className="text-muted-foreground">Name</dt><dd className="font-medium notranslate" translate="no">{user.name}</dd></div>
+            <div><dt className="text-muted-foreground">Email</dt><dd className="font-medium notranslate" translate="no">{user.email}</dd></div>
+            <div><dt className="text-muted-foreground">Phone</dt><dd className="font-medium notranslate" translate="no">{user.phone}</dd></div>
           </dl>
         )}
         <Separator className="my-4" />
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Star className="size-3.5 text-gold-ink" /> Member since {new Date(user.createdAt).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</p>
       </Card>
     </div>
+  );
+}
+
+/** Password, data download, sign out of every device, and account deletion (UK GDPR rights). */
+function SecurityCard({ onSignOutEverywhere }: { onSignOutEverywhere: () => void }) {
+  const { logout } = useAuth();
+  const [pw, setPw] = useState({ current: "", next: "" });
+  const [deleting, setDeleting] = useState(false);
+  const [delPw, setDelPw] = useState("");
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    const res = await fetch("/api/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: pw.current, newPassword: pw.next }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { toast.success("Password changed. Other devices have been signed out."); setPw({ current: "", next: "" }); }
+    else toast.error(d.error ?? "Could not change password.");
+  }
+  async function deleteAccount() {
+    const res = await fetch("/api/account", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: delPw }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { toast.success("Your account has been deleted."); await logout(); }
+    else toast.error(d.error ?? "Could not delete the account.");
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><ShieldCheck className="size-5 text-jade" /> Privacy &amp; security</h2>
+      <form onSubmit={changePassword} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div><Label htmlFor="sc-cur" className="text-xs">Current password</Label><Input id="sc-cur" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} className="mt-1 h-10" autoComplete="current-password" required /></div>
+        <div><Label htmlFor="sc-new" className="text-xs">New password (8+)</Label><Input id="sc-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1 h-10" minLength={8} autoComplete="new-password" required /></div>
+        <Button type="submit" variant="outline" className="h-10">Change</Button>
+      </form>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button asChild variant="outline" className="h-9 gap-1.5"><a href="/api/account?export=1"><Download className="size-4" /> Download my data</a></Button>
+        <Button variant="outline" className="h-9 gap-1.5" onClick={onSignOutEverywhere}><LogOut className="size-4" /> Sign out everywhere</Button>
+        <Button variant="ghost" className="h-9 text-sambal hover:text-sambal" onClick={() => setDeleting((v) => !v)}>Delete account</Button>
+      </div>
+      {deleting && (
+        <div className="mt-3 rounded-lg border border-sambal/30 bg-sambal/5 p-3 text-sm">
+          <p>This deletes your account, points and rewards. Past orders stay in the restaurant&apos;s records without your name or contact details.</p>
+          <div className="mt-2 flex gap-2">
+            <Input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" className="h-10" autoComplete="current-password" />
+            <Button variant="destructive" className="h-10" disabled={!delPw} onClick={deleteAccount}>Delete</Button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

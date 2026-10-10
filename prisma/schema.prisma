@@ -22,21 +22,25 @@ model User {
   referralCode String    @unique
   createdAt    DateTime  @default(now())
 
-  orders   Order[]
-  bookings Booking[]
-  rewards  Reward[]
-  sessions Session[]
+  orders        Order[]
+  bookings      Booking[]
+  rewards       Reward[]
+  sessions      Session[]
+  pointsEntries PointsEntry[]
+  wheel         WheelState?
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  token      String   @unique // SHA-256 of the cookie value; the raw token is never stored
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now()) // staff sessions also expire after a period of inactivity
+  createdAt  DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
 }
 
 model Order {
@@ -57,19 +61,31 @@ model Order {
   postcode      String?
   notes         String?
   whenType      String      @default("asap") // asap | scheduled
-  scheduledTime String?
+  scheduledTime String?                      // display label, e.g. "Sat 11 Oct 19:00"
+  scheduledAt   DateTime?                    // the exact time a scheduled order is for
   etaMins       Int         @default(25)
   pointsEarned  Int         @default(0)
   paymentMethod String      @default("cash")   // cash | wechat
   paymentStatus String      @default("unpaid") // unpaid | paid (cash orders are settled in person)
   paymentRef    String?                        // provider transaction id (e.g. WeChat transaction_id)
   paidAt        DateTime?
+  payToken      String?                        // SHA-256 of the token that lets this browser start/poll payment
+  idempotencyKey String?    @unique            // one checkout attempt = one order, however often it is retried
+  printStatus   String      @default("pending") // pending | printed | failed | not-needed
+  printAttempts Int         @default(0)
+  printedAt     DateTime?
+  printError    String?
+  flags         String      @default("[]")     // JSON array, e.g. ["new-customer","address-unverified"]
+  cancelReason  String?
   createdAt     DateTime    @default(now())
 
   lines OrderLine[]
 
   @@index([userId])
   @@index([status])
+  @@index([createdAt])
+  @@index([customerPhone])
+  @@index([printStatus])
 }
 
 model OrderLine {
@@ -98,26 +114,103 @@ model Booking {
   occasion  String?
   dietary   String?
   notes     String?
+  requiresCall Boolean @default(false) // large party: staff phone to confirm and take the deposit
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([date])
+  @@index([phone, date])
 }
 
 model Reward {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   label     String
-  code      String   @unique
-  kind      String   // percent | voucher | freebie
+  code      String    @unique
+  kind      String    // percent | voucher | freebie
   amount    Float?
-  source    String   // welcome | wheel | referral | loyalty
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  source    String    // welcome | wheel | referral | loyalty
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  orderId   String?   // the order that used it
+  createdAt DateTime  @default(now())
   expiresAt DateTime
 
   @@index([userId])
+  @@index([userId, used])
+}
+
+// Loyalty ledger. Points from an order stay "pending" until staff mark the order completed,
+// and are reversed if it is cancelled. User.points is the confirmed, spendable balance.
+model PointsEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delta     Int
+  reason    String   // welcome | order | redeem | reversal | adjustment
+  status    String   // pending | confirmed | reversed
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+  @@index([orderId])
+}
+
+// One row per customer: when they last spun the Fortune Wheel (claimed atomically).
+model WheelState {
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSpinAt DateTime
+}
+
+// "One per customer" offers (first-order codes, the welcome reward), keyed by normalised phone,
+// so guests and new accounts can't reuse them. The unique key makes the claim atomic.
+model VoucherRedemption {
+  id        String   @id @default(cuid())
+  group     String   // e.g. "first-order"
+  phoneKey  String
+  orderId   String   @unique
+  createdAt DateTime @default(now())
+
+  @@unique([group, phoneKey])
+}
+
+// Fixed-window rate-limit counters (key includes the window number).
+model RateLimit {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// Who changed what in the admin, and security-relevant events.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  action     String   // e.g. order.status, booking.update, staff.create, config.save, login.failed
+  entity     String
+  entityId   String?
+  detail     String?  // JSON
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@index([action, createdAt])
+}
+
+// First-party analytics events (only sent after the visitor accepts analytics cookies).
+model Event {
+  id        String   @id @default(cuid())
+  name      String
+  props     String   @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([createdAt])
 }
 
 // Operator settings (blackout dates, disabled zones, etc.) as key/JSON rows.

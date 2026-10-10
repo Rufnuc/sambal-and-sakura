@@ -9,15 +9,20 @@ import { TABLES, TOTAL_SEATS, BOOKING_POLICY } from "@/lib/data/tables";
 import { cn } from "@/lib/utils";
 
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // The restaurant's date (UK), whatever timezone this device is set to.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
 export function FloorView() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [ready, setReady] = useState(false);
 
-  useEffect(() => { fetchBookings().then((b) => { setBookings(b); setReady(true); }); }, []);
+  useEffect(() => {
+    const load = () => fetchBookings().then((b) => { setBookings(b); setReady(true); });
+    void load();
+    const id = setInterval(load, 30_000); // stay current during service
+    return () => clearInterval(id);
+  }, []);
 
   const today = todayStr();
   const todays = useMemo(() => bookings.filter((b) => b.date === today), [bookings, today]);

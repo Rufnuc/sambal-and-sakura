@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { clientIp, limitOr429 } from "@/server/rate-limit";
 
 // Validate + geocode a UK postcode via postcodes.io (free, no key).
 export async function GET(req: Request) {
+  const limited = await limitOr429([{ name: "geo-ip", id: clientIp(req), limit: 40, windowSec: 600 }]);
+  if (limited) return limited;
   const pc = (new URL(req.url).searchParams.get("pc") ?? "").trim();
   if (!pc) return NextResponse.json({ ok: false }, { status: 400 });
   try {

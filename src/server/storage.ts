@@ -1,13 +1,14 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 
 // Pluggable image storage.
 //   - Default (free, works immediately on a VPS / self-host): saves to /public/uploads
 //     and returns a site-relative URL like /uploads/menu/abc.webp
 //   - Cloudinary (cheapest + best for photos: free 25GB tier, CDN + auto-optimise):
-//     set CLOUDINARY_CLOUD_NAME + CLOUDINARY_UPLOAD_PRESET (unsigned) in .env and
-//     uploads are pushed there instead, returning a transforming CDN URL.
+//     set CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET (signed uploads: only
+//     this server can upload), or the older CLOUDINARY_UPLOAD_PRESET (unsigned: anyone who learns the
+//     preset name can upload to your account, so prefer the signed keys).
 // No secrets are hard-coded; the operator drops their own keys in .env.
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
@@ -22,17 +23,40 @@ export function uploadError(file: File): string | null {
   return null;
 }
 
+/** Check the file really is the image type it claims to be (the browser-sent type can be faked). */
+export async function looksLikeImage(file: File): Promise<boolean> {
+  const b = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const ascii = (from: number, to: number) => String.fromCharCode(...b.slice(from, to));
+  switch (file.type) {
+    case "image/jpeg": return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+    case "image/png": return b[0] === 0x89 && ascii(1, 4) === "PNG";
+    case "image/webp": return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+    case "image/avif": return ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12));
+    default: return false;
+  }
+}
+
+const signedCloudinary = () => Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
 function cloudinaryConfigured() {
-  return Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET);
+  return signedCloudinary() || Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET);
 }
 
 async function toCloudinary(file: File): Promise<StoredImage> {
   const cloud = process.env.CLOUDINARY_CLOUD_NAME!;
-  const preset = process.env.CLOUDINARY_UPLOAD_PRESET!;
   const form = new FormData();
   form.append("file", file);
-  form.append("upload_preset", preset);
-  form.append("folder", "sambal-sakura/menu");
+  const folder = "sambal-sakura/menu";
+  form.append("folder", folder);
+  if (signedCloudinary()) {
+    // Signed upload: SHA-1 of the sorted parameters + the API secret (Cloudinary's scheme).
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHash("sha1").update(`folder=${folder}&timestamp=${timestamp}${process.env.CLOUDINARY_API_SECRET}`).digest("hex");
+    form.append("api_key", process.env.CLOUDINARY_API_KEY!);
+    form.append("timestamp", timestamp);
+    form.append("signature", signature);
+  } else {
+    form.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET!);
+  }
   const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`Cloudinary upload failed (${res.status})`);
   const data = (await res.json()) as { secure_url: string; public_id: string };
@@ -52,8 +76,10 @@ async function toLocalDisk(file: File): Promise<StoredImage> {
 }
 
 export class StorageNotConfiguredError extends Error {}
+export class InvalidImageError extends Error {}
 
 export async function storeImage(file: File): Promise<StoredImage> {
+  if (!(await looksLikeImage(file))) throw new InvalidImageError("That file isn't a real JPG, PNG, WebP or AVIF image.");
   if (cloudinaryConfigured()) return toCloudinary(file);
   // Production hosts (e.g. Render) have an ephemeral disk: files saved locally vanish on the next
   // deploy. Refuse rather than silently losing the restaurant's photos.

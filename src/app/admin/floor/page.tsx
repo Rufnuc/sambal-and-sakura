@@ -1,5 +1,7 @@
 import { FloorView } from "@/components/admin/floor-view";
+import { requireSectionPage } from "@/server/admin-page";
 
-export default function AdminFloorPage() {
+export default async function AdminFloorPage() {
+  await requireSectionPage("floor");
   return <FloorView />;
 }

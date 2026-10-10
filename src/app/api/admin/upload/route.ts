@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@/server/auth";
-import { storeImage, uploadError, StorageNotConfiguredError } from "@/server/storage";
+import { adminUser } from "@/server/auth";
+import { log, errInfo } from "@/server/log";
+import { storeImage, uploadError, StorageNotConfiguredError, InvalidImageError } from "@/server/storage";
 
 // Admin-only image upload for menu photos. Returns { url, via }.
 export async function POST(req: Request) {
-  const u = await currentUser();
-  if (!u || u.role !== "admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const u = await adminUser();
+  if (!u) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
@@ -19,6 +20,8 @@ export async function POST(req: Request) {
     return NextResponse.json(stored);
   } catch (e) {
     if (e instanceof StorageNotConfiguredError) return NextResponse.json({ error: e.message }, { status: 503 });
+    if (e instanceof InvalidImageError) return NextResponse.json({ error: e.message }, { status: 400 });
+    log.error("upload_failed", errInfo(e));
     return NextResponse.json({ error: "Upload failed. Try again." }, { status: 500 });
   }
 }

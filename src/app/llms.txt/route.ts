@@ -24,7 +24,7 @@ export async function GET() {
     `- [Menu](${SITE_URL}/menu): every dish with price, allergens and vegetarian/vegan marking`,
     `- [Order online](${SITE_URL}/order): delivery or collection`,
     `- [Book a table](${SITE_URL}/book): table reservations`,
-    `- [Offers](${SITE_URL}/offers): current offers, rewards and referral scheme`,
+    `- [Offers](${SITE_URL}/offers): current offers and the Fortune Wheel`,
     `- [Contact and FAQ](${SITE_URL}/contact): address, hours, map, delivery area and frequently asked questions`,
     `- [Careers](${SITE_URL}/careers): current job openings`,
     "",

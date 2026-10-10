@@ -8,8 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SectionCard, StatCard } from "@/components/admin/ui";
 import { fetchConfig, saveConfig, type ReferralCfg, type OfferCfg, type WheelPrizeCfg, type DealCfg } from "@/lib/admin/api";
-import { fetchOrders } from "@/lib/admin/api";
-import { readEvents } from "@/lib/analytics";
+import { fetchStats, fetchAnalytics } from "@/lib/admin/api";
 import { cn } from "@/lib/utils";
 
 export function PromosView() {
@@ -22,10 +21,10 @@ export function PromosView() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    Promise.all([fetchConfig(), fetchOrders()]).then(([c, orders]) => {
+    Promise.all([fetchConfig(), fetchStats(), fetchAnalytics(14)]).then(([c, stats, analytics]) => {
       setReferral(c.referral); setOffers(c.offers); setPrizes(c.wheelPrizes); setDeal(c.deal);
-      setDiscountedOrders(orders.filter((o) => o.discount > 0).length);
-      setSpins(readEvents().filter((e) => e.name === "spin_wheel_played").length);
+      setDiscountedOrders(stats ? Math.round((stats.kpis.voucherRedemptionPct / 100) * stats.kpis.orders) : 0);
+      setSpins(analytics?.counts.spin_wheel_played ?? 0);
       setReady(true);
     });
   }, []);
@@ -34,10 +33,14 @@ export function PromosView() {
 
   const totalWeight = prizes.reduce((n, p) => n + p.weight, 0) || 1;
 
-  async function saveDeal() { const c = await saveConfig({ deal }); setDeal(c.deal); toast.success("Deal of the Day saved"); }
-  async function saveReferral() { const c = await saveConfig({ referral }); setReferral(c.referral); toast.success("Referral settings saved"); }
-  async function saveOffers() { const c = await saveConfig({ offers }); setOffers(c.offers); toast.success("Offers saved"); }
-  async function savePrizes() { const c = await saveConfig({ wheelPrizes: prizes }); setPrizes(c.wheelPrizes); toast.success("Wheel prizes saved"); }
+  // Each save shows the server's reason if it rejects something (e.g. a prize label without an amount).
+  async function save<T>(patch: Parameters<typeof saveConfig>[0], apply: (c: Awaited<ReturnType<typeof saveConfig>>) => T, ok: string) {
+    try { apply(await saveConfig(patch)); toast.success(ok); } catch (e) { toast.error((e as Error).message); }
+  }
+  const saveDeal = () => save({ deal }, (c) => setDeal(c.deal), "Deal of the Day saved");
+  const saveReferral = () => save({ referral }, (c) => setReferral(c.referral), "Referral settings saved");
+  const saveOffers = () => save({ offers }, (c) => setOffers(c.offers), "Offers saved");
+  const savePrizes = () => save({ wheelPrizes: prizes }, (c) => setPrizes(c.wheelPrizes), "Wheel prizes saved");
 
   function addOffer() {
     setOffers((o) => [...o, { id: "offer" + Date.now().toString(36), title: "New offer", description: "", code: "", badge: "", terms: "", kind: "percent" }]);
@@ -75,6 +78,9 @@ export function PromosView() {
       </SectionCard>
 
       <SectionCard title="Referral programme" action={<Button size="sm" className="h-9 gap-1.5" onClick={saveReferral}><Save className="size-4" /> Save</Button>}>
+        <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+          Not live yet: the referral page is hidden from customers until referral rewards are paid out automatically. These settings are kept ready for then.
+        </p>
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sambal/10 text-sambal"><Gift className="size-5" /></span>
           <div className="grid flex-1 gap-3 sm:grid-cols-4">

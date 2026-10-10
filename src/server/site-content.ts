@@ -11,7 +11,34 @@ import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from 
 const KEY = "siteContent";
 
 const str = (max: number) => z.string().trim().max(max);
+// Social profile links are always made into https web addresses: "instagram.com/x" gets https://
+// added, http:// is upgraded, and any other scheme (javascript:, data:...) is dropped. It never fails,
+// so a slightly-off saved link can't knock the whole business section (phone, address) back to defaults.
+const httpsLink = str(200).transform((v) => {
+  if (!v) return "";
+  if (/^https:\/\//i.test(v)) return v;
+  if (/^http:\/\//i.test(v)) return "https://" + v.slice(7);
+  if (/^[a-z][a-z0-9+.-]*:/i.test(v) || /\s/.test(v)) return "";
+  return "https://" + v.replace(/^\/+/, "");
+});
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM (24-hour)");
+
+// The review link must be a Google https link, so a typo (or a pasted wrong link) can't send customers elsewhere.
+const REVIEW_HOSTS = ["g.page", "google.com", "goo.gl", "g.co"];
+const reviewUrl = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => {
+    if (v === "") return true;
+    try {
+      const u = new URL(v);
+      return u.protocol === "https:" && REVIEW_HOSTS.some((h) => u.hostname === h || u.hostname.endsWith("." + h));
+    } catch {
+      return false;
+    }
+  }, "Use the https link Google gives you (it starts with https://g.page/ or https://www.google.com/)")
+  .default("");
 
 const sessionSchema = z.object({ open: hhmm, close: hhmm }).refine((s) => s.open < s.close, "Closing time must be after opening time");
 const daySchema = z.object({ day: str(10).min(1), sessions: z.array(sessionSchema).max(4) });
@@ -24,7 +51,8 @@ const schemas = {
     email: z.string().trim().email().max(120),
     address: z.object({ line1: str(120), line2: str(120), city: str(80), postcode: str(12) }),
     mapQuery: str(200),
-    social: z.object({ instagram: str(200), tiktok: str(200), facebook: str(200), rednote: str(200), wechat: str(80) }),
+    googleReviewUrl: reviewUrl,
+    social: z.object({ instagram: httpsLink, tiktok: httpsLink, facebook: httpsLink, rednote: httpsLink, wechat: str(80) }),
     hours: z.array(daySchema).length(7),
   }),
   hero: z.object({ badge: str(80), headlineStart: str(80), headlineAccent: str(60), headlineEnd: str(40) }),

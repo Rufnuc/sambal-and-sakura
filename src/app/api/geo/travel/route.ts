@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ORDERING } from "@/lib/data/site";
+import { clientIp, limitOr429 } from "@/server/rate-limit";
 
 // Restaurant coordinates (236-238 Linthorpe Rd, Middlesbrough).
 const REST_LAT = 54.5705;
@@ -15,10 +16,12 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
 
 // Driving distance + time from the restaurant to a point (OSRM public demo, free, no key).
 export async function GET(req: Request) {
+  const limited = await limitOr429([{ name: "geo-ip", id: clientIp(req), limit: 40, windowSec: 600 }]);
+  if (limited) return limited;
   const sp = new URL(req.url).searchParams;
   const lat = Number(sp.get("lat"));
   const lon = Number(sp.get("lon"));
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return NextResponse.json({ ok: false }, { status: 400 });
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return NextResponse.json({ ok: false }, { status: 400 });
 
   const straightMiles = Math.round(haversineMiles(REST_LAT, REST_LON, lat, lon) * 10) / 10;
   let driveMins: number | null = null;

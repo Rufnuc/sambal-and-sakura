@@ -27,7 +27,7 @@ const DOCS: Record<string, Doc> = {
       { h: "Delivery", p: "We deliver within listed postcodes during opening hours. Delivery fees and minimum order values are shown at checkout. ETAs are estimates." },
       { h: "Cancellations & refunds", p: "You may cancel an order before the kitchen begins preparing it. As orders are cash on the day, refunds apply only where we cannot fulfil an order." },
       { h: "Bookings", p: "Reservations can be cancelled free up to 2 hours before. Large parties may require a deposit. Repeated no-shows may affect future bookings." },
-      { h: "Vouchers & rewards", p: "Offers, referral rewards and wheel prizes are single-use unless stated, can't be combined unless noted, and have no cash value." },
+      { h: "Vouchers & rewards", p: "Offers and wheel prizes are single-use unless stated, can't be combined unless noted, and have no cash value." },
     ],
   },
   accessibility: {

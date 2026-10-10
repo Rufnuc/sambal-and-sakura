@@ -155,6 +155,19 @@ function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Part
         </div>
       </SectionCard>
 
+      <SectionCard title="Google reviews (NFC card / QR code)">
+        <div className="grid gap-3">
+          <Field label="Your Google review link" hint='From business.google.com: open your profile → "Ask for reviews" → copy the link (it starts with https://g.page/ or https://www.google.com/).'>
+            <Input value={b.googleReviewUrl} onChange={(e) => setBusiness({ googleReviewUrl: e.target.value })} className="h-10" placeholder="https://g.page/r/…/review" inputMode="url" />
+          </Field>
+          <p className="rounded-lg bg-muted/60 p-3 text-sm">
+            <strong className="font-semibold">Put this address on your NFC card and QR code:</strong>{" "}
+            <code className="break-all rounded bg-background px-1.5 py-0.5">{typeof window !== "undefined" ? window.location.origin : ""}/review</code>
+            <span className="mt-1 block text-muted-foreground">It forwards to the link above, so you can change the link later without reprogramming any card. Leave the link empty and it goes to the Contact page instead.</span>
+          </p>
+        </div>
+      </SectionCard>
+
       <SectionCard title="Tagline & description">
         <div className="grid grid-cols-1 gap-3">
           <Field label="Tagline" hint="Shown in the browser tab and search results."><Input value={b.tagline} onChange={(e) => setBusiness({ tagline: e.target.value })} className="h-10" /></Field>
@@ -295,7 +308,10 @@ function ReviewsTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>)
         action={<Button variant="outline" size="sm" className="h-9 gap-1" disabled={r.items.length >= 24} onClick={() => setR({ items: [...r.items, { id: "r" + Date.now().toString(36), name: "", rating: 5, text: "", dish: "", source: "Google", date: new Date().toISOString().slice(0, 10) }] })}><Plus className="size-4" /> Add review</Button>}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <button onClick={() => setR({ show: !r.show })} role="switch" aria-checked={r.show} aria-label="Show reviews" className={cn("relative inline-flex h-7 w-12 items-center rounded-full transition", r.show ? "bg-jade" : "bg-muted")}>
+          <button onClick={() => {
+            if (!r.show && !window.confirm("Only show reviews written by real customers who agreed to be quoted. Invented or edited reviews are illegal under UK consumer law. Show reviews?")) return;
+            setR({ show: !r.show });
+          }} role="switch" aria-checked={r.show} aria-label="Show reviews" className={cn("relative inline-flex h-7 w-12 items-center rounded-full transition", r.show ? "bg-jade" : "bg-muted")}>
             <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", r.show ? "translate-x-6" : "translate-x-1")} />
           </button>
           <span className="text-sm text-muted-foreground">{r.show ? "Reviews are shown on the home page" : "Reviews will be hidden once you press Save (also removes the star rating from the home page and Google)"}</span>

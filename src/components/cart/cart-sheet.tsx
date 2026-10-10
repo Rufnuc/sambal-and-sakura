@@ -53,7 +53,9 @@ function CartContent({ onClose }: { onClose: () => void }) {
   const [added, setAdded] = useState<string | null>(null);
 
   const upsells = MENU.filter(
-    (m) => (m.category === "desserts" || m.category === "sides") && !m.soldOut && !lines.some((l) => l.itemId === m.id),
+    // Only dishes that need no choices: anything with a required option goes through its own dialog.
+    (m) => (m.category === "desserts" || m.category === "sides") && !m.soldOut && !lines.some((l) => l.itemId === m.id) &&
+      !(m.modifiers ?? []).some((g) => g.required),
   ).slice(0, 3);
 
   const GYOZA_THRESHOLD = 25;
@@ -158,7 +160,7 @@ function CartContent({ onClose }: { onClose: () => void }) {
           <SheetFooter className="gap-3 border-t border-border px-5 py-4">
             {freeGyoza ? (
               <div className="flex items-center gap-2 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
-                <Tag className="size-4" /> Free Chicken Gyoza unlocked on this order!
+                <Tag className="size-4" /> Free Chicken Gyoza unlocked (not combined with other offer codes)
               </div>
             ) : (
               <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">

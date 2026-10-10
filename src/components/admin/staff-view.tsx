@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { UserPlus, Trash2, Shield, Check } from "lucide-react";
+import { UserPlus, Trash2, Shield, Check, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +39,24 @@ export function StaffView() {
   async function togglePerm(member: StaffMember, key: string) {
     if (member.role === "admin") return;
     const next = member.permissions.includes(key) ? member.permissions.filter((p) => p !== key) : [...member.permissions, key];
-    if (await updateStaff(member.id, { permissions: next })) setStaff(await fetchStaff());
+    const r = await updateStaff(member.id, { permissions: next });
+    if (r.ok) setStaff(await fetchStaff()); else toast.error(r.error ?? "Could not update.");
   }
   async function remove(member: StaffMember) {
-    if (await deleteStaff(member.id)) { toast(`${member.name} removed`); setStaff(await fetchStaff()); }
-    else toast.error("Could not remove (you can't remove yourself).");
+    if (!window.confirm(`Remove ${member.name}? They'll be signed out straight away.`)) return;
+    const r = await deleteStaff(member.id);
+    if (r.ok) { toast(`${member.name} removed`); setStaff(await fetchStaff()); }
+    else toast.error(r.error ?? "Could not remove.");
+  }
+  async function resetPassword(member: StaffMember) {
+    const newPassword = window.prompt(`New password for ${member.name} (at least 10 characters):`);
+    if (!newPassword) return;
+    if (newPassword.length < 10) { toast.error("Use at least 10 characters."); return; }
+    const confirmPassword = window.prompt("Enter YOUR password to confirm:");
+    if (!confirmPassword) return;
+    const r = await updateStaff(member.id, { newPassword, confirmPassword });
+    if (r.ok) toast.success(`Password changed - ${member.name} has been signed out everywhere`);
+    else toast.error(r.error ?? "Could not change the password.");
   }
 
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
@@ -60,7 +73,7 @@ export function StaffView() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div><Label htmlFor="st-name">Name</Label><Input id="st-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 h-11" required /></div>
             <div><Label htmlFor="st-email">Email</Label><Input id="st-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" required /></div>
-            <div><Label htmlFor="st-pass">Password</Label><Input id="st-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" minLength={8} required /></div>
+            <div><Label htmlFor="st-pass">Password</Label><Input id="st-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" minLength={10} required placeholder="At least 10 characters" /></div>
           </div>
           <div>
             <Label>Role</Label>
@@ -99,7 +112,10 @@ export function StaffView() {
                   <p className="flex items-center gap-2 font-medium">{m.name} {m.role === "admin" && <Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold-ink"><Shield className="size-3" /> Admin</Badge>}</p>
                   <p className="truncate text-xs text-muted-foreground">{m.email}</p>
                 </div>
-                <Button size="icon-sm" variant="ghost" aria-label={`Remove ${m.name}`} onClick={() => remove(m)}><Trash2 className="size-4" /></Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={() => resetPassword(m)}><KeyRound className="size-3.5" /> Reset password</Button>
+                  <Button size="icon-sm" variant="ghost" aria-label={`Remove ${m.name}`} onClick={() => remove(m)}><Trash2 className="size-4" /></Button>
+                </div>
               </div>
               {m.role === "staff" && (
                 <div className="mt-3 flex flex-wrap gap-2">

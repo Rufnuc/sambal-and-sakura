@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Crown } from "lucide-react";
+import { Search, Crown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SectionCard, StatCard } from "@/components/admin/ui";
@@ -10,19 +11,24 @@ import { fetchCustomers, type AdminCustomer } from "@/lib/admin/api";
 import { tierFor } from "@/lib/store/auth";
 import { gbp } from "@/lib/format";
 
+// Searched and paginated on the server (50 per page), so it stays fast with thousands of members.
 export function CustomersView() {
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"spend" | "points" | "orders" | "name" | "recent">("spend");
+  const [debounced, setDebounced] = useState("");
+  const [sort, setSort] = useState<"spend" | "points" | "orders" | "name" | "recent">("recent");
   const [ready, setReady] = useState(false);
 
-  useEffect(() => { fetchCustomers().then((c) => { setCustomers(c); setReady(true); }); }, []);
+  useEffect(() => { const t = setTimeout(() => { setDebounced(query.trim()); setPage(0); }, 350); return () => clearTimeout(t); }, [query]);
+  useEffect(() => {
+    fetchCustomers(debounced, page).then((r) => { setCustomers(r.customers); setTotal(r.total); setPageSize(r.pageSize); setReady(true); });
+  }, [debounced, page]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = customers
-      .map((c) => ({ ...c, tier: tierFor(c.points).current.name }))
-      .filter((c) => !q || `${c.name} ${c.email}`.toLowerCase().includes(q));
+    const list = customers.map((c) => ({ ...c, tier: tierFor(c.points).current.name }));
     const cmp: Record<typeof sort, (a: typeof list[number], b: typeof list[number]) => number> = {
       spend: (a, b) => b.spend - a.spend,
       points: (a, b) => b.points - a.points,
@@ -31,7 +37,7 @@ export function CustomersView() {
       recent: (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
     };
     return [...list].sort(cmp[sort]);
-  }, [customers, query, sort]);
+  }, [customers, sort]);
 
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
 
@@ -44,20 +50,20 @@ export function CustomersView() {
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Customers</h1>
-        <p className="text-muted-foreground">{customers.length} members · {withOrders} with orders</p>
+        <p className="text-muted-foreground">{total} members{debounced ? " match" : ""} · page {page + 1} of {Math.max(1, Math.ceil(total / pageSize))}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Members" value={String(customers.length)} accent="gold" />
-        <StatCard label="Active (ordered)" value={String(withOrders)} accent="jade" />
-        <StatCard label="Points issued" value={totalPoints.toLocaleString()} accent="sakura" />
-        <StatCard label="Avg member spend" value={gbp(avgSpend)} accent="gold" />
+        <StatCard label="Members" value={String(total)} accent="gold" />
+        <StatCard label="Ordered (this page)" value={String(withOrders)} accent="jade" />
+        <StatCard label="Points (this page)" value={totalPoints.toLocaleString()} accent="sakura" />
+        <StatCard label="Avg spend (this page)" value={gbp(avgSpend)} accent="gold" />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-52 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search members…" className="h-11 pl-9" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, email or phone…" className="h-11 pl-9" />
         </div>
         <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} className="h-11 rounded-lg border border-border bg-background px-3 text-sm">
           <option value="spend">Top spend</option>
@@ -94,8 +100,14 @@ export function CustomersView() {
               ))}
             </TableBody>
           </Table>
-          {rows.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No members yet.</p>}
+          {rows.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{debounced ? "No members match." : "No members yet."}</p>}
         </div>
+        {total > pageSize && (
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <Button variant="outline" size="sm" className="h-8" disabled={page === 0} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="size-4" /> Previous</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={(page + 1) * pageSize >= total} onClick={() => setPage((p) => p + 1)}>Next <ChevronRight className="size-4" /></Button>
+          </div>
+        )}
       </SectionCard>
     </div>
   );

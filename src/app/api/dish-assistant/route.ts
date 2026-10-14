@@ -5,6 +5,7 @@ import { getSiteContent } from "@/server/site-content";
 import { gbp } from "@/lib/format";
 import { clientIp, limitOr429 } from "@/server/rate-limit";
 import { log } from "@/server/log";
+import { cleanText } from "@/server/sanitize";
 
 // "Ask about this dish" — a Groq-powered helper grounded in the dish's own data.
 // Configure GROQ_API_KEY in .env. Without it, returns a friendly fallback.
@@ -19,8 +20,8 @@ const ALLERGY_WORDS = /allerg|nut|peanut|gluten|coeliac|celiac|dairy|lactose|mil
 export async function POST(req: Request) {
   const key = process.env.GROQ_API_KEY;
   const body = await req.json().catch(() => null);
-  const itemId = typeof body?.itemId === "string" ? body.itemId : "";
-  const question = typeof body?.question === "string" ? body.question.slice(0, 500).trim() : "";
+  const itemId = typeof body?.itemId === "string" && /^[A-Za-z0-9_-]{1,60}$/.test(body.itemId) ? body.itemId : "";
+  const question = typeof body?.question === "string" ? cleanText(body.question.slice(0, 1000)).slice(0, 500) : "";
   const localeName = typeof body?.localeName === "string" && LANGUAGES.has(body.localeName) ? body.localeName : "English";
   if (!itemId || !question) return NextResponse.json({ error: "Ask a question first." }, { status: 400 });
   const limited = await limitOr429([

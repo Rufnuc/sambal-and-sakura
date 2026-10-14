@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
+import { cleanText } from "@/server/sanitize";
 
 // Admin-editable site content, stored as one JSON Setting row with static defaults.
 // getSiteContent() NEVER throws: if the database is unreachable (e.g. the very first build/deploy
@@ -10,7 +11,10 @@ import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from 
 
 const KEY = "siteContent";
 
-const str = (max: number) => z.string().trim().max(max);
+// Owner-typed text, sanitised (see server/sanitize.ts). Line breaks are kept (FAQ answers etc.).
+// Over-long text is trimmed rather than rejected, so an old saved value can never knock a whole
+// section back to the defaults.
+const str = (max: number, min = 0) => z.string().transform((v) => cleanText(v, { multiline: true }).slice(0, max)).pipe(z.string().min(min));
 // Social profile links are always made into https web addresses: "instagram.com/x" gets https://
 // added, http:// is upgraded, and any other scheme (javascript:, data:...) is dropped. It never fails,
 // so a slightly-off saved link can't knock the whole business section (phone, address) back to defaults.
@@ -41,13 +45,13 @@ const reviewUrl = z
   .default("");
 
 const sessionSchema = z.object({ open: hhmm, close: hhmm }).refine((s) => s.open < s.close, "Closing time must be after opening time");
-const daySchema = z.object({ day: str(10).min(1), sessions: z.array(sessionSchema).max(4) });
+const daySchema = z.object({ day: str(10, 1), sessions: z.array(sessionSchema).max(4) });
 
 const schemas = {
   business: z.object({
     tagline: str(120),
     blurb: str(400),
-    phone: str(30).min(5),
+    phone: str(30, 5),
     email: z.string().trim().email().max(120),
     address: z.object({ line1: str(120), line2: str(120), city: str(80), postcode: str(12) }),
     mapQuery: str(200),
@@ -62,11 +66,11 @@ const schemas = {
     show: z.boolean(),
     sourceNote: str(120),
     items: z.array(z.object({
-      id: str(40).min(1), name: str(60).min(1), rating: z.number().int().min(1).max(5),
-      text: str(400).min(1), dish: str(80).optional(), source: str(40), date: str(12),
+      id: str(40, 1), name: str(60, 1), rating: z.number().int().min(1).max(5),
+      text: str(400, 1), dish: str(80).optional(), source: str(40), date: str(12),
     })).max(24),
   }),
-  faqs: z.array(z.object({ q: str(200).min(1), a: str(1200).min(1), group: z.enum(FAQ_GROUPS) })).max(60),
+  faqs: z.array(z.object({ q: str(200, 1), a: str(1200, 1), group: z.enum(FAQ_GROUPS) })).max(60),
 } as const;
 
 export const siteContentSchema = z.object(schemas);

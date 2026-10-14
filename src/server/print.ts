@@ -8,7 +8,7 @@ import { prisma } from "@/server/db";
 import { RESTAURANT } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
 import { getSunmiConfig, sunmiPush, sunmiOnline } from "@/server/sunmi";
-import { renderKitchenTicket, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
+import { renderKitchenTicket, renderCancelTicket, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
 import { log, alertOwner } from "@/server/log";
 
 export type { TicketOrder };
@@ -152,6 +152,40 @@ export async function printNewOrder(id: string): Promise<PrintResult> {
   }).catch(() => null);
   if (!result.ok) {
     void alertOwner("print_failed", `Kitchen printer failed for order ${id} (${result.message}). Check the printer and the Orders screen.`, { orderId: id, attempts: updated?.printAttempts });
+  }
+  return result;
+}
+
+/** "CANCELLED - STOP PREPARING" ticket for an order the kitchen may already be making. Alerts if it can't print. */
+export async function printCancellation(id: string): Promise<PrintResult> {
+  const o = await prisma.order.findUnique({ where: { id }, include: { lines: true } });
+  if (!o) return { ok: false, provider: printerProvider(), message: "Order not found" };
+  const provider = printerProvider();
+  if (!provider) return { ok: false, provider: null, message: "No kitchen printer is set up yet" };
+  const ticket = { ...(await loadTicket(id))!, cancelReason: o.cancelReason, cancelledAt: o.cancelledAt };
+  let result: PrintResult;
+  try {
+    if (provider === "sunmi") {
+      const { business } = await getSiteContent();
+      const hex = renderCancelTicket(ticket, { businessName: RESTAURANT.name, phone: business.phone }).toHex();
+      const r = await sunmiPush(`${o.id}X${Date.now().toString(36)}`, hex, "Order cancelled");
+      result = { ok: r.ok, provider: "sunmi", message: r.message, detail: r.raw || undefined };
+    } else {
+      const text = `\n*** CANCELLED - STOP PREPARING ***\n\nOrder ${o.id}\n${o.customerName}\n${o.lines.map((l) => `${l.qty} x ${l.name}`).join("\n")}\n${o.cancelReason ? "Reason: " + o.cancelReason : ""}\n\nDO NOT COOK OR SEND THIS ORDER\n\n\n`;
+      const res = await fetch("https://api.printnode.com/printjobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Basic " + Buffer.from(`${process.env.PRINTNODE_API_KEY}:`).toString("base64") },
+        body: JSON.stringify({ printerId: Number(process.env.PRINTNODE_PRINTER_ID), title: `CANCELLED ${o.id}`, contentType: "raw_base64", content: Buffer.from(text, "utf8").toString("base64"), source: "Sambal & Sakura website" }),
+        signal: AbortSignal.timeout(6000),
+      });
+      result = { ok: res.ok, provider: "printnode", message: res.ok ? "Sent to PrintNode" : `PrintNode returned HTTP ${res.status}` };
+    }
+  } catch (e) {
+    result = { ok: false, provider, message: `Print failed: ${(e as Error).message}` };
+  }
+  if (!result.ok) {
+    log.warn("cancel_print_failed", { orderId: id, message: result.message });
+    void alertOwner(`cancel-print:${id}`, `Order ${id} was CANCELLED but the STOP ticket didn't print (${result.message}). Tell the kitchen to stop preparing it.`);
   }
   return result;
 }

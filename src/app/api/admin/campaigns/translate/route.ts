@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { zText } from "@/server/sanitize";
 import { adminUser } from "@/server/auth";
 import { translateBatch, translationConfigured } from "@/server/translate";
 
 // Owner-only: machine-translate a draft offer email so the owner (or their translator) can check
 // and edit it before sending. Paragraph by paragraph, through the site's translation service.
-const schema = z.object({ locale: z.enum(["zh", "vi", "ja"]), subject: z.string().trim().min(1).max(150), body: z.string().trim().min(1).max(5000) });
+const schema = z.object({ locale: z.enum(["zh", "vi", "ja"]), subject: zText(150, { min: 1 }), body: zText(5000, { min: 1, multiline: true }) });
 
 export async function POST(req: Request) {
   if (!(await adminUser())) return NextResponse.json({ error: "forbidden" }, { status: 403 });

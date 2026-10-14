@@ -63,9 +63,9 @@ type When = { kind: "asap" } | { kind: "scheduled"; date: string; time: string }
 export default function OrderPage() {
   const hydrated = useHydrated();
   const { business: b } = useSiteContent();
-  const [placed, setPlaced] = useState<{ order: ApiOrder; method: PayMethod; payToken: string | null } | null>(null);
+  const [placed, setPlaced] = useState<{ order: ApiOrder; method: PayMethod; payToken: string | null; trackPath: string | null } | null>(null);
 
-  if (placed) return <Confirmation order={placed.order} method={placed.method} payToken={placed.payToken} />;
+  if (placed) return <Confirmation order={placed.order} method={placed.method} payToken={placed.payToken} trackPath={placed.trackPath} />;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -76,7 +76,7 @@ export default function OrderPage() {
       <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
         <AlertCircle className="size-4 text-sambal" /> Food allergy or intolerance? Please phone us on <a href={telHref(b.phone)} className="font-medium text-foreground underline">{b.phone}</a> to confirm before ordering.
       </p>
-      {hydrated ? <Checkout onPlaced={(order, method, payToken) => setPlaced({ order, method, payToken })} /> : <div className="mt-10 h-64 animate-pulse rounded-2xl bg-muted" />}
+      {hydrated ? <Checkout onPlaced={(order, method, payToken, trackPath) => setPlaced({ order, method, payToken, trackPath })} /> : <div className="mt-10 h-64 animate-pulse rounded-2xl bg-muted" />}
     </div>
   );
 }
@@ -85,7 +85,7 @@ function newKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 }
 
-function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, payToken: string | null) => void }) {
+function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, payToken: string | null, trackPath: string | null) => void }) {
   const { lines, fulfilment, setFulfilment, postcode, setPostcode, setQty, removeLine, clear } = useCart();
   const { user, refresh } = useAuth();
   const { locale } = useLocale();
@@ -254,7 +254,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
       if (q.voucher?.applied) track("voucher_redeemed", { code: q.voucher.code });
       if (user) await refresh(); // pull updated points
       clear();
-      onPlaced(data.order as ApiOrder, effectiveMethod, data.payToken ?? null);
+      onPlaced(data.order as ApiOrder, effectiveMethod, data.payToken ?? null, data.trackPath ?? null);
     } catch {
       toast.error("Network error - please try again. You won't be charged twice.");
       setSubmitting(false);
@@ -522,7 +522,7 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
 }
 
 /* ----------------------------------------------------- Confirmation */
-function Confirmation({ order, method, payToken }: { order: ApiOrder; method: PayMethod; payToken: string | null }) {
+function Confirmation({ order, method, payToken, trackPath }: { order: ApiOrder; method: PayMethod; payToken: string | null; trackPath: string | null }) {
   const { business: b } = useSiteContent();
   const flow = ORDER_STATUS_FLOW.filter((s) =>
     order.fulfilment === "delivery" ? s.id !== "ready-for-collection" : s.id !== "out-for-delivery",
@@ -578,7 +578,8 @@ function Confirmation({ order, method, payToken }: { order: ApiOrder; method: Pa
       </div>
 
       <div className="mt-8 flex flex-wrap justify-center gap-3">
-        {order.userId && <Button asChild className="h-12 px-6"><Link href="/wheel">Spin the Fortune Wheel</Link></Button>}
+        {trackPath && <Button asChild className="h-12 px-6"><Link href={trackPath}>Track your order</Link></Button>}
+        {order.userId && <Button asChild variant="outline" className="h-12 px-6"><Link href="/offers?tab=wheel">Spin the Fortune Wheel</Link></Button>}
         <Button asChild variant="outline" className="h-12 px-6"><Link href="/menu">Order more</Link></Button>
       </div>
     </div>

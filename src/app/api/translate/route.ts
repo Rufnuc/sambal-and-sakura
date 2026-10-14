@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { translateBatch, MAX_STRINGS } from "@/server/translate";
 import { clientIp, limitOr429 } from "@/server/rate-limit";
+import { cleanText } from "@/server/sanitize";
 
 // Batch-translate English UI strings into the requested locale. Results are cached in the DB, so
 // repeat calls for the same strings are instant. Bounded per request, per visitor and per day
@@ -10,7 +11,9 @@ export async function POST(req: Request) {
   if (limited) return limited;
   const body = await req.json().catch(() => null);
   const locale = typeof body?.locale === "string" ? body.locale : "";
-  const texts = Array.isArray(body?.texts) ? body.texts.slice(0, MAX_STRINGS).filter((t: unknown): t is string => typeof t === "string") : [];
+  // Page text sent by the browser: control/invisible characters stripped before it's sent on or cached.
+  const raw: string[] = Array.isArray(body?.texts) ? body.texts.slice(0, MAX_STRINGS).filter((t: unknown): t is string => typeof t === "string") : [];
+  const texts = raw.map((t) => ({ t, c: cleanText(t, { multiline: true }) })).filter((x) => x.c === x.t.trim()).map((x) => x.t);
   if (!locale || texts.length === 0) return NextResponse.json({ map: {} });
 
   const map = await translateBatch(texts, locale);

@@ -14,7 +14,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!parsed.success) return NextResponse.json({ error: "Invalid status." }, { status: 400 });
 
   try {
-    const order = await changeOrderStatus(id, parsed.data.status, actorOf(u), { reason: parsed.data.reason, ip: clientIp(req) });
+    const order = await changeOrderStatus(id, parsed.data.status, actorOf(u), { reason: parsed.data.reason, cancelKind: parsed.data.cancelKind, ip: clientIp(req) });
     return NextResponse.json({ order: order ? adminOrder(order) : null });
   } catch (e) {
     if (e instanceof OrderError) return NextResponse.json({ error: e.message }, { status: e.status });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { zText } from "@/server/sanitize";
 import { adminUser } from "@/server/auth";
 import { getSiteContent } from "@/server/site-content";
 import { sendTransactional, emailConfigured } from "@/server/email";
@@ -7,7 +8,7 @@ import { campaignEmail } from "@/server/email-templates";
 import { unsubscribeUrl } from "@/server/campaigns";
 
 // Send the draft promotion to the owner's own email to check how it looks.
-const schema = z.object({ subject: z.string().trim().min(3).max(150), body: z.string().trim().min(10).max(5000), locale: z.enum(["en", "zh", "vi", "ja"]).default("en") });
+const schema = z.object({ subject: zText(150, { min: 3 }), body: zText(5000, { min: 10, multiline: true }), locale: z.enum(["en", "zh", "vi", "ja"]).default("en") });
 
 export async function POST(req: Request) {
   const u = await adminUser();

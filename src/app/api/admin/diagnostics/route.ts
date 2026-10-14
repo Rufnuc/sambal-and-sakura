@@ -5,6 +5,14 @@ import { printerProvider } from "@/server/print";
 import { wechatAvailable } from "@/server/wechat";
 import { translationConfigured } from "@/server/translate";
 import { turnstileSiteKey } from "@/server/turnstile";
+import { prisma } from "@/server/db";
+
+/** Postgres only: tables with Row Level Security switched off (should be none; see the indexes_and_rls migration). */
+async function rlsOffTables(): Promise<string[] | "n/a (local SQLite)"> {
+  if (!/^postgres/i.test(process.env.DATABASE_URL ?? "")) return "n/a (local SQLite)";
+  const rows = await prisma.$queryRaw<{ name: string }[]>`SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = current_schema() AND c.relkind = 'r' AND NOT c.relrowsecurity`;
+  return rows.map((r) => r.name);
+}
 
 // Owner-only "Connection check": shows which IP the server thinks you have and the raw proxy
 // headers, so you can confirm rate limits key on the real visitor (open it from your phone on
@@ -23,6 +31,7 @@ export async function GET(req: Request) {
       "x-forwarded-for": pick("x-forwarded-for"),
       "x-real-ip": pick("x-real-ip"),
     },
+    database: { rowLevelSecurityOff: await rlsOffTables().catch(() => "check failed") },
     integrations: {
       printer: printerProvider(),
       wechatPay: wechatAvailable(),

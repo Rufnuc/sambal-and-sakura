@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionCard } from "@/components/admin/ui";
 import { OwnerTools } from "@/components/admin/owner-tools";
+import { CancelPolicyCard } from "@/components/admin/cancel-policy-card";
 import { ORDERING } from "@/lib/data/site";
 import { BOOKING_POLICY, MAX_ONLINE_PARTY, TOTAL_SEATS } from "@/lib/data/tables";
 import {
@@ -200,6 +201,8 @@ export function SettingsView() {
           </dl>
         </SectionCard>
       </div>
+
+      <CancelPolicyCard />
 
       <OwnerTools />
     </div>

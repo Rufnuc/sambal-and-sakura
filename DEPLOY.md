@@ -80,6 +80,12 @@ How sending is protected: each order/booking email is sent once only; if Brevo f
 
 **Keep `SESSION_SECRET` the same forever** once live: it signs unsubscribe links and blocks closed accounts' emails.
 
+### Order tracking and cancellations
+- Every "order received" email has a **Track your order** link (also on the confirmation screen): a live page showing Order received → Being cooked → Ready for pickup / On the way → Completed. The link is private to that order and never shows the address or phone number.
+- Customers can **cancel from that page for 5 minutes** after ordering (orders for later: until shortly before their time). The kitchen gets a printed **CANCELLED - STOP PREPARING** ticket, the Orders screen shows a red alarm (with sound if it's switched on), the owner gets a phone alert, and the customer gets an email.
+- Cancellations by the customer and orders marked **"Not collected"** count against them (tracked by phone, email and account). At 2 in 60 days their tickets say "call to confirm"; at 3 they can't cancel online or order cash delivery. Change all of this in **Admin → Settings → Cancellations**; reset a customer from the order's details.
+- When staff cancel, they choose why. Only "customer asked" and "not collected" count.
+
 ### Customer accounts
 - **Deactivate**: the customer is signed out and can reactivate within 14 days by signing in (points and rewards come back). After 14 days the account closes automatically.
 - **Close**: immediate and permanent. Personal details are removed; orders stay (without personal details) for your accounts.
@@ -92,13 +98,26 @@ How sending is protected: each order/booking email is sent once only; if Brevo f
 - **Activity log**: Admin → Settings shows who changed what (order statuses, edits, sign-ins).
 - **Logs**: Render → your service → Logs. Every line is JSON; search for `print_failed`, `order_created`, `rate_limited`, `unhandled_error` or an order number.
 
+- **Database row security (RLS)**: switched on for every table by the migrations. The website connects as the
+  database owner, so it works normally; any other database login (a read-only user, a hosted "Data API") sees
+  nothing. Admin → Settings → Connection check → "database row security" should say **on for every table**. Use
+  one database user for both migrations and the website (Render and Neon both do this by default).
+
 ### API keys
 Restrict every key to what it's for: in Google Cloud, restrict the translation key to the **Cloud Translation API** and set a daily quota (APIs & Services → Cloud Translation → Quotas) plus a billing alert. If a key is ever pasted somewhere public (chat, email, a screenshot), rotate it.
 
 ### Custom domain
-Render → your service → **Settings → Custom Domains**, add `sambalandsakura.co.uk`, then create the DNS records Render shows. SSL is automatic and free. Set `WECHAT_NOTIFY_URL` to use the final domain.
+Render → your service → **Settings → Custom Domains**, add `sambalandsakura.co.uk`, then create the DNS records Render shows. SSL is automatic and free. Then, in Render's environment:
+- set `SITE_URL=https://sambalandsakura.co.uk` (the sitemap, canonical links, social previews and Google data all use it; until the domain is connected, set it to the onrender.com address instead),
+- set `WECHAT_NOTIFY_URL` to use the final domain.
+
+In Render → Settings → Custom Domains, also tick **redirect** for the onrender.com address once the domain works, so Google only sees one copy of the site.
+
+If you put **Cloudflare** in front: turn OFF **Security → Bots → "Block AI bots"** (and "AI Crawl Control" blocking). Cloudflare enables it by default on new sites and it hides the restaurant from ChatGPT, Perplexity, Claude and Gemini regardless of `robots.txt`.
 
 ### Menu photos (Cloudinary)
+Photos are shrunk in the browser before upload (max 1200px, WebP, typically 100-250KB instead of several MB), so they're small even without Cloudinary. With Cloudinary they're also served in the best format for each phone.
+
 In Cloudinary's dashboard copy the cloud name, API key and API secret, and set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` in Render. These make uploads **signed** (only this server can upload). The older unsigned-preset option (`CLOUDINARY_UPLOAD_PRESET`) still works but lets anyone who learns the preset name upload to your account.
 
 ### WeChat Pay
@@ -176,7 +195,9 @@ What the website already does: the opening hours, address, phone, delivery area 
 page text (not hidden behind JavaScript), the restaurant and the menu are described in the structured format
 search and AI tools read, both spellings "Sambal & Sakura" / "Sambal and Sakura" are declared, the FAQ answers are in
 the page, the Contact page has a plain-language "at a glance" summary built from your live settings, and there are
-`/llms.txt` and `/llms-full.txt` summaries. Nothing blocks AI crawlers in `robots.txt`.
+`/llms.txt` and `/llms-full.txt` summaries. `robots.txt` allows AI crawlers by name (GPTBot, ClaudeBot, PerplexityBot,
+Google-Extended and others) on the public pages, and every public page arrives fully written in the first response
+(crawlers that don't run JavaScript still see the whole page).
 
 What it cannot do: AI assistants mostly repeat what trusted **other** places say about a business. These are yours to do:
 

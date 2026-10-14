@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
-import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused } from "@/lib/admin/api";
+import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, type CancelKind } from "@/lib/admin/api";
 import { type PlacedOrder } from "@/lib/order";
 import { type OrderStatus } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
@@ -31,7 +31,19 @@ const FLAG_LABEL: Record<string, string> = {
   "address-unverified": "Postcode not verified",
   "large-order": "Large order - call to confirm",
   "paid-after-cancel": "Paid after cancel - refund",
+  "frequent-canceller": "Cancels often - call to confirm",
 };
+
+const CANCEL_KINDS: { id: CancelKind; label: string; counts: boolean }[] = [
+  { id: "staff", label: "Restaurant reason (out of stock, kitchen problem…)", counts: false },
+  { id: "customer", label: "Customer asked to cancel", counts: true },
+  { id: "no-show", label: "Not collected / customer didn't answer", counts: true },
+];
+
+// Customer cancellations staff have already seen (so the alarm shows once per order).
+const ACK_KEY = "ss_admin_cancel_ack";
+function readAcks(): Set<string> { try { return new Set(JSON.parse(localStorage.getItem(ACK_KEY) ?? "[]")); } catch { return new Set(); } }
+function saveAcks(s: Set<string>) { try { localStorage.setItem(ACK_KEY, JSON.stringify([...s].slice(-200))); } catch { /* ignore */ } }
 
 function nextStatus(o: PlacedOrder): OrderStatus | null {
   switch (o.status) {
@@ -78,9 +90,13 @@ export function OrdersView() {
   const [detail, setDetail] = useState<PlacedOrder | null>(null);
   const [cancelling, setCancelling] = useState<PlacedOrder | null>(null);
   const [reason, setReason] = useState("");
+  const [cancelKind, setCancelKind] = useState<CancelKind>("staff");
+  const [acks, setAcks] = useState<Set<string>>(() => (typeof window === "undefined" ? new Set() : readAcks()));
+  const [custCancels, setCustCancels] = useState<{ count: number; windowDays: number; flagAt: number } | null>(null);
   const [sound, setSound] = useState(() => { try { return typeof window !== "undefined" && localStorage.getItem("ss_admin_sound") === "1"; } catch { return false; } });
   const [now, setNow] = useState(() => Date.now());
   const known = useRef<Set<string> | null>(null);
+  const alarmed = useRef<Set<string>>(new Set());
 
   useEffect(() => { const t = setTimeout(() => setQuery(search.trim()), 400); return () => clearTimeout(t); }, [search]);
   // Changing the search or date range isn't "new orders": don't chime for what it brings in.
@@ -104,6 +120,14 @@ export function OrdersView() {
       }
     }
     known.current = ids;
+    // Customer cancelled from their tracking page: alarm until staff tap "Got it".
+    const fresh = feed.orders.filter((o) => o.status === "cancelled" && o.cancelKind === "customer" && (o.cancelledAt ?? 0) > Date.now() - 2 * 3600_000);
+    const unseen = fresh.filter((o) => !readAcks().has(o.id) && !alarmed.current.has(o.id));
+    if (unseen.length) {
+      unseen.forEach((o) => alarmed.current.add(o.id));
+      toast.error(`CUSTOMER CANCELLED ${unseen.map((o) => o.id).join(", ")} - stop preparing`, { duration: 20_000 });
+      if (sound) { chime(); setTimeout(chime, 700); }
+    }
   }, [days, query, sound]);
 
   // Live updates: poll every 10 s and whenever the tab comes back into view.
@@ -132,6 +156,15 @@ export function OrdersView() {
     return sorted.filter((o) => o.status === filter);
   }, [orders, filter]);
 
+  // When an order is opened, look up how often this customer has cancelled recently.
+  useEffect(() => {
+    setCustCancels(null);
+    if (!detail) return;
+    let live = true;
+    fetchCancelCount(detail.id).then((r) => { if (live && r) setCustCancels({ count: r.count, windowDays: r.policy.windowDays, flagAt: r.policy.flagAt }); });
+    return () => { live = false; };
+  }, [detail?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function replace(updated: PlacedOrder) {
     setOrders((list) => list.map((x) => (x.id === updated.id ? updated : x)));
     setDetail((d) => (d && d.id === updated.id ? updated : d));
@@ -146,7 +179,7 @@ export function OrdersView() {
   }
   async function confirmCancel() {
     if (!cancelling) return;
-    const r = await patchOrderStatus(cancelling.id, "cancelled", reason.trim() || undefined);
+    const r = await patchOrderStatus(cancelling.id, "cancelled", reason.trim() || undefined, cancelKind);
     if (r.order) { replace(r.order); toast(`${cancelling.id} cancelled`); }
     else toast.error(r.error ?? "Could not cancel.");
     setCancelling(null); setReason("");
@@ -185,6 +218,12 @@ export function OrdersView() {
         </div>
       </div>
 
+      {orders.filter((o) => o.status === "cancelled" && o.cancelKind === "customer" && (o.cancelledAt ?? 0) > now - 2 * 3600_000 && !acks.has(o.id)).map((o) => (
+        <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-sambal bg-sambal px-4 py-3 text-white">
+          <span className="font-bold">CUSTOMER CANCELLED {o.id} ({o.customer.name}) - STOP PREPARING{o.cancelReason ? ` · ${o.cancelReason.replace(/^Customer: /, "")}` : ""}</span>
+          <Button size="sm" variant="secondary" className="h-8" onClick={() => { const n = new Set(acks); n.add(o.id); setAcks(n); saveAcks(n); }}>Got it</Button>
+        </div>
+      ))}
       {paused && <Banner tone="sambal">Online ordering is PAUSED. Customers see a message asking them to phone.</Banner>}
       {offline && <Banner tone="sambal">Can&apos;t reach the server - check the internet connection. Showing the last orders loaded.</Banner>}
       {waiting > 0 && <Banner tone="sambal">{waiting} order{waiting > 1 ? "s have" : " has"} been waiting over 5 minutes. Start {waiting > 1 ? "them" : "it"} or call the customer.</Banner>}
@@ -263,7 +302,7 @@ export function OrdersView() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                         {isActive(o) && (
-                          <Button size="icon-sm" variant="ghost" aria-label="Cancel order" onClick={() => { setCancelling(o); setReason(""); }}><X className="size-4" /></Button>
+                          <Button size="icon-sm" variant="ghost" aria-label="Cancel order" onClick={() => { setCancelling(o); setReason(""); setCancelKind("staff"); }}><X className="size-4" /></Button>
                         )}
                       </div>
                     </TableCell>
@@ -283,7 +322,15 @@ export function OrdersView() {
             Any points it earned are removed and a used voucher is given back.
             {cancelling?.paymentStatus === "paid" ? " This order was paid by WeChat: refund it in the WeChat Pay merchant platform." : ""}
           </p>
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (e.g. customer called, out of stock)" maxLength={200} />
+          <div className="flex flex-col gap-2">
+            {CANCEL_KINDS.map((k) => (
+              <label key={k.id} className={cn("flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 text-sm", cancelKind === k.id ? "border-foreground" : "border-border")}>
+                <input type="radio" name="cancel-kind" checked={cancelKind === k.id} onChange={() => setCancelKind(k.id)} className="mt-0.5" />
+                <span>{k.label}{k.counts && <span className="block text-xs text-muted-foreground">Counts towards this customer&apos;s cancellation limit</span>}</span>
+              </label>
+            ))}
+          </div>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Details (optional, shown to the customer)" maxLength={200} />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setCancelling(null)}>Keep order</Button>
             <Button variant="destructive" onClick={confirmCancel}>Cancel order</Button>
@@ -320,6 +367,15 @@ export function OrdersView() {
                   <Printer className="size-4" /> Reprint to kitchen
                 </Button>
               </div>
+              {custCancels && custCancels.count > 0 && (
+                <div className={cn("flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm", custCancels.count >= custCancels.flagAt ? "bg-sambal/10 text-sambal" : "bg-muted")}>
+                  <span>This customer cancelled or didn&apos;t collect {custCancels.count} order{custCancels.count > 1 ? "s" : ""} in the last {custCancels.windowDays} days.</span>
+                  <Button size="sm" variant="outline" className="h-7" onClick={async () => {
+                    const r = await resetCancelCount(detail.id);
+                    if (r.ok) { toast.success("Reset - their past cancellations no longer count."); setCustCancels({ ...custCancels, count: 0 }); } else toast.error(r.error);
+                  }}>Reset</Button>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 Kitchen printer: {detail.printStatus === "printed" ? "printed" : detail.printStatus === "failed" ? `failed - ${detail.printError ?? "unknown error"}` : detail.printStatus === "not-needed" ? "not used" : "waiting"}
               </p>
@@ -328,7 +384,7 @@ export function OrdersView() {
                 <p className="capitalize text-muted-foreground">{detail.fulfilment}{detail.customer.address ? ` · ${detail.customer.address}` : ""}{detail.customer.postcode ? ` (${detail.customer.postcode})` : ""}</p>
                 {detail.when === "scheduled" && detail.scheduledTime && <p className="mt-1 font-semibold">For {detail.scheduledTime}</p>}
                 {detail.customer.notes && <p className="mt-1 flex items-center gap-1.5 text-muted-foreground"><Clock className="size-3.5" /> Customer note: {detail.customer.notes}</p>}
-                {detail.cancelReason && <p className="mt-1 text-sambal">Cancelled: {detail.cancelReason}</p>}
+                {detail.cancelReason && <p className="mt-1 text-sambal">Cancelled{detail.cancelKind === "customer" ? " by the customer" : detail.cancelKind === "no-show" ? " (not collected)" : ""}: {detail.cancelReason}</p>}
                 <ul className="mt-4 divide-y divide-border border-y border-border">
                   {detail.lines.map((l) => (
                     <li key={l.lineId} className="flex justify-between py-2">

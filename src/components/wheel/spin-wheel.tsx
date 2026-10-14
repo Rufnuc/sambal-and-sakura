@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Sparkles, Gift, Clock, Ticket, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AuthDialog } from "@/components/account/auth-dialog";
+import { LazyAuthDialog as AuthDialog } from "@/components/account/lazy-auth-dialog";
 import { WHEEL_PRIZES, type WheelPrize } from "@/lib/data/site";
 import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/store/auth";

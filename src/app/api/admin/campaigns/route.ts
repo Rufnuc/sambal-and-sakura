@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { zText } from "@/server/sanitize";
 import { prisma } from "@/server/db";
 import { adminUser } from "@/server/auth";
 import { createCampaign, marketableWhere } from "@/server/campaigns";
@@ -18,10 +19,10 @@ export async function GET() {
   return NextResponse.json({ campaigns, optedIn, allowanceToday: allowance, dailyLimit: DAILY_LIMIT, configured: emailConfigured() });
 }
 
-const version = z.object({ subject: z.string().trim().max(150), body: z.string().trim().max(5000) });
+const version = z.object({ subject: zText(150), body: zText(5000, { multiline: true }) });
 const schema = z.object({
-  subject: z.string().trim().min(3).max(150),
-  body: z.string().trim().min(10).max(5000),
+  subject: zText(150, { min: 3 }),
+  body: zText(5000, { min: 10, multiline: true }),
   translations: z.object({ zh: version.optional(), vi: version.optional(), ja: version.optional() }).optional(),
   audience: z.enum(["all", "selected"]),
   userIds: z.array(z.string().max(40)).max(5000).optional(),

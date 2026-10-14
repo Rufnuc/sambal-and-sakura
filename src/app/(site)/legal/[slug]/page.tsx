@@ -49,7 +49,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const doc = DOCS[slug];
-  return { title: doc ? doc.title : "Legal" };
+  if (!doc) return { title: "Page not found", robots: { index: false } };
+  return { title: doc.title, description: doc.intro.slice(0, 160), alternates: { canonical: `/legal/${slug}` } };
 }
 
 export default async function LegalPage({ params }: { params: Promise<{ slug: string }> }) {

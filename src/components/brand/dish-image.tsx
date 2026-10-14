@@ -65,7 +65,7 @@ export function DishImage({
     return (
       <div className={cn("relative overflow-hidden bg-muted", rounded, className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={name} loading="lazy" className="size-full object-cover" />
+        <img src={src} alt={name} loading="lazy" decoding="async" width={900} height={675} className="size-full object-cover" />
       </div>
     );
   }

@@ -30,7 +30,8 @@ export function errInfo(e: unknown): { error: string } {
 }
 
 // Don't spam the owner: the same alert key fires at most once per 10 minutes per server.
-const lastSent = new Map<string, number>();
+// Shared across the separate module copies Next loads (worker + request handlers), like activity.ts.
+const lastSent = ((globalThis as unknown as { __ssAlerts?: Map<string, number> }).__ssAlerts ??= new Map<string, number>());
 const ALERT_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** Log at warn level and, if configured, push a short message to the owner. Never throws. */

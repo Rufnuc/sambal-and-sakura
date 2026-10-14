@@ -26,6 +26,8 @@ const ACTION_LABEL: Record<string, string> = {
   "campaign.create": "Offer email sent",
   "campaign.cancel": "Offer email stopped",
   "email.unblock": "Closed account's email unblocked",
+  "cancellations.reset": "Customer's cancellations reset",
+  "settings.cancel_policy": "Cancellation rules changed",
 };
 
 /** Owner-only: "Connection check" (is the rate limiter seeing real visitor IPs?) and the activity log. */
@@ -54,6 +56,11 @@ export function OwnerTools() {
             {Object.entries(diag.integrations).map(([k, v]) => (
               <div key={k} className="flex justify-between gap-3"><dt className="text-muted-foreground">{k}</dt><dd className={v ? "text-jade" : "text-sambal"}>{v === true ? "yes" : v === false || v === null ? "no" : String(v)}</dd></div>
             ))}
+            {diag.database && (() => {
+              const off = diag.database.rowLevelSecurityOff;
+              const ok = Array.isArray(off) && off.length === 0;
+              return <div className="flex justify-between gap-3"><dt className="text-muted-foreground">database row security</dt><dd className={ok || typeof off === "string" && off.startsWith("n/a") ? "text-jade" : "text-sambal"}>{Array.isArray(off) ? (ok ? "on for every table" : `OFF: ${off.join(", ")}`) : off}</dd></div>;
+            })()}
           </dl>
         )}
       </SectionCard>

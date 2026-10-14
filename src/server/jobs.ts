@@ -109,10 +109,8 @@ async function bookingReminders() {
     where: { date: addDays(now.dateKey, 1), status: "upcoming", reminderSentAt: null, email: { not: null } },
     select: { id: true },
   });
-  for (const b of due) {
-    await prisma.booking.update({ where: { id: b.id }, data: { reminderSentAt: new Date() } });
-    notifyBooking(b.id, "reminder");
-  }
+  if (due.length) await prisma.booking.updateMany({ where: { id: { in: due.map((b) => b.id) } }, data: { reminderSentAt: new Date() } });
+  for (const b of due) notifyBooking(b.id, "reminder");
   if (due.length) log.info("booking_reminders", { count: due.length });
 }
 

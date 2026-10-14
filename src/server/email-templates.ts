@@ -68,10 +68,16 @@ function niceDate(l: EmailLocale, dateKey: string): string {
 
 /* ------------------------------------------------------------------ orders */
 
-export type OrderEvent = "received" | "out-for-delivery" | "ready-for-collection" | "completed" | "cancelled";
+export type OrderEvent = "received" | "out-for-delivery" | "ready-for-collection" | "cancelled";
 
-/** `dishNames`: translated dish names from the site's translation cache (English if missing). */
-export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] }, biz: Business, dishNames: Record<string, string> = {}): Built {
+const button = (href: string, label: string) =>
+  `<a href="${esc(href)}" style="display:inline-block;background:#1f1b16;color:#ecbb4e;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:bold">${label}</a>`;
+
+/**
+ * `dishNames`: translated dish names from the site's translation cache (English if missing).
+ * `trackUrl`: the customer's private live-tracking page for this order.
+ */
+export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] }, biz: Business, dishNames: Record<string, string> = {}, trackUrl?: string): Built {
   const l = asEmailLocale(o.locale);
   const ref = b(esc(o.id));
   const plainRef = esc(o.id);
@@ -83,6 +89,7 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
   const address = o.fulfilment === "delivery" ? `${esc(o.address)}${o.postcode ? `, ${esc(o.postcode)}` : ""}` : `${esc(biz.address.line1)}, ${esc(biz.address.city)} ${esc(biz.address.postcode)}`;
   const lines = o.lines.map((ln) => `${ln.qty} × ${esc(dishNames[ln.name] ?? ln.name)}${ln.unitPrice === 0 ? ` (${t(l, "word.free")})` : ` - ${money(ln.unitPrice * ln.qty)}`}`).join("<br>");
   const phone = esc(biz.phone);
+  const track = trackUrl ? [`${t(l, "order.trackHint")}<br>${button(trackUrl, t(l, "order.trackButton"))}`] : [];
 
   switch (event) {
     case "received":
@@ -91,17 +98,14 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
         lines,
         `${o.discount > 0 ? t(l, "order.totalDiscount", { total: b(money(o.total)), discount: money(o.discount) }) : t(l, "order.total", { total: b(money(o.total)) })} ${pay}`,
         t(l, o.fulfilment === "delivery" ? "order.deliverTo" : "order.collectFrom", { address }),
+        ...track,
         t(l, o.fulfilment === "delivery" ? "order.nextDelivery" : "order.nextCollection", { phone, ref }),
       ]);
+    // These two also say "enjoy your meal": there's no separate "completed" email.
     case "out-for-delivery":
-      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), pay]);
+      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), pay, ...track, t(l, "order.enjoy")]);
     case "ready-for-collection":
-      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), pay]);
-    case "completed":
-      return build(l, biz, t(l, o.fulfilment === "delivery" ? "order.done.subjectDelivered" : "order.done.subjectCollected", { ref: plainRef }), t(l, "order.done.heading"), [
-        t(l, "order.done.body", { ref }),
-        ...(o.userId && o.pointsEarned > 0 ? [t(l, "order.done.points", { points: o.pointsEarned })] : []),
-      ]);
+      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), pay, ...track, t(l, "order.enjoy")]);
     case "cancelled":
       return build(l, biz, t(l, "order.cancelled.subject", { ref: plainRef }), t(l, "order.cancelled.heading"), [
         o.cancelReason ? t(l, "order.cancelled.bodyReason", { ref, total: money(o.total), reason: esc(o.cancelReason) }) : t(l, "order.cancelled.body", { ref, total: money(o.total) }),

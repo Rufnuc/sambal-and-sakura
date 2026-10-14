@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: business.blurb,
     applicationName: RESTAURANT.name,
     openGraph: { title, description: business.blurb, type: "website", locale: "en_GB", siteName: RESTAURANT.name },
-    icons: { icon: "/logo-mark.svg" },
+    icons: { icon: "/logo-mark.svg", apple: "/apple-icon" },
     ...(verification || bingVerification
       ? { verification: { ...(verification ? { google: verification } : {}), ...(bingVerification ? { other: { "msvalidate.01": bingVerification } } : {}) } }
       : {}),

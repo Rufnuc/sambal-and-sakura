@@ -37,7 +37,11 @@ const nextConfig: NextConfig = {
   // The FAQ moved onto the Contact page. A server-level 308 (not a page-level redirect, which can only
   // redirect client-side under a loading boundary) keeps old links and Google results working.
   async redirects() {
-    return [{ source: "/faq", destination: "/contact#faq", permanent: true }];
+    return [
+      { source: "/faq", destination: "/contact#faq", permanent: true },
+      { source: "/wheel", destination: "/offers?tab=wheel", permanent: false },
+      { source: "/refer", destination: "/offers", permanent: false }, // referral rewards aren't live yet (see FEATURES in lib/data/site.ts)
+    ];
   },
   // Prisma's engine must not be bundled by Turbopack.
   serverExternalPackages: ["@prisma/client", ".prisma/client", "prisma"],

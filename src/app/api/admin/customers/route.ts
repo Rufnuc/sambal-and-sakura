@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { staffFor } from "@/server/auth";
+import { cleanQuery } from "@/server/sanitize";
 
 const PAGE = 50;
 
@@ -9,7 +10,7 @@ const PAGE = 50;
 export async function GET(req: Request) {
   if (!(await staffFor("customers"))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const sp = new URL(req.url).searchParams;
-  const q = (sp.get("q") ?? "").trim().slice(0, 60);
+  const q = cleanQuery(sp.get("q"));
   const page = Math.max(0, Number(sp.get("page")) || 0);
   const optedIn = sp.get("optedIn") === "1";
   const where = {

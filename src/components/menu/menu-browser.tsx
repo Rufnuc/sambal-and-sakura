@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Star, ChefHat, Flame, Leaf, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DishCard } from "@/components/menu/dish-card";
-import { MENU, CATEGORY_LABELS, type MenuCategory, type DietTag, type MenuItem } from "@/lib/data/menu";
+import { CATEGORY_LABELS, type MenuCategory, type DietTag, type MenuItem } from "@/lib/data/menu";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +18,7 @@ const DIET_FILTERS: { id: DietTag; label: string; icon: React.ElementType }[] = 
   { id: "spicy", label: "Spicy", icon: Flame },
 ];
 
-export function MenuBrowser({ menu = MENU }: { menu?: MenuItem[] }) {
+export function MenuBrowser({ menu }: { menu: MenuItem[] }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<MenuCategory | "all">("all");
   const [diets, setDiets] = useState<Set<DietTag>>(new Set());

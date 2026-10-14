@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { zText, zEmail } from "@/server/sanitize";
 import { prisma } from "@/server/db";
 import { adminUser, hashPassword } from "@/server/auth";
 import { parsePermissions, GRANTABLE_SECTIONS } from "@/lib/admin/sections";
@@ -10,8 +11,8 @@ import { actorOf } from "@/server/admin-view";
 const VALID_KEYS = new Set(GRANTABLE_SECTIONS.map((s) => s.key));
 
 const createSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  email: z.string().trim().email().max(120).toLowerCase(),
+  name: zText(80, { min: 2 }),
+  email: zEmail,
   password: z.string().min(10).max(100),
   role: z.enum(["staff", "admin"]).default("staff"),
   permissions: z.array(z.string().max(30)).max(20).default([]),

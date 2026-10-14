@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { CopyCode } from "@/components/copy-code";
-import { AuthDialog } from "@/components/account/auth-dialog";
+import { LazyAuthDialog as AuthDialog } from "@/components/account/lazy-auth-dialog";
 import { useAuth, LOYALTY, tierFor } from "@/lib/store/auth";
 import { OrderStatusPill } from "@/components/admin/ui";
 import { gbp } from "@/lib/format";
@@ -25,7 +25,7 @@ interface ApiBooking { id: string; date: string; time: string; party: number; st
 
 export default function AccountPage() {
   const { user, loaded } = useAuth();
-  if (!loaded) return <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6"><div className="h-80 animate-pulse rounded-2xl bg-muted" /></div>;
+  if (!loaded) return <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6"><h1 className="sr-only">Your account</h1><div className="h-80 animate-pulse rounded-2xl bg-muted" /></div>;
   return <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">{user ? <Dashboard /> : <SignedOut />}</div>;
 }
 
@@ -132,7 +132,7 @@ function Dashboard() {
         <Card id="rewards">
           <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><Gift className="size-5 text-sambal" /> Rewards wallet</h2>
           {activeRewards.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active rewards yet. Spin the <Link href="/wheel" className="font-medium text-gold-ink hover:underline">Fortune Wheel</Link> or redeem points.</p>
+            <p className="text-sm text-muted-foreground">No active rewards yet. Spin the <Link href="/offers?tab=wheel" className="font-medium text-gold-ink hover:underline">Fortune Wheel</Link> or redeem points.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {activeRewards.map((r) => (

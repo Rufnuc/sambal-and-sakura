@@ -1,79 +1,422 @@
 {
-  "_note": { "en": "Wording for every customer email. {curly} words are filled in automatically - keep them exactly as they are. Reviewed translations go straight into this file.", "zh": "", "vi": "", "ja": "" },
-
-  "common.allergy": { "en": "Food allergy or intolerance? Please call us before ordering.", "zh": "如有食物过敏或不耐受，请在下单前致电我们。", "vi": "Bạn bị dị ứng hoặc không dung nạp thực phẩm? Vui lòng gọi cho chúng tôi trước khi đặt món.", "ja": "食物アレルギーや不耐症のある方は、ご注文前にお電話ください。" },
-  "common.questions": { "en": "Questions? Call {phone}.", "zh": "如有疑问，请致电 {phone}。", "vi": "Có thắc mắc? Gọi {phone}.", "ja": "ご不明な点は {phone} までお電話ください。" },
-  "word.delivery": { "en": "delivery", "zh": "外送", "vi": "giao hàng", "ja": "配達" },
-  "word.collection": { "en": "collection", "zh": "自取", "vi": "tự đến lấy", "ja": "お持ち帰り" },
-  "word.free": { "en": "free", "zh": "免费", "vi": "miễn phí", "ja": "無料" },
-  "when.scheduled": { "en": "for {time}", "zh": "预定时间：{time}", "vi": "vào lúc {time}", "ja": "{time}のご予約" },
-  "when.asap": { "en": "as soon as possible (usually {mins} minutes)", "zh": "尽快（通常约 {mins} 分钟）", "vi": "sớm nhất có thể (thường khoảng {mins} phút)", "ja": "できるだけ早く（通常約{mins}分）" },
-  "pay.cash": { "en": "Please have {total} in cash ready.", "zh": "请准备好现金 {total}。", "vi": "Vui lòng chuẩn bị sẵn {total} tiền mặt.", "ja": "現金で{total}をご用意ください。" },
-  "pay.wechatPaid": { "en": "Paid by WeChat Pay.", "zh": "已通过微信支付付款。", "vi": "Đã thanh toán qua WeChat Pay.", "ja": "WeChat Payでお支払い済みです。" },
-  "pay.wechatPending": { "en": "Payment: WeChat Pay (we start once payment is confirmed).", "zh": "付款方式：微信支付（确认付款后我们开始制作）。", "vi": "Thanh toán: WeChat Pay (chúng tôi bắt đầu chuẩn bị khi xác nhận thanh toán).", "ja": "お支払い：WeChat Pay（お支払いの確認後に調理を開始します）。" },
-
-  "order.received.subject": { "en": "Order {ref} received", "zh": "已收到订单 {ref}", "vi": "Đã nhận đơn hàng {ref}", "ja": "ご注文 {ref} を受け付けました" },
-  "order.received.heading": { "en": "Thanks {name}, we've got your order", "zh": "{name}，感谢您的订单", "vi": "Cảm ơn {name}, chúng tôi đã nhận được đơn hàng của bạn", "ja": "{name}様、ご注文ありがとうございます" },
-  "order.received.summary": { "en": "Order {ref} · {type} {when}.", "zh": "订单 {ref} · {type}，{when}。", "vi": "Đơn hàng {ref} · {type} {when}.", "ja": "ご注文 {ref}・{type}・{when}。" },
-  "order.total": { "en": "Total: {total}.", "zh": "总计：{total}。", "vi": "Tổng cộng: {total}.", "ja": "合計：{total}。" },
-  "order.totalDiscount": { "en": "Total: {total} (including {discount} off).", "zh": "总计：{total}（已优惠 {discount}）。", "vi": "Tổng cộng: {total} (đã giảm {discount}).", "ja": "合計：{total}（{discount}割引済み）。" },
-  "order.deliverTo": { "en": "Delivering to: {address}", "zh": "送餐地址：{address}", "vi": "Giao đến: {address}", "ja": "お届け先：{address}" },
-  "order.collectFrom": { "en": "Collect from: {address}", "zh": "取餐地址：{address}", "vi": "Nhận tại: {address}", "ja": "受け取り場所：{address}" },
-  "order.nextDelivery": { "en": "We'll email you when it's on its way. Questions? Call {phone} and quote {ref}.", "zh": "订单出发时我们会发邮件通知您。如有疑问，请致电 {phone} 并提供订单号 {ref}。", "vi": "Chúng tôi sẽ gửi email khi đơn hàng đang trên đường giao. Có thắc mắc? Gọi {phone} và cung cấp mã {ref}.", "ja": "配達に出発しましたらメールでお知らせします。ご不明な点は {phone} までお電話のうえ、{ref} をお伝えください。" },
-  "order.nextCollection": { "en": "We'll email you when it's ready to collect. Questions? Call {phone} and quote {ref}.", "zh": "可以取餐时我们会发邮件通知您。如有疑问，请致电 {phone} 并提供订单号 {ref}。", "vi": "Chúng tôi sẽ gửi email khi đơn hàng sẵn sàng để lấy. Có thắc mắc? Gọi {phone} và cung cấp mã {ref}.", "ja": "お受け取りの準備ができましたらメールでお知らせします。ご不明な点は {phone} までお電話のうえ、{ref} をお伝えください。" },
-  "order.onWay.subject": { "en": "Order {ref} is on its way", "zh": "订单 {ref} 正在配送中", "vi": "Đơn hàng {ref} đang được giao", "ja": "ご注文 {ref} を配達中です" },
-  "order.onWay.heading": { "en": "Your order is on its way", "zh": "您的订单正在配送中", "vi": "Đơn hàng của bạn đang được giao", "ja": "ご注文の品を配達中です" },
-  "order.onWay.body": { "en": "Order {ref} has left the kitchen and is heading to {address}.", "zh": "订单 {ref} 已出餐，正在送往 {address}。", "vi": "Đơn hàng {ref} đã rời bếp và đang trên đường đến {address}.", "ja": "ご注文 {ref} は調理が完了し、{address} へ向かっています。" },
-  "order.ready.subject": { "en": "Order {ref} is ready to collect", "zh": "订单 {ref} 可以取餐了", "vi": "Đơn hàng {ref} đã sẵn sàng để lấy", "ja": "ご注文 {ref} のお受け取り準備ができました" },
-  "order.ready.heading": { "en": "Your order is ready to collect", "zh": "您的餐点已备好，可以取餐", "vi": "Đơn hàng của bạn đã sẵn sàng", "ja": "お受け取りの準備ができました" },
-  "order.ready.body": { "en": "Order {ref} is ready at {address}.", "zh": "订单 {ref} 已在 {address} 备好。", "vi": "Đơn hàng {ref} đã sẵn sàng tại {address}.", "ja": "ご注文 {ref} は {address} でお受け取りいただけます。" },
-  "order.done.subjectDelivered": { "en": "Order {ref} delivered - enjoy!", "zh": "订单 {ref} 已送达，请慢用！", "vi": "Đơn hàng {ref} đã được giao - chúc ngon miệng!", "ja": "ご注文 {ref} をお届けしました。どうぞお召し上がりください！" },
-  "order.done.subjectCollected": { "en": "Order {ref} collected - enjoy!", "zh": "订单 {ref} 已取餐，请慢用！", "vi": "Đơn hàng {ref} đã được lấy - chúc ngon miệng!", "ja": "ご注文 {ref} をお受け取りいただきました。どうぞお召し上がりください！" },
-  "order.done.heading": { "en": "Enjoy your meal", "zh": "祝您用餐愉快", "vi": "Chúc bạn ngon miệng", "ja": "どうぞお召し上がりください" },
-  "order.done.body": { "en": "Order {ref} is complete. Thank you for ordering direct with us.", "zh": "订单 {ref} 已完成。感谢您直接向我们订餐。", "vi": "Đơn hàng {ref} đã hoàn tất. Cảm ơn bạn đã đặt món trực tiếp với chúng tôi.", "ja": "ご注文 {ref} は完了しました。直接ご注文いただきありがとうございます。" },
-  "order.done.points": { "en": "{points} points have been added to your account.", "zh": "已向您的账户添加 {points} 积分。", "vi": "{points} điểm đã được cộng vào tài khoản của bạn.", "ja": "{points}ポイントがアカウントに追加されました。" },
-  "order.cancelled.subject": { "en": "Order {ref} has been cancelled", "zh": "订单 {ref} 已取消", "vi": "Đơn hàng {ref} đã bị hủy", "ja": "ご注文 {ref} はキャンセルされました" },
-  "order.cancelled.heading": { "en": "Your order has been cancelled", "zh": "您的订单已取消", "vi": "Đơn hàng của bạn đã bị hủy", "ja": "ご注文はキャンセルされました" },
-  "order.cancelled.bodyReason": { "en": "Order {ref} ({total}) has been cancelled: {reason}", "zh": "订单 {ref}（{total}）已取消，原因：{reason}", "vi": "Đơn hàng {ref} ({total}) đã bị hủy: {reason}", "ja": "ご注文 {ref}（{total}）はキャンセルされました。理由：{reason}" },
-  "order.cancelled.body": { "en": "Order {ref} ({total}) has been cancelled.", "zh": "订单 {ref}（{total}）已取消。", "vi": "Đơn hàng {ref} ({total}) đã bị hủy.", "ja": "ご注文 {ref}（{total}）はキャンセルされました。" },
-  "order.cancelled.refund": { "en": "You paid by WeChat Pay - we'll refund you. If you don't see it within a few days, please call us.", "zh": "您已通过微信支付付款，我们将为您退款。如几天内未收到退款，请致电我们。", "vi": "Bạn đã thanh toán qua WeChat Pay - chúng tôi sẽ hoàn tiền. Nếu sau vài ngày bạn chưa nhận được, vui lòng gọi cho chúng tôi.", "ja": "WeChat Payでお支払いいただいているため、返金いたします。数日以内に確認できない場合はお電話ください。" },
-  "order.cancelled.notCharged": { "en": "You haven't been charged.", "zh": "您未被收取任何费用。", "vi": "Bạn chưa bị tính phí.", "ja": "料金は発生していません。" },
-
-  "booking.what.one": { "en": "{party} guest on {date} at {time}", "zh": "{date} {time}，{party} 位", "vi": "{party} khách vào {date} lúc {time}", "ja": "{date} {time}、{party}名様" },
-  "booking.what.many": { "en": "{party} guests on {date} at {time}", "zh": "{date} {time}，{party} 位", "vi": "{party} khách vào {date} lúc {time}", "ja": "{date} {time}、{party}名様" },
-  "booking.confirmed.subject": { "en": "Table booked - {date} {time}", "zh": "订座成功 - {date} {time}", "vi": "Đã đặt bàn - {date} {time}", "ja": "ご予約が確定しました - {date} {time}" },
-  "booking.confirmed.heading": { "en": "See you soon, {name}", "zh": "{name}，期待您的光临", "vi": "Hẹn sớm gặp lại, {name}", "ja": "{name}様、ご来店をお待ちしております" },
-  "booking.confirmed.body": { "en": "Your table is booked: {what}. Reference {ref}.", "zh": "您的订座已确认：{what}。预订号 {ref}。", "vi": "Bàn của bạn đã được đặt: {what}. Mã đặt bàn {ref}.", "ja": "ご予約が確定しました：{what}。予約番号 {ref}。" },
-  "booking.largeParty": { "en": "For a party this size we'll phone you to confirm and take the deposit.", "zh": "由于人数较多，我们会致电您确认预订并收取订金。", "vi": "Với nhóm đông người như vậy, chúng tôi sẽ gọi điện để xác nhận và nhận tiền đặt cọc.", "ja": "大人数のご予約のため、確認とデポジットのお支払いについてお電話いたします。" },
-  "booking.change": { "en": "To change or cancel, call {phone} and quote {ref}.", "zh": "如需更改或取消，请致电 {phone} 并提供预订号 {ref}。", "vi": "Để thay đổi hoặc hủy, gọi {phone} và cung cấp mã {ref}.", "ja": "変更・キャンセルは {phone} までお電話のうえ、{ref} をお伝えください。" },
-  "booking.waitlist.subject": { "en": "You're on the waitlist - {date} {time}", "zh": "您已在候补名单中 - {date} {time}", "vi": "Bạn đã ở trong danh sách chờ - {date} {time}", "ja": "キャンセル待ちに登録しました - {date} {time}" },
-  "booking.waitlist.heading": { "en": "You're on the waitlist", "zh": "您已在候补名单中", "vi": "Bạn đã ở trong danh sách chờ", "ja": "キャンセル待ちに登録しました" },
-  "booking.waitlist.body": { "en": "We've added you to the waitlist for {what}. Reference {ref}.", "zh": "我们已将您加入候补名单：{what}。预订号 {ref}。", "vi": "Chúng tôi đã thêm bạn vào danh sách chờ cho {what}. Mã {ref}.", "ja": "{what}のキャンセル待ちに登録しました。予約番号 {ref}。" },
-  "booking.waitlist.note": { "en": "Your table isn't confirmed yet - we'll be in touch if one frees up.", "zh": "您的座位尚未确认，如有空位我们会联系您。", "vi": "Bàn của bạn chưa được xác nhận - chúng tôi sẽ liên hệ nếu có bàn trống.", "ja": "お席はまだ確定していません。空きが出ましたらご連絡いたします。" },
-  "booking.cancelled.subject": { "en": "Booking {ref} cancelled", "zh": "预订 {ref} 已取消", "vi": "Đặt bàn {ref} đã bị hủy", "ja": "ご予約 {ref} はキャンセルされました" },
-  "booking.cancelled.heading": { "en": "Your booking has been cancelled", "zh": "您的订座已取消", "vi": "Đặt bàn của bạn đã bị hủy", "ja": "ご予約はキャンセルされました" },
-  "booking.cancelled.body": { "en": "Your booking for {what} ({ref}) has been cancelled.", "zh": "您的订座（{what}，{ref}）已取消。", "vi": "Đặt bàn cho {what} ({ref}) đã bị hủy.", "ja": "{what}のご予約（{ref}）はキャンセルされました。" },
-  "booking.cancelled.mistake": { "en": "If this is a mistake, call {phone}.", "zh": "如有误，请致电 {phone}。", "vi": "Nếu có nhầm lẫn, vui lòng gọi {phone}.", "ja": "お心当たりのない場合は {phone} までお電話ください。" },
-  "booking.reminder.subject": { "en": "Reminder: your table tomorrow at {time}", "zh": "提醒：您明天 {time} 的订座", "vi": "Nhắc nhở: bàn của bạn vào ngày mai lúc {time}", "ja": "リマインダー：明日 {time} のご予約" },
-  "booking.reminder.heading": { "en": "See you tomorrow", "zh": "明天见", "vi": "Hẹn gặp bạn ngày mai", "ja": "明日のご来店をお待ちしております" },
-  "booking.reminder.body": { "en": "Just a reminder of your booking: {what}. Reference {ref}.", "zh": "温馨提醒您的订座：{what}。预订号 {ref}。", "vi": "Nhắc bạn về lịch đặt bàn: {what}. Mã {ref}.", "ja": "ご予約のお知らせです：{what}。予約番号 {ref}。" },
-  "booking.reminder.cantMake": { "en": "Can't make it? Please call {phone} so we can give the table to someone else.", "zh": "如无法前来，请致电 {phone}，以便我们将座位留给其他客人。", "vi": "Không đến được? Vui lòng gọi {phone} để chúng tôi nhường bàn cho khách khác.", "ja": "ご来店が難しい場合は、他のお客様にお席をご案内できるよう {phone} までお電話ください。" },
-
-  "account.deactivated.subject": { "en": "Your account has been deactivated", "zh": "您的账户已停用", "vi": "Tài khoản của bạn đã bị tạm ngưng", "ja": "アカウントを無効化しました" },
-  "account.deactivated.heading": { "en": "Your account is deactivated", "zh": "您的账户已停用", "vi": "Tài khoản của bạn đã tạm ngưng", "ja": "アカウントは無効化されています" },
-  "account.deactivated.body1": { "en": "Hi {name}, your account is now deactivated and you've been signed out everywhere.", "zh": "{name}，您好！您的账户已停用，并已在所有设备上退出登录。", "vi": "Chào {name}, tài khoản của bạn đã tạm ngưng và bạn đã được đăng xuất trên mọi thiết bị.", "ja": "{name}様、アカウントが無効化され、すべての端末からログアウトしました。" },
-  "account.deactivated.body2": { "en": "Changed your mind? Sign in before {deadline} and choose \"Reactivate\" to get your points and rewards back.", "zh": "改变主意了？请在 {deadline} 之前登录并选择“重新激活”，即可恢复您的积分和奖励。", "vi": "Đổi ý? Hãy đăng nhập trước {deadline} và chọn \"Kích hoạt lại\" để lấy lại điểm và ưu đãi.", "ja": "気が変わりましたか？{deadline}までにログインして「再有効化」を選ぶと、ポイントと特典が戻ります。" },
-  "account.deactivated.body3": { "en": "After that date the account is closed for good and this email address can't be used to create a new account.", "zh": "超过该日期后，账户将被永久关闭，且此邮箱无法再用于注册新账户。", "vi": "Sau ngày đó, tài khoản sẽ bị đóng vĩnh viễn và địa chỉ email này không thể dùng để tạo tài khoản mới.", "ja": "この日を過ぎるとアカウントは完全に閉鎖され、このメールアドレスで新しいアカウントを作成することはできません。" },
-  "account.reactivated.subject": { "en": "Welcome back - your account is active again", "zh": "欢迎回来，您的账户已重新激活", "vi": "Chào mừng trở lại - tài khoản của bạn đã hoạt động trở lại", "ja": "おかえりなさい。アカウントが再び有効になりました" },
-  "account.reactivated.heading": { "en": "Welcome back", "zh": "欢迎回来", "vi": "Chào mừng trở lại", "ja": "おかえりなさい" },
-  "account.reactivated.body": { "en": "Hi {name}, your account is active again, with your points and rewards.", "zh": "{name}，您好！您的账户已重新激活，积分和奖励均已恢复。", "vi": "Chào {name}, tài khoản của bạn đã hoạt động trở lại, kèm theo điểm và ưu đãi của bạn.", "ja": "{name}様、アカウントが再び有効になり、ポイントと特典も復元されました。" },
-  "account.closed.subject": { "en": "Your account has been closed", "zh": "您的账户已关闭", "vi": "Tài khoản của bạn đã bị đóng", "ja": "アカウントを閉鎖しました" },
-  "account.closed.heading": { "en": "Your account is closed", "zh": "您的账户已关闭", "vi": "Tài khoản của bạn đã đóng", "ja": "アカウントは閉鎖されました" },
-  "account.closed.body1": { "en": "Hi {name}, your account has been closed and your personal details removed.", "zh": "{name}，您好！您的账户已关闭，个人信息已删除。", "vi": "Chào {name}, tài khoản của bạn đã bị đóng và thông tin cá nhân đã được xóa.", "ja": "{name}様、アカウントを閉鎖し、個人情報を削除しました。" },
-  "account.closed.body2": { "en": "This email address can't be used to create a new account. If you think this is a mistake, please contact us.", "zh": "此邮箱无法再用于注册新账户。如您认为有误，请联系我们。", "vi": "Địa chỉ email này không thể dùng để tạo tài khoản mới. Nếu bạn cho rằng có nhầm lẫn, vui lòng liên hệ với chúng tôi.", "ja": "このメールアドレスで新しいアカウントを作成することはできません。お心当たりのない場合はご連絡ください。" },
-
-  "campaign.greeting": { "en": "Hi {name},", "zh": "{name}，您好：", "vi": "Chào {name},", "ja": "{name}様" },
-  "campaign.orderNow": { "en": "Order now", "zh": "立即点餐", "vi": "Đặt món ngay", "ja": "今すぐ注文" },
-  "campaign.why": { "en": "You're getting this because you said yes to offers from us.", "zh": "您收到此邮件是因为您同意接收我们的优惠信息。", "vi": "Bạn nhận được email này vì đã đồng ý nhận ưu đãi từ chúng tôi.", "ja": "このメールは、当店からのお知らせの受信に同意いただいた方にお送りしています。" },
-  "campaign.unsubscribe": { "en": "Unsubscribe", "zh": "退订", "vi": "Hủy đăng ký", "ja": "配信停止" }
+  "_note": {
+    "en": "Wording for every customer email. {curly} words are filled in automatically - keep them exactly as they are. Reviewed translations go straight into this file.",
+    "zh": "",
+    "vi": "",
+    "ja": ""
+  },
+  "common.allergy": {
+    "en": "Food allergy or intolerance? Please call us before ordering.",
+    "zh": "如有食物过敏或不耐受，请在下单前致电我们。",
+    "vi": "Bạn bị dị ứng hoặc không dung nạp thực phẩm? Vui lòng gọi cho chúng tôi trước khi đặt món.",
+    "ja": "食物アレルギーや不耐症のある方は、ご注文前にお電話ください。"
+  },
+  "common.questions": {
+    "en": "Questions? Call {phone}.",
+    "zh": "如有疑问，请致电 {phone}。",
+    "vi": "Có thắc mắc? Gọi {phone}.",
+    "ja": "ご不明な点は {phone} までお電話ください。"
+  },
+  "word.delivery": {
+    "en": "delivery",
+    "zh": "外送",
+    "vi": "giao hàng",
+    "ja": "配達"
+  },
+  "word.collection": {
+    "en": "collection",
+    "zh": "自取",
+    "vi": "tự đến lấy",
+    "ja": "お持ち帰り"
+  },
+  "word.free": {
+    "en": "free",
+    "zh": "免费",
+    "vi": "miễn phí",
+    "ja": "無料"
+  },
+  "when.scheduled": {
+    "en": "for {time}",
+    "zh": "预定时间：{time}",
+    "vi": "vào lúc {time}",
+    "ja": "{time}のご予約"
+  },
+  "when.asap": {
+    "en": "as soon as possible (usually {mins} minutes)",
+    "zh": "尽快（通常约 {mins} 分钟）",
+    "vi": "sớm nhất có thể (thường khoảng {mins} phút)",
+    "ja": "できるだけ早く（通常約{mins}分）"
+  },
+  "pay.cash": {
+    "en": "Please have {total} in cash ready.",
+    "zh": "请准备好现金 {total}。",
+    "vi": "Vui lòng chuẩn bị sẵn {total} tiền mặt.",
+    "ja": "現金で{total}をご用意ください。"
+  },
+  "pay.wechatPaid": {
+    "en": "Paid by WeChat Pay.",
+    "zh": "已通过微信支付付款。",
+    "vi": "Đã thanh toán qua WeChat Pay.",
+    "ja": "WeChat Payでお支払い済みです。"
+  },
+  "pay.wechatPending": {
+    "en": "Payment: WeChat Pay (we start once payment is confirmed).",
+    "zh": "付款方式：微信支付（确认付款后我们开始制作）。",
+    "vi": "Thanh toán: WeChat Pay (chúng tôi bắt đầu chuẩn bị khi xác nhận thanh toán).",
+    "ja": "お支払い：WeChat Pay（お支払いの確認後に調理を開始します）。"
+  },
+  "order.received.subject": {
+    "en": "Order {ref} received",
+    "zh": "已收到订单 {ref}",
+    "vi": "Đã nhận đơn hàng {ref}",
+    "ja": "ご注文 {ref} を受け付けました"
+  },
+  "order.received.heading": {
+    "en": "Thanks {name}, we've got your order",
+    "zh": "{name}，感谢您的订单",
+    "vi": "Cảm ơn {name}, chúng tôi đã nhận được đơn hàng của bạn",
+    "ja": "{name}様、ご注文ありがとうございます"
+  },
+  "order.received.summary": {
+    "en": "Order {ref} · {type} {when}.",
+    "zh": "订单 {ref} · {type}，{when}。",
+    "vi": "Đơn hàng {ref} · {type} {when}.",
+    "ja": "ご注文 {ref}・{type}・{when}。"
+  },
+  "order.total": {
+    "en": "Total: {total}.",
+    "zh": "总计：{total}。",
+    "vi": "Tổng cộng: {total}.",
+    "ja": "合計：{total}。"
+  },
+  "order.totalDiscount": {
+    "en": "Total: {total} (including {discount} off).",
+    "zh": "总计：{total}（已优惠 {discount}）。",
+    "vi": "Tổng cộng: {total} (đã giảm {discount}).",
+    "ja": "合計：{total}（{discount}割引済み）。"
+  },
+  "order.deliverTo": {
+    "en": "Delivering to: {address}",
+    "zh": "送餐地址：{address}",
+    "vi": "Giao đến: {address}",
+    "ja": "お届け先：{address}"
+  },
+  "order.collectFrom": {
+    "en": "Collect from: {address}",
+    "zh": "取餐地址：{address}",
+    "vi": "Nhận tại: {address}",
+    "ja": "受け取り場所：{address}"
+  },
+  "order.nextDelivery": {
+    "en": "We'll email you when it's on its way. Questions? Call {phone} and quote {ref}.",
+    "zh": "订单出发时我们会发邮件通知您。如有疑问，请致电 {phone} 并提供订单号 {ref}。",
+    "vi": "Chúng tôi sẽ gửi email khi đơn hàng đang trên đường giao. Có thắc mắc? Gọi {phone} và cung cấp mã {ref}.",
+    "ja": "配達に出発しましたらメールでお知らせします。ご不明な点は {phone} までお電話のうえ、{ref} をお伝えください。"
+  },
+  "order.nextCollection": {
+    "en": "We'll email you when it's ready to collect. Questions? Call {phone} and quote {ref}.",
+    "zh": "可以取餐时我们会发邮件通知您。如有疑问，请致电 {phone} 并提供订单号 {ref}。",
+    "vi": "Chúng tôi sẽ gửi email khi đơn hàng sẵn sàng để lấy. Có thắc mắc? Gọi {phone} và cung cấp mã {ref}.",
+    "ja": "お受け取りの準備ができましたらメールでお知らせします。ご不明な点は {phone} までお電話のうえ、{ref} をお伝えください。"
+  },
+  "order.trackButton": {
+    "en": "Track your order",
+    "zh": "跟踪订单",
+    "vi": "Theo dõi đơn hàng",
+    "ja": "注文状況を確認"
+  },
+  "order.trackHint": {
+    "en": "Follow it live, from the kitchen to ready:",
+    "zh": "实时查看订单进度，从厨房到出餐：",
+    "vi": "Theo dõi trực tiếp, từ bếp đến khi sẵn sàng:",
+    "ja": "調理からお渡しまで、リアルタイムで確認できます："
+  },
+  "order.enjoy": {
+    "en": "Enjoy your meal - thank you for ordering direct with us!",
+    "zh": "祝您用餐愉快，感谢您直接向我们订餐！",
+    "vi": "Chúc bạn ngon miệng - cảm ơn bạn đã đặt món trực tiếp với chúng tôi!",
+    "ja": "どうぞお召し上がりください。直接ご注文いただきありがとうございます！"
+  },
+  "order.onWay.subject": {
+    "en": "Order {ref} is on its way",
+    "zh": "订单 {ref} 正在配送中",
+    "vi": "Đơn hàng {ref} đang được giao",
+    "ja": "ご注文 {ref} を配達中です"
+  },
+  "order.onWay.heading": {
+    "en": "Your order is on its way",
+    "zh": "您的订单正在配送中",
+    "vi": "Đơn hàng của bạn đang được giao",
+    "ja": "ご注文の品を配達中です"
+  },
+  "order.onWay.body": {
+    "en": "Order {ref} has left the kitchen and is heading to {address}.",
+    "zh": "订单 {ref} 已出餐，正在送往 {address}。",
+    "vi": "Đơn hàng {ref} đã rời bếp và đang trên đường đến {address}.",
+    "ja": "ご注文 {ref} は調理が完了し、{address} へ向かっています。"
+  },
+  "order.ready.subject": {
+    "en": "Order {ref} is ready to collect",
+    "zh": "订单 {ref} 可以取餐了",
+    "vi": "Đơn hàng {ref} đã sẵn sàng để lấy",
+    "ja": "ご注文 {ref} のお受け取り準備ができました"
+  },
+  "order.ready.heading": {
+    "en": "Your order is ready to collect",
+    "zh": "您的餐点已备好，可以取餐",
+    "vi": "Đơn hàng của bạn đã sẵn sàng",
+    "ja": "お受け取りの準備ができました"
+  },
+  "order.ready.body": {
+    "en": "Order {ref} is ready at {address}.",
+    "zh": "订单 {ref} 已在 {address} 备好。",
+    "vi": "Đơn hàng {ref} đã sẵn sàng tại {address}.",
+    "ja": "ご注文 {ref} は {address} でお受け取りいただけます。"
+  },
+  "order.cancelled.subject": {
+    "en": "Order {ref} has been cancelled",
+    "zh": "订单 {ref} 已取消",
+    "vi": "Đơn hàng {ref} đã bị hủy",
+    "ja": "ご注文 {ref} はキャンセルされました"
+  },
+  "order.cancelled.heading": {
+    "en": "Your order has been cancelled",
+    "zh": "您的订单已取消",
+    "vi": "Đơn hàng của bạn đã bị hủy",
+    "ja": "ご注文はキャンセルされました"
+  },
+  "order.cancelled.bodyReason": {
+    "en": "Order {ref} ({total}) has been cancelled: {reason}",
+    "zh": "订单 {ref}（{total}）已取消，原因：{reason}",
+    "vi": "Đơn hàng {ref} ({total}) đã bị hủy: {reason}",
+    "ja": "ご注文 {ref}（{total}）はキャンセルされました。理由：{reason}"
+  },
+  "order.cancelled.body": {
+    "en": "Order {ref} ({total}) has been cancelled.",
+    "zh": "订单 {ref}（{total}）已取消。",
+    "vi": "Đơn hàng {ref} ({total}) đã bị hủy.",
+    "ja": "ご注文 {ref}（{total}）はキャンセルされました。"
+  },
+  "order.cancelled.refund": {
+    "en": "You paid by WeChat Pay - we'll refund you. If you don't see it within a few days, please call us.",
+    "zh": "您已通过微信支付付款，我们将为您退款。如几天内未收到退款，请致电我们。",
+    "vi": "Bạn đã thanh toán qua WeChat Pay - chúng tôi sẽ hoàn tiền. Nếu sau vài ngày bạn chưa nhận được, vui lòng gọi cho chúng tôi.",
+    "ja": "WeChat Payでお支払いいただいているため、返金いたします。数日以内に確認できない場合はお電話ください。"
+  },
+  "order.cancelled.notCharged": {
+    "en": "You haven't been charged.",
+    "zh": "您未被收取任何费用。",
+    "vi": "Bạn chưa bị tính phí.",
+    "ja": "料金は発生していません。"
+  },
+  "booking.what.one": {
+    "en": "{party} guest on {date} at {time}",
+    "zh": "{date} {time}，{party} 位",
+    "vi": "{party} khách vào {date} lúc {time}",
+    "ja": "{date} {time}、{party}名様"
+  },
+  "booking.what.many": {
+    "en": "{party} guests on {date} at {time}",
+    "zh": "{date} {time}，{party} 位",
+    "vi": "{party} khách vào {date} lúc {time}",
+    "ja": "{date} {time}、{party}名様"
+  },
+  "booking.confirmed.subject": {
+    "en": "Table booked - {date} {time}",
+    "zh": "订座成功 - {date} {time}",
+    "vi": "Đã đặt bàn - {date} {time}",
+    "ja": "ご予約が確定しました - {date} {time}"
+  },
+  "booking.confirmed.heading": {
+    "en": "See you soon, {name}",
+    "zh": "{name}，期待您的光临",
+    "vi": "Hẹn sớm gặp lại, {name}",
+    "ja": "{name}様、ご来店をお待ちしております"
+  },
+  "booking.confirmed.body": {
+    "en": "Your table is booked: {what}. Reference {ref}.",
+    "zh": "您的订座已确认：{what}。预订号 {ref}。",
+    "vi": "Bàn của bạn đã được đặt: {what}. Mã đặt bàn {ref}.",
+    "ja": "ご予約が確定しました：{what}。予約番号 {ref}。"
+  },
+  "booking.largeParty": {
+    "en": "For a party this size we'll phone you to confirm and take the deposit.",
+    "zh": "由于人数较多，我们会致电您确认预订并收取订金。",
+    "vi": "Với nhóm đông người như vậy, chúng tôi sẽ gọi điện để xác nhận và nhận tiền đặt cọc.",
+    "ja": "大人数のご予約のため、確認とデポジットのお支払いについてお電話いたします。"
+  },
+  "booking.change": {
+    "en": "To change or cancel, call {phone} and quote {ref}.",
+    "zh": "如需更改或取消，请致电 {phone} 并提供预订号 {ref}。",
+    "vi": "Để thay đổi hoặc hủy, gọi {phone} và cung cấp mã {ref}.",
+    "ja": "変更・キャンセルは {phone} までお電話のうえ、{ref} をお伝えください。"
+  },
+  "booking.waitlist.subject": {
+    "en": "You're on the waitlist - {date} {time}",
+    "zh": "您已在候补名单中 - {date} {time}",
+    "vi": "Bạn đã ở trong danh sách chờ - {date} {time}",
+    "ja": "キャンセル待ちに登録しました - {date} {time}"
+  },
+  "booking.waitlist.heading": {
+    "en": "You're on the waitlist",
+    "zh": "您已在候补名单中",
+    "vi": "Bạn đã ở trong danh sách chờ",
+    "ja": "キャンセル待ちに登録しました"
+  },
+  "booking.waitlist.body": {
+    "en": "We've added you to the waitlist for {what}. Reference {ref}.",
+    "zh": "我们已将您加入候补名单：{what}。预订号 {ref}。",
+    "vi": "Chúng tôi đã thêm bạn vào danh sách chờ cho {what}. Mã {ref}.",
+    "ja": "{what}のキャンセル待ちに登録しました。予約番号 {ref}。"
+  },
+  "booking.waitlist.note": {
+    "en": "Your table isn't confirmed yet - we'll be in touch if one frees up.",
+    "zh": "您的座位尚未确认，如有空位我们会联系您。",
+    "vi": "Bàn của bạn chưa được xác nhận - chúng tôi sẽ liên hệ nếu có bàn trống.",
+    "ja": "お席はまだ確定していません。空きが出ましたらご連絡いたします。"
+  },
+  "booking.cancelled.subject": {
+    "en": "Booking {ref} cancelled",
+    "zh": "预订 {ref} 已取消",
+    "vi": "Đặt bàn {ref} đã bị hủy",
+    "ja": "ご予約 {ref} はキャンセルされました"
+  },
+  "booking.cancelled.heading": {
+    "en": "Your booking has been cancelled",
+    "zh": "您的订座已取消",
+    "vi": "Đặt bàn của bạn đã bị hủy",
+    "ja": "ご予約はキャンセルされました"
+  },
+  "booking.cancelled.body": {
+    "en": "Your booking for {what} ({ref}) has been cancelled.",
+    "zh": "您的订座（{what}，{ref}）已取消。",
+    "vi": "Đặt bàn cho {what} ({ref}) đã bị hủy.",
+    "ja": "{what}のご予約（{ref}）はキャンセルされました。"
+  },
+  "booking.cancelled.mistake": {
+    "en": "If this is a mistake, call {phone}.",
+    "zh": "如有误，请致电 {phone}。",
+    "vi": "Nếu có nhầm lẫn, vui lòng gọi {phone}.",
+    "ja": "お心当たりのない場合は {phone} までお電話ください。"
+  },
+  "booking.reminder.subject": {
+    "en": "Reminder: your table tomorrow at {time}",
+    "zh": "提醒：您明天 {time} 的订座",
+    "vi": "Nhắc nhở: bàn của bạn vào ngày mai lúc {time}",
+    "ja": "リマインダー：明日 {time} のご予約"
+  },
+  "booking.reminder.heading": {
+    "en": "See you tomorrow",
+    "zh": "明天见",
+    "vi": "Hẹn gặp bạn ngày mai",
+    "ja": "明日のご来店をお待ちしております"
+  },
+  "booking.reminder.body": {
+    "en": "Just a reminder of your booking: {what}. Reference {ref}.",
+    "zh": "温馨提醒您的订座：{what}。预订号 {ref}。",
+    "vi": "Nhắc bạn về lịch đặt bàn: {what}. Mã {ref}.",
+    "ja": "ご予約のお知らせです：{what}。予約番号 {ref}。"
+  },
+  "booking.reminder.cantMake": {
+    "en": "Can't make it? Please call {phone} so we can give the table to someone else.",
+    "zh": "如无法前来，请致电 {phone}，以便我们将座位留给其他客人。",
+    "vi": "Không đến được? Vui lòng gọi {phone} để chúng tôi nhường bàn cho khách khác.",
+    "ja": "ご来店が難しい場合は、他のお客様にお席をご案内できるよう {phone} までお電話ください。"
+  },
+  "account.deactivated.subject": {
+    "en": "Your account has been deactivated",
+    "zh": "您的账户已停用",
+    "vi": "Tài khoản của bạn đã bị tạm ngưng",
+    "ja": "アカウントを無効化しました"
+  },
+  "account.deactivated.heading": {
+    "en": "Your account is deactivated",
+    "zh": "您的账户已停用",
+    "vi": "Tài khoản của bạn đã tạm ngưng",
+    "ja": "アカウントは無効化されています"
+  },
+  "account.deactivated.body1": {
+    "en": "Hi {name}, your account is now deactivated and you've been signed out everywhere.",
+    "zh": "{name}，您好！您的账户已停用，并已在所有设备上退出登录。",
+    "vi": "Chào {name}, tài khoản của bạn đã tạm ngưng và bạn đã được đăng xuất trên mọi thiết bị.",
+    "ja": "{name}様、アカウントが無効化され、すべての端末からログアウトしました。"
+  },
+  "account.deactivated.body2": {
+    "en": "Changed your mind? Sign in before {deadline} and choose \"Reactivate\" to get your points and rewards back.",
+    "zh": "改变主意了？请在 {deadline} 之前登录并选择“重新激活”，即可恢复您的积分和奖励。",
+    "vi": "Đổi ý? Hãy đăng nhập trước {deadline} và chọn \"Kích hoạt lại\" để lấy lại điểm và ưu đãi.",
+    "ja": "気が変わりましたか？{deadline}までにログインして「再有効化」を選ぶと、ポイントと特典が戻ります。"
+  },
+  "account.deactivated.body3": {
+    "en": "After that date the account is closed for good and this email address can't be used to create a new account.",
+    "zh": "超过该日期后，账户将被永久关闭，且此邮箱无法再用于注册新账户。",
+    "vi": "Sau ngày đó, tài khoản sẽ bị đóng vĩnh viễn và địa chỉ email này không thể dùng để tạo tài khoản mới.",
+    "ja": "この日を過ぎるとアカウントは完全に閉鎖され、このメールアドレスで新しいアカウントを作成することはできません。"
+  },
+  "account.reactivated.subject": {
+    "en": "Welcome back - your account is active again",
+    "zh": "欢迎回来，您的账户已重新激活",
+    "vi": "Chào mừng trở lại - tài khoản của bạn đã hoạt động trở lại",
+    "ja": "おかえりなさい。アカウントが再び有効になりました"
+  },
+  "account.reactivated.heading": {
+    "en": "Welcome back",
+    "zh": "欢迎回来",
+    "vi": "Chào mừng trở lại",
+    "ja": "おかえりなさい"
+  },
+  "account.reactivated.body": {
+    "en": "Hi {name}, your account is active again, with your points and rewards.",
+    "zh": "{name}，您好！您的账户已重新激活，积分和奖励均已恢复。",
+    "vi": "Chào {name}, tài khoản của bạn đã hoạt động trở lại, kèm theo điểm và ưu đãi của bạn.",
+    "ja": "{name}様、アカウントが再び有効になり、ポイントと特典も復元されました。"
+  },
+  "account.closed.subject": {
+    "en": "Your account has been closed",
+    "zh": "您的账户已关闭",
+    "vi": "Tài khoản của bạn đã bị đóng",
+    "ja": "アカウントを閉鎖しました"
+  },
+  "account.closed.heading": {
+    "en": "Your account is closed",
+    "zh": "您的账户已关闭",
+    "vi": "Tài khoản của bạn đã đóng",
+    "ja": "アカウントは閉鎖されました"
+  },
+  "account.closed.body1": {
+    "en": "Hi {name}, your account has been closed and your personal details removed.",
+    "zh": "{name}，您好！您的账户已关闭，个人信息已删除。",
+    "vi": "Chào {name}, tài khoản của bạn đã bị đóng và thông tin cá nhân đã được xóa.",
+    "ja": "{name}様、アカウントを閉鎖し、個人情報を削除しました。"
+  },
+  "account.closed.body2": {
+    "en": "This email address can't be used to create a new account. If you think this is a mistake, please contact us.",
+    "zh": "此邮箱无法再用于注册新账户。如您认为有误，请联系我们。",
+    "vi": "Địa chỉ email này không thể dùng để tạo tài khoản mới. Nếu bạn cho rằng có nhầm lẫn, vui lòng liên hệ với chúng tôi.",
+    "ja": "このメールアドレスで新しいアカウントを作成することはできません。お心当たりのない場合はご連絡ください。"
+  },
+  "campaign.greeting": {
+    "en": "Hi {name},",
+    "zh": "{name}，您好：",
+    "vi": "Chào {name},",
+    "ja": "{name}様"
+  },
+  "campaign.orderNow": {
+    "en": "Order now",
+    "zh": "立即点餐",
+    "vi": "Đặt món ngay",
+    "ja": "今すぐ注文"
+  },
+  "campaign.why": {
+    "en": "You're getting this because you said yes to offers from us.",
+    "zh": "您收到此邮件是因为您同意接收我们的优惠信息。",
+    "vi": "Bạn nhận được email này vì đã đồng ý nhận ưu đãi từ chúng tôi.",
+    "ja": "このメールは、当店からのお知らせの受信に同意いただいた方にお送りしています。"
+  },
+  "campaign.unsubscribe": {
+    "en": "Unsubscribe",
+    "zh": "退订",
+    "vi": "Hủy đăng ký",
+    "ja": "配信停止"
+  }
 }

@@ -9,6 +9,7 @@ import { clientIp, limitOr429 } from "@/server/rate-limit";
 import { verifyHuman } from "@/server/turnstile";
 import { phoneKey } from "@/server/phone";
 import { log, errInfo } from "@/server/log";
+import { trackPath } from "@/server/cancellations";
 
 // What a customer gets back about their own order (no internal fields such as payToken or flags).
 function customerView<T extends Record<string, unknown>>(o: T) {
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     // Cash orders print straight away; WeChat orders print once payment is confirmed (notify route),
     // so the kitchen never starts an order that may never be paid for.
     if (!replay && order.paymentMethod !== "wechat") void printNewOrder(order.id);
-    return NextResponse.json({ order: customerView(order), payToken });
+    return NextResponse.json({ order: customerView(order), payToken, trackPath: trackPath(order.id) });
   } catch (e) {
     if (e instanceof OrderError) return NextResponse.json({ error: e.message, ...e.extra }, { status: e.status });
     log.error("order_create_failed", errInfo(e));

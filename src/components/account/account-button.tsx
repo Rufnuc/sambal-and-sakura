@@ -7,7 +7,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { AuthDialog } from "@/components/account/auth-dialog";
+import { LazyAuthDialog as AuthDialog } from "@/components/account/lazy-auth-dialog";
 import { useAuth } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 

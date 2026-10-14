@@ -22,6 +22,7 @@ export const FLAG_TEXT: Record<string, string> = {
   "address-unverified": "POSTCODE NOT VERIFIED - CHECK ADDRESS",
   "large-order": "LARGE ORDER - CALL TO CONFIRM",
   "paid-after-cancel": "PAID AFTER CANCEL - REFUND NEEDED",
+  "frequent-canceller": "CANCELS OFTEN - CALL TO CONFIRM",
 };
 
 /** "Thu 9 Oct 18:42" in UK time (the server clock is UTC; the kitchen works in UK time). */
@@ -109,6 +110,25 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
   }
 
   e.align("center").line(`Prep approx ${o.etaMins} min`).line(`Allergy query? ${ctx.phone}`).line("All food halal").line(ctx.businessName);
+  e.feed(4).cut();
+  return e;
+}
+
+/** Printed when an order is cancelled after it went to the kitchen: impossible to miss. */
+export function renderCancelTicket(o: TicketOrder & { cancelReason?: string | null; cancelledAt?: Date | null }, ctx: TicketContext): Esc {
+  const e = new Esc().init();
+  e.align("center").bold(true).reverse(true).size(2, 2).line(" CANCELLED ").size(1, 2).line(" STOP PREPARING ").size(1, 1).reverse(false);
+  e.feed(1).size(2, 2).line(`#${o.id}`).size(1, 1);
+  e.line(`Cancelled ${ukDateTime(o.cancelledAt ?? new Date())}`);
+  e.line(`Ordered ${ukDateTime(o.createdAt ?? new Date())}`);
+  e.bold(false).rule();
+  e.align("left").bold(true).line(o.fulfilment === "delivery" ? "DELIVERY - DO NOT SEND" : "COLLECTION").bold(false);
+  for (const l of wrap(o.customerName, COLS)) e.line(l);
+  e.rule();
+  for (const l of o.lines) for (const x of wrap(`${l.qty} x ${l.name}`, COLS)) e.line(x);
+  e.rule();
+  if (o.cancelReason) { e.line("Reason:"); for (const l of wrap(o.cancelReason, COLS)) e.line(l); e.rule(); }
+  e.align("center").bold(true).line("Do not cook or send this order").bold(false).line(ctx.businessName);
   e.feed(4).cut();
   return e;
 }

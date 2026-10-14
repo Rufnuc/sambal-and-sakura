@@ -13,6 +13,8 @@ import { audit, type AuditActor } from "@/server/audit";
 import { log, alertOwner } from "@/server/log";
 import { noteOrderActivity } from "@/server/activity";
 import { notifyOrder } from "@/server/notify";
+import { getCancelPolicy, countCancellations, customerCanCancel } from "@/server/cancellations";
+import { printCancellation } from "@/server/print";
 import { ORDERING } from "@/lib/data/site";
 
 export class OrderError extends Error {
@@ -180,17 +182,11 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
   if (!when.ok) throw new OrderError(when.error, 409, { quote });
 
   const flags: string[] = [];
-  if (input.fulfilment === "delivery") {
+  const delivery = input.fulfilment === "delivery";
+  if (delivery) {
     if (!input.postcode || !isValidPostcodeServer(input.postcode)) throw new OrderError("Enter your full UK postcode (for example TS1 3QP).");
     if (!quote.inArea) throw new OrderError("We don't deliver to that postcode.");
     if (!input.address || input.address.length < 4) throw new OrderError("Enter your delivery address.");
-    const dist = await postcodeDistance(input.postcode);
-    if (dist.kind === "unknown") throw new OrderError("We couldn't find that postcode - please check it.");
-    if (dist.kind === "unreachable") flags.push("address-unverified"); // don't turn customers away, but tell the kitchen
-    const maxMiles = await getMaxMiles();
-    if (dist.kind === "found" && maxMiles > 0 && dist.miles > maxMiles) {
-      throw new OrderError(`Sorry, that address is outside our ${maxMiles}-mile delivery range. Collection is still available.`);
-    }
   }
 
   // Prices are recomputed on the server; if they differ from what the customer was shown, ask them to confirm.
@@ -198,9 +194,31 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
     throw new OrderError(`The total has changed to £${quote.total.toFixed(2)}. Please check and place your order again.`, 409, { quote });
   }
 
+  // The remaining checks don't depend on each other, so they run together (one round of waiting, not five).
+  const [dist, maxMiles, ordered, [policy, cancels]] = await Promise.all([
+    delivery ? postcodeDistance(input.postcode!) : null,
+    delivery ? getMaxMiles() : 0,
+    input.payMethod === "cash" ? hasOrderedBefore(input.phone, null) : true,
+    getCancelPolicy().then(async (p) => [p, await countCancellations({ userId: user?.id, phone: input.phone, email: input.email }, p)] as const),
+  ]);
+
+  if (dist) {
+    if (dist.kind === "unknown") throw new OrderError("We couldn't find that postcode - please check it.");
+    if (dist.kind === "unreachable") flags.push("address-unverified"); // don't turn customers away, but tell the kitchen
+    if (dist.kind === "found" && maxMiles > 0 && dist.miles > maxMiles) {
+      throw new OrderError(`Sorry, that address is outside our ${maxMiles}-mile delivery range. Collection is still available.`);
+    }
+  }
+
   if (input.payMethod === "cash") {
-    if (!(await hasOrderedBefore(input.phone, null))) flags.push("new-customer");
+    if (!ordered) flags.push("new-customer");
     if (quote.total >= LARGE_ORDER_GBP) flags.push("large-order");
+  }
+
+  // People who often cancel or don't collect: flag the ticket, and (if the owner chose it) no cash delivery.
+  if (cancels >= policy.flagAt) flags.push("frequent-canceller");
+  if (cancels >= policy.restrictAt && policy.restrictAction === "block-cash-delivery" && input.payMethod === "cash" && delivery) {
+    throw new OrderError("Because of recent cancelled or uncollected orders, we can't take a cash delivery order right now. Please choose collection, or call us.", 409);
   }
 
   // Points: earned on the food you paid for (not delivery), pending until the order is completed.
@@ -283,7 +301,9 @@ export function canMoveOrder(from: string, to: string, fulfilment: string): bool
 }
 
 /** Change an order's status with its side effects (points, rewards, offers) and an audit row, atomically. */
-export async function changeOrderStatus(orderId: string, to: string, actor: AuditActor, opts: { reason?: string; ip?: string } = {}) {
+export type CancelKind = "customer" | "no-show" | "staff";
+
+export async function changeOrderStatus(orderId: string, to: string, actor: AuditActor, opts: { reason?: string; ip?: string; cancelKind?: CancelKind } = {}) {
   noteOrderActivity();
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId } });
@@ -293,7 +313,7 @@ export async function changeOrderStatus(orderId: string, to: string, actor: Audi
     // Guarded: if two staff tap at once, only the first change applies.
     const moved = await tx.order.updateMany({
       where: { id: orderId, status: order.status },
-      data: { status: to, ...(to === "cancelled" ? { cancelReason: opts.reason?.slice(0, 200) || null } : {}) },
+      data: { status: to, ...(to === "cancelled" ? { cancelReason: opts.reason?.slice(0, 200) || null, cancelKind: opts.cancelKind ?? "staff", cancelledAt: new Date() } : {}) },
     });
     if (moved.count !== 1) throw new OrderError("Someone else just updated this order. Refresh and try again.", 409);
 
@@ -303,11 +323,29 @@ export async function changeOrderStatus(orderId: string, to: string, actor: Audi
       await tx.reward.updateMany({ where: { orderId }, data: { used: false, usedAt: null, orderId: null } });
       await tx.voucherRedemption.deleteMany({ where: { orderId } });
     }
-    await audit({ actor, action: "order.status", entity: "order", entityId: orderId, detail: { from: order.status, to, reason: opts.reason }, ip: opts.ip }, tx);
+    await audit({ actor, action: "order.status", entity: "order", entityId: orderId, detail: { from: order.status, to, reason: opts.reason, cancelKind: to === "cancelled" ? opts.cancelKind ?? "staff" : undefined }, ip: opts.ip }, tx);
 
     if (to === "cancelled" && order.paymentStatus === "paid") {
       void alertOwner(`refund:${orderId}`, `Order ${orderId} was cancelled but was paid by WeChat (£${order.total.toFixed(2)}). Refund it in the WeChat Pay merchant platform.`);
     }
-    return tx.order.findUnique({ where: { id: orderId }, include: { lines: true } });
-  }).then((o) => { notifyOrder(orderId, to); return o; });
+    return { updated: await tx.order.findUnique({ where: { id: orderId }, include: { lines: true } }), before: order };
+  }).then(({ updated, before }) => {
+    notifyOrder(orderId, to);
+    // The kitchen may already be cooking: print a STOP ticket for any cancelled order that was sent to the kitchen.
+    if (to === "cancelled" && ["printed", "pending", "failed"].includes(before.printStatus) && (before.paymentMethod !== "wechat" || before.paymentStatus === "paid")) {
+      void printCancellation(orderId);
+    }
+    return updated;
+  });
+}
+
+/** The customer cancels from their tracking page (only inside the allowed window). */
+export async function customerCancelOrder(orderId: string, reason: string, phone: string, ip?: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new OrderError("Order not found.", 404);
+  const check = await customerCanCancel(order, await getCancelPolicy(), phone);
+  if (!check.can) throw new OrderError(check.reason, 409);
+  const updated = await changeOrderStatus(orderId, "cancelled", { id: "customer", email: order.customerEmail ?? "customer" }, { reason: `Customer: ${reason}`, ip, cancelKind: "customer" });
+  void alertOwner(`cust-cancel:${orderId}`, `Order ${orderId} (£${order.total.toFixed(2)}) was CANCELLED by the customer - stop preparing it. Reason: ${reason}`);
+  return updated;
 }

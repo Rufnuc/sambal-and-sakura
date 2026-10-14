@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { MENU } from "@/lib/data/menu";
+import { zText } from "@/server/sanitize";
 
 // Strict shapes for everything the owner can save in Admin → config. Anything else is rejected
 // with a readable message instead of being stored as-is.
 
-const text = (max: number) => z.string().trim().max(max);
+// Owner-typed text, sanitised (control/invisible characters and HTML tags removed). Line breaks kept.
+const text = (max: number, min = 0) => zText(max, { min, multiline: true });
 const money = z.number().finite().min(0).max(1000);
 // Photos: our own /uploads or /menu paths, or https (e.g. Cloudinary). Never javascript:, data: etc.
 const imageUrl = z.string().trim().max(500).refine((s) => s === "" || s.startsWith("/") && !s.startsWith("//") || /^https:\/\//i.test(s), "Images must be an https link or an uploaded photo.");
@@ -15,7 +17,7 @@ const CATEGORIES = [...new Set(MENU.map((m) => m.category))] as [string, ...stri
 export const menuOverridesSchema = z.record(
   z.string().refine((id) => MENU_IDS.has(id), "Unknown dish"),
   z.object({
-    name: text(80).min(1).optional(),
+    name: text(80, 1).optional(),
     price: money.optional(),
     soldOut: z.boolean().optional(),
     image: imageUrl.optional(),
@@ -27,20 +29,20 @@ export const menuOverridesSchema = z.record(
 );
 
 export const zonesSchema = z.array(z.object({
-  id: text(20).min(1), label: text(80).min(1),
+  id: text(20, 1), label: text(80, 1),
   postcodes: z.array(z.string().trim().toUpperCase().regex(/^[A-Z]{1,2}\d[A-Z\d]?$/, "Use outward codes like TS1")).max(60),
   fee: z.number().finite().min(0).max(50), etaMins: z.number().int().min(0).max(180),
 })).max(50);
 
 export const offersSchema = z.array(z.object({
-  id: text(40).min(1), title: text(120).min(1), description: text(400), code: text(40).optional(),
+  id: text(40, 1), title: text(120, 1), description: text(400), code: text(40).optional(),
   badge: text(40).optional(), terms: text(400), kind: z.enum(["percent", "freebie", "bundle", "first-order"]),
 }).strict()).max(30);
 
 // The reward value is taken from the label ("15% off" → 15, "£5 next order" → 5) unless given,
 // so what the customer is shown is exactly what they get.
 export const wheelPrizesSchema = z.array(z.object({
-  id: text(40).min(1), label: text(40).min(1),
+  id: text(40, 1), label: text(40, 1),
   kind: z.enum(["percent", "freebie", "voucher", "none"]),
   weight: z.number().finite().min(0).max(1000),
   color: z.enum(["gold", "red", "pink", "charcoal"]),
@@ -56,7 +58,7 @@ export const wheelPrizesSchema = z.array(z.object({
   .refine((ps) => ps.some((p) => p.weight > 0), "At least one prize needs a chance above zero.");
 
 export const careersSchema = z.array(z.object({
-  id: text(60).min(1), title: text(120).min(1), type: text(40), location: text(80),
+  id: text(60, 1), title: text(120, 1), type: text(40), location: text(80),
   summary: text(300), description: text(3000), active: z.boolean(),
 }).strict()).max(30);
 

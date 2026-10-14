@@ -87,6 +87,9 @@ model Order {
   flags         String      @default("[]")     // JSON array, e.g. ["new-customer","address-unverified"]
   locale        String      @default("en")     // language the customer ordered in (their emails use it)
   cancelReason  String?
+  cancelKind    String?                        // customer | no-show | staff (customer + no-show count towards limits)
+  cancelledAt   DateTime?
+  cancelCounted Boolean     @default(true)     // false once the owner resets this customer's cancellations
   createdAt     DateTime    @default(now())
 
   lines OrderLine[]
@@ -95,7 +98,9 @@ model Order {
   @@index([status])
   @@index([createdAt])
   @@index([customerPhone])
+  @@index([customerEmail])
   @@index([printStatus])
+  @@index([status, cancelledAt])
 }
 
 model OrderLine {
@@ -107,6 +112,8 @@ model OrderLine {
   unitPrice Float
   qty       Int
   modifiers String  @default("[]") // JSON array of {groupId,optionId,label}
+
+  @@index([orderId])
 }
 
 model Booking {
@@ -132,6 +139,7 @@ model Booking {
   @@index([userId])
   @@index([date])
   @@index([phone, date])
+  @@index([email])
 }
 
 model Reward {
@@ -212,6 +220,7 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([createdAt])
   @@index([action, createdAt])
+  @@index([actorEmail])
 }
 
 // First-party analytics events (only sent after the visitor accepts analytics cookies).
@@ -298,5 +307,6 @@ model CampaignRecipient {
 
   @@unique([campaignId, userId])
   @@index([campaignId, status])
+  @@index([userId])
 }
 

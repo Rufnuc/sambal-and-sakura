@@ -37,4 +37,6 @@ export interface PlacedOrder {
   printError?: string;
   flags?: string[];
   cancelReason?: string;
+  cancelKind?: string;   // customer | no-show | staff
+  cancelledAt?: number;
 }

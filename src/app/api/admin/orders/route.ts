@@ -3,6 +3,7 @@ import { prisma } from "@/server/db";
 import { staffFor } from "@/server/auth";
 import { adminOrder } from "@/server/admin-view";
 import { getOrdersPaused } from "@/server/settings";
+import { cleanQuery } from "@/server/sanitize";
 
 // Live queue: every order that isn't finished, plus everything from the last `days` days (default 2,
 // max 31). Optional ?q= searches by order number, phone or name. Never silently truncates the
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
   if (!(await staffFor("orders"))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const sp = new URL(req.url).searchParams;
   const days = Math.min(31, Math.max(1, Number(sp.get("days")) || 2));
-  const q = (sp.get("q") ?? "").trim().slice(0, 60);
+  const q = cleanQuery(sp.get("q"));
   const since = new Date(Date.now() - days * 86400000);
 
   const where = q

@@ -20,6 +20,7 @@ interface RawOrder {
   scheduledTime?: string | null; voucherCode?: string | null;
   paymentMethod?: string; paymentStatus?: string;
   printStatus?: string; printError?: string | null; flags?: string[]; cancelReason?: string | null;
+  cancelKind?: string | null; cancelledAt?: string | null;
   lines: RawLine[];
 }
 interface RawBooking {
@@ -49,6 +50,7 @@ function normOrder(o: RawOrder): PlacedOrder {
     scheduledTime: o.scheduledTime ?? undefined, voucherCode: o.voucherCode ?? undefined,
     paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
     printStatus: o.printStatus, printError: o.printError ?? undefined, flags: o.flags ?? [], cancelReason: o.cancelReason ?? undefined,
+    cancelKind: o.cancelKind ?? undefined, cancelledAt: o.cancelledAt ? Date.parse(o.cancelledAt) : undefined,
   };
 }
 function safeJson(s: string): { groupId: string; optionId: string; label: string }[] {
@@ -76,9 +78,10 @@ export async function fetchOrdersFeed(opts: { days?: number; q?: string } = {}):
 export async function fetchOrders(): Promise<PlacedOrder[]> {
   return (await fetchOrdersFeed())?.orders ?? [];
 }
-export async function patchOrderStatus(id: string, status: OrderStatus, reason?: string): Promise<{ order: PlacedOrder | null; error?: string }> {
+export type CancelKind = "customer" | "no-show" | "staff";
+export async function patchOrderStatus(id: string, status: OrderStatus, reason?: string, cancelKind?: CancelKind): Promise<{ order: PlacedOrder | null; error?: string }> {
   const res = await fetch(`/api/admin/orders/${id}`, {
-    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, reason }),
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, reason, cancelKind }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) return { order: null, error: data.error ?? "Could not update the order." };
@@ -150,6 +153,7 @@ export interface Diagnostics {
   detectedIp: string; clientIpHeaderSetting: string | null;
   headers: Record<string, string | null>;
   integrations: Record<string, string | boolean | null>;
+  database?: { rowLevelSecurityOff: string[] | string };
 }
 export async function fetchDiagnostics(): Promise<Diagnostics | null> {
   const res = await fetch("/api/admin/diagnostics", { cache: "no-store" });
@@ -192,7 +196,30 @@ export interface MenuOverrideCfg {
   image?: string; category?: string; leadTimeHours?: number; description?: string; aiNotes?: string;
 }
 
-export async function uploadImage(file: File): Promise<{ ok: boolean; url?: string; error?: string }> {
+/**
+ * Shrink a photo in the browser before it's uploaded: at most 1200px on the long side, saved as WebP
+ * (a phone photo goes from ~4-6MB to ~100-250KB). Customers then download small images whether or
+ * not Cloudinary is set up. Falls back to the original if the browser can't do it.
+ */
+async function compressImage(file: File, maxSide = 1200, quality = 0.82): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/webp", quality));
+    if (!blob || blob.type !== "image/webp" || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" });
+  } catch {
+    return file;
+  }
+}
+
+export async function uploadImage(original: File): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const file = await compressImage(original);
   const form = new FormData();
   form.append("file", file);
   const res = await fetch("/api/admin/upload", { method: "POST", body: form });
@@ -302,4 +329,21 @@ export async function cancelCampaign(id: string) {
 }
 export async function unblockEmail(email: string) {
   return jsonOrError(await fetch("/api/admin/blocked-emails", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }));
+}
+
+/* ---- Cancellations ---- */
+export interface CancelPolicy { customerCancelMinutes: number; scheduledCutoffMinutes: number; windowDays: number; flagAt: number; restrictAt: number; restrictAction: "block-cash-delivery" | "flag-only" }
+export async function fetchCancelCount(orderId: string): Promise<{ count: number; policy: CancelPolicy } | null> {
+  const res = await fetch(`/api/admin/cancellations?orderId=${encodeURIComponent(orderId)}`, { cache: "no-store" });
+  return res.ok ? res.json() : null;
+}
+export async function resetCancelCount(orderId: string) {
+  return jsonOrError(await fetch("/api/admin/cancellations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) }));
+}
+export async function fetchCancelPolicy(): Promise<CancelPolicy | null> {
+  const res = await fetch("/api/admin/cancel-policy", { cache: "no-store" });
+  return res.ok ? (await res.json()).policy : null;
+}
+export async function saveCancelPolicy(p: CancelPolicy) {
+  return jsonOrError(await fetch("/api/admin/cancel-policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }));
 }

@@ -7,6 +7,7 @@ import { isRealDate } from "@/server/order-time";
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
 import { clientIp } from "@/server/rate-limit";
+import { notifyBooking } from "@/server/notify";
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const u = await currentUser();
@@ -30,5 +31,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     await audit({ actor: actorOf(u), action: "booking.update", entity: "booking", entityId: id, detail: changed, ip: clientIp(req) }, tx);
     return updated;
   });
+  // Tell the guest when staff cancel their booking, or confirm them off the waitlist.
+  if (parsed.data.status === "cancelled" && before.status !== "cancelled") notifyBooking(id, "cancelled");
+  if (parsed.data.status === "upcoming" && before.status === "waitlist") notifyBooking(id, "confirmed");
   return NextResponse.json({ booking });
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/store/auth";
 import { Turnstile } from "@/components/turnstile";
+import { useLocale } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
 export function AuthDialog({
@@ -17,13 +18,16 @@ export function AuthDialog({
   onOpenChange: (o: boolean) => void;
   defaultMode?: "signin" | "signup";
 }) {
-  const { login, register } = useAuth();
+  const { login, register, reactivate } = useAuth();
+  const { locale } = useLocale();
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [offers, setOffers] = useState(false); // unticked by default: offers need a clear yes
+  const [reactivateBy, setReactivateBy] = useState<string | null>(null);
   const [siteKey, setSiteKey] = useState<string | null>(null);
   const [humanToken, setHumanToken] = useState("");
   const [resetKey, setResetKey] = useState(0);
@@ -38,8 +42,9 @@ export function AuthDialog({
     e.preventDefault();
     if (mode === "signup" && siteKey && !humanToken) { toast.error("Please complete the security check."); return; }
     setBusy(true);
-    const res = mode === "signin" ? await login(email, password) : await register(name, email, phone, password, humanToken);
+    const res = mode === "signin" ? await login(email, password) : await register(name, email, phone, password, humanToken, offers, locale);
     setBusy(false);
+    if (res.deactivated && res.reactivateBy) { setReactivateBy(res.reactivateBy); return; }
     if (mode === "signup" && !res.ok) { setHumanToken(""); setResetKey((n) => n + 1); }
     if (res.ok) {
       toast.success(mode === "signin" ? "Welcome back!" : "Account created - welcome! Your 50 bonus points unlock with your first completed order.");
@@ -99,6 +104,24 @@ export function AuthDialog({
             <Input id="au-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required />
             {mode === "signup" && <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>}
           </div>
+          {mode === "signup" && (
+            <label className="flex items-start gap-2 text-sm text-muted-foreground">
+              <input type="checkbox" checked={offers} onChange={(e) => setOffers(e.target.checked)} className="mt-0.5 size-4 accent-current" />
+              <span>Email me offers and news. (Optional - you can unsubscribe any time. Order and booking emails are sent either way.)</span>
+            </label>
+          )}
+          {reactivateBy && (
+            <div className="rounded-lg border border-gold/40 bg-gold/10 p-3 text-sm">
+              <p>This account is deactivated. You can reactivate it until <b>{new Date(reactivateBy).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}</b> - your points and rewards come back.</p>
+              <Button type="button" className="mt-2 h-9" disabled={busy} onClick={async () => {
+                setBusy(true);
+                const r = await reactivate(email, password);
+                setBusy(false);
+                if (r.ok) { toast.success("Welcome back - your account is active again."); setReactivateBy(null); onOpenChange(false); setPassword(""); }
+                else toast.error(r.error ?? "Could not reactivate.");
+              }}>Reactivate my account</Button>
+            </div>
+          )}
           {mode === "signup" && <Turnstile siteKey={siteKey} onToken={setHumanToken} resetKey={resetKey} />}
           <Button type="submit" className="mt-2 h-12 text-base font-semibold" disabled={busy}>
             {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}

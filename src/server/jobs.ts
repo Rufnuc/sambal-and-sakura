@@ -3,12 +3,19 @@ import { printNewOrder } from "@/server/print";
 import { looksPersonal } from "@/server/translate";
 import { log, errInfo, alertOwner } from "@/server/log";
 import { orderActivityRecently } from "@/server/activity";
+import { closeExpiredDeactivations } from "@/server/accounts";
+import { processCampaigns } from "@/server/campaigns";
+import { notifyBooking } from "@/server/notify";
+import { ukParts, addDays } from "@/server/order-time";
+import { emailConfigured } from "@/server/email";
 
 // Background jobs, run inside the web server process (one instance on Render, so no queue needed).
 //  - every minute, but only within 3 hours of order activity (so a quiet site never wakes the
 //    database): retry failed kitchen prints; alert the owner about orders nobody has picked up
 //  - every 6 hours: delete expired sessions / rate-limit rows / old analytics events
-//  - daily: remove personal details from old orders and bookings (data retention)
+//  - daily: remove personal details from old orders and bookings (data retention); close accounts
+//    deactivated more than 14 days ago; at 10:00 UK, email tomorrow's bookings a reminder
+//  - every minute while a promotion is queued: send the next batch of promotional emails
 
 const MINUTE = 60_000;
 const MAX_PRINT_ATTEMPTS = 5;
@@ -91,6 +98,24 @@ async function purgePersonalTranslations() {
   if (removed) log.info("translation_cache_purged", { removed });
 }
 
+/** Once a day from 10:00 UK: remind guests booked for tomorrow (one email each). */
+let lastReminderDay = "";
+async function bookingReminders() {
+  if (!emailConfigured()) return;
+  const now = ukParts(new Date());
+  if (now.minutes < 10 * 60 || lastReminderDay === now.dateKey) return; // only checks memory until it's time
+  lastReminderDay = now.dateKey;
+  const due = await prisma.booking.findMany({
+    where: { date: addDays(now.dateKey, 1), status: "upcoming", reminderSentAt: null, email: { not: null } },
+    select: { id: true },
+  });
+  for (const b of due) {
+    await prisma.booking.update({ where: { id: b.id }, data: { reminderSentAt: new Date() } });
+    notifyBooking(b.id, "reminder");
+  }
+  if (due.length) log.info("booking_reminders", { count: due.length });
+}
+
 function every(ms: number, name: string, fn: () => Promise<void>) {
   let running = false;
   const run = async () => {
@@ -110,6 +135,9 @@ export function startJobs() {
   every(MINUTE, "unacknowledged_orders", async () => { if (orderActivityRecently()) await unacknowledgedOrders(); });
   every(6 * 60 * MINUTE, "cleanup", cleanup);
   every(24 * 60 * MINUTE, "retention", retention);
+  every(24 * 60 * MINUTE, "close_deactivated", async () => { const n = await closeExpiredDeactivations(); if (n) log.info("accounts_closed", { count: n }); });
+  every(10 * MINUTE, "booking_reminders", bookingReminders);
+  every(MINUTE, "campaigns", processCampaigns); // touches the DB only while a promotion is queued
   setTimeout(() => void purgePersonalTranslations().catch((e) => log.error("job_failed", { job: "purge_translations", ...errInfo(e) })), 30_000);
   log.info("jobs_started", {});
 }

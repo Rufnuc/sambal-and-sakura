@@ -227,12 +227,14 @@ function Dashboard() {
   );
 }
 
-/** Password, data download, sign out of every device, and account deletion (UK GDPR rights). */
+/** Offers, password, data download, sign out everywhere, deactivate and close (UK GDPR rights). */
 function SecurityCard({ onSignOutEverywhere }: { onSignOutEverywhere: () => void }) {
-  const { logout } = useAuth();
+  const { user, updateProfile, refresh } = useAuth();
   const [pw, setPw] = useState({ current: "", next: "" });
-  const [deleting, setDeleting] = useState(false);
-  const [delPw, setDelPw] = useState("");
+  const [panel, setPanel] = useState<"none" | "deactivate" | "close">("none");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -241,32 +243,74 @@ function SecurityCard({ onSignOutEverywhere }: { onSignOutEverywhere: () => void
     if (res.ok) { toast.success("Password changed. Other devices have been signed out."); setPw({ current: "", next: "" }); }
     else toast.error(d.error ?? "Could not change password.");
   }
-  async function deleteAccount() {
-    const res = await fetch("/api/account", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: delPw }) });
+  async function toggleOffers() {
+    const next = !user?.marketingOptIn;
+    const r = await updateProfile({ marketingOptIn: next });
+    if (r.ok) toast.success(next ? "You'll get our offers by email." : "You won't get offer emails any more.");
+    else toast.error(r.error ?? "Could not update.");
+  }
+  async function deactivate() {
+    setBusy(true);
+    const res = await fetch("/api/account/deactivate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: confirmPw }) });
     const d = await res.json().catch(() => ({}));
-    if (res.ok) { toast.success("Your account has been deleted."); await logout(); }
-    else toast.error(d.error ?? "Could not delete the account.");
+    setBusy(false);
+    if (!res.ok) { toast.error(d.error ?? "Could not deactivate."); return; }
+    toast.success(`Account deactivated. Sign in before ${new Date(d.reactivateBy).toLocaleDateString("en-GB", { day: "numeric", month: "long" })} to reactivate it.`);
+    await refresh();
+  }
+  async function closeForGood() {
+    setBusy(true);
+    const res = await fetch("/api/account", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: confirmPw }) });
+    const d = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { toast.error(d.error ?? "Could not close the account."); return; }
+    toast.success("Your account has been closed.");
+    await refresh();
   }
 
   return (
     <Card>
       <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-bold"><ShieldCheck className="size-5 text-jade" /> Privacy &amp; security</h2>
-      <form onSubmit={changePassword} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+        <div>
+          <p className="text-sm font-medium">Offers by email</p>
+          <p className="text-xs text-muted-foreground">Order and booking emails are always sent.</p>
+        </div>
+        <button onClick={toggleOffers} role="switch" aria-checked={!!user?.marketingOptIn} aria-label="Offers by email" className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", user?.marketingOptIn ? "bg-jade" : "bg-muted")}>
+          <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", user?.marketingOptIn ? "translate-x-6" : "translate-x-1")} />
+        </button>
+      </div>
+
+      <form onSubmit={changePassword} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
         <div><Label htmlFor="sc-cur" className="text-xs">Current password</Label><Input id="sc-cur" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} className="mt-1 h-10" autoComplete="current-password" required /></div>
         <div><Label htmlFor="sc-new" className="text-xs">New password (8+)</Label><Input id="sc-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1 h-10" minLength={8} autoComplete="new-password" required /></div>
         <Button type="submit" variant="outline" className="h-10">Change</Button>
       </form>
+
       <div className="mt-4 flex flex-wrap gap-2">
         <Button asChild variant="outline" className="h-9 gap-1.5"><a href="/api/account?export=1"><Download className="size-4" /> Download my data</a></Button>
         <Button variant="outline" className="h-9 gap-1.5" onClick={onSignOutEverywhere}><LogOut className="size-4" /> Sign out everywhere</Button>
-        <Button variant="ghost" className="h-9 text-sambal hover:text-sambal" onClick={() => setDeleting((v) => !v)}>Delete account</Button>
+        <Button variant="ghost" className="h-9" onClick={() => { setPanel(panel === "deactivate" ? "none" : "deactivate"); setConfirmPw(""); }}>Deactivate account</Button>
+        <Button variant="ghost" className="h-9 text-sambal hover:text-sambal" onClick={() => { setPanel(panel === "close" ? "none" : "close"); setConfirmPw(""); setTyped(""); }}>Close account</Button>
       </div>
-      {deleting && (
-        <div className="mt-3 rounded-lg border border-sambal/30 bg-sambal/5 p-3 text-sm">
-          <p>This deletes your account, points and rewards. Past orders stay in the restaurant&apos;s records without your name or contact details.</p>
+
+      {panel === "deactivate" && (
+        <div className="mt-3 rounded-lg border border-gold/40 bg-gold/5 p-3 text-sm">
+          <p>Your account is hidden and you&apos;re signed out. Your points and rewards are kept for <b>14 days</b>: sign in and choose &quot;Reactivate&quot; to get everything back. After 14 days it&apos;s closed for good and this email can&apos;t be used for a new account.</p>
           <div className="mt-2 flex gap-2">
-            <Input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" className="h-10" autoComplete="current-password" />
-            <Button variant="destructive" className="h-10" disabled={!delPw} onClick={deleteAccount}>Delete</Button>
+            <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Your password" className="h-10" autoComplete="current-password" />
+            <Button className="h-10" disabled={!confirmPw || busy} onClick={deactivate}>Deactivate</Button>
+          </div>
+        </div>
+      )}
+      {panel === "close" && (
+        <div className="mt-3 rounded-lg border border-sambal/30 bg-sambal/5 p-3 text-sm">
+          <p><b>This can&apos;t be undone.</b> Your points and rewards are lost, your personal details are removed, and this email address can never be used to create a new account. Past orders stay in the restaurant&apos;s records without your name or contact details.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+            <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder='Type "CLOSE" to confirm' className="h-10" />
+            <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Your password" className="h-10" autoComplete="current-password" />
+            <Button variant="destructive" className="h-10" disabled={!confirmPw || typed.trim().toUpperCase() !== "CLOSE" || busy} onClick={closeForGood}>Close for good</Button>
           </div>
         </div>
       )}

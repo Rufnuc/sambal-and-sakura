@@ -101,6 +101,17 @@ const PERSONAL = [
 ];
 export const looksPersonal = (s: string) => PERSONAL.some((re) => re.test(s));
 
+/** Translations already in the cache (no paid API call). Missing ones are simply left out. */
+export async function cachedTranslations(texts: string[], locale: string): Promise<Record<string, string>> {
+  if (!isTargetLocale(locale) || !texts.length) return {};
+  const unique = [...new Set(texts.map((t) => t.trim()).filter(Boolean))];
+  const rows = await prisma.translation.findMany({ where: { locale, hash: { in: unique.map(hashOf) } } });
+  const byHash = new Map(rows.map((r) => [r.hash, r.value]));
+  const out: Record<string, string> = {};
+  for (const t of unique) { const v = byHash.get(hashOf(t)); if (v) out[t] = v; }
+  return out;
+}
+
 export async function translateBatch(rawTexts: string[], locale: string): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   if (!isTargetLocale(locale)) return out; // English or unsupported → identity (caller keeps source)

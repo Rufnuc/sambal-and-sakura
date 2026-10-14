@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   try {
     const { turnstileToken: _t, ...data } = parsed.data;
-    const booking = await createBooking({ ...data, email: data.email || user?.email }, user?.id);
+    const booking = await createBooking(data, user?.id);
     return NextResponse.json({ booking });
   } catch (e) {
     if (e instanceof BookingError) return NextResponse.json({ error: e.message }, { status: e.status });

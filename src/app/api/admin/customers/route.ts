@@ -11,14 +11,17 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const q = (sp.get("q") ?? "").trim().slice(0, 60);
   const page = Math.max(0, Number(sp.get("page")) || 0);
+  const optedIn = sp.get("optedIn") === "1";
   const where = {
     role: "customer",
+    status: { not: "closed" }, // closed accounts have no personal details left
+    ...(optedIn ? { status: "active", marketingOptIn: true } : {}),
     ...(q ? { OR: [{ name: { contains: q } }, { email: { contains: q.toLowerCase() } }, { phone: { contains: q.replace(/\s/g, "") } }] } : {}),
   };
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
-    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: page * PAGE, take: PAGE, select: { id: true, name: true, email: true, phone: true, points: true, createdAt: true } }),
+    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: page * PAGE, take: PAGE, select: { id: true, name: true, email: true, phone: true, points: true, createdAt: true, status: true, marketingOptIn: true } }),
   ]);
   const stats = users.length
     ? await prisma.order.groupBy({ by: ["userId"], where: { userId: { in: users.map((x) => x.id) }, status: { not: "cancelled" } }, _count: true, _sum: { total: true } })

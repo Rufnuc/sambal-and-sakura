@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { SectionCard, StatCard } from "@/components/admin/ui";
 import { fetchConfig, saveConfig, type ReferralCfg, type OfferCfg, type WheelPrizeCfg, type DealCfg } from "@/lib/admin/api";
 import { fetchStats, fetchAnalytics } from "@/lib/admin/api";
+import { EmailCampaigns } from "@/components/admin/email-campaigns";
 import { cn } from "@/lib/utils";
 
 export function PromosView() {
@@ -56,9 +57,11 @@ export function PromosView() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Offers" value={String(offers.length)} accent="gold" />
         <StatCard label="Orders w/ discount" value={String(discountedOrders)} accent="jade" />
-        <StatCard label="Wheel spins" value={String(spins)} sub="this session" accent="sakura" />
+        <StatCard label="Wheel spins" value={String(spins)} sub="last 14 days" accent="sakura" />
         <StatCard label="Referral" value={`£${referral.give}/£${referral.get}`} sub="give / get" accent="sambal" />
       </div>
+
+      <EmailCampaigns />
 
       {/* Referral */}
       {/* Deal of the Day */}

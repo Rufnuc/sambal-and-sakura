@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SectionCard, StatCard } from "@/components/admin/ui";
-import { fetchCustomers, type AdminCustomer } from "@/lib/admin/api";
+import { fetchCustomers, unblockEmail, type AdminCustomer } from "@/lib/admin/api";
+import { toast } from "sonner";
 import { tierFor } from "@/lib/store/auth";
 import { gbp } from "@/lib/format";
 
@@ -90,7 +91,11 @@ export function CustomersView() {
             <TableBody>
               {rows.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}<span className="block text-xs text-muted-foreground">{c.email}</span></TableCell>
+                  <TableCell className="font-medium">
+                    {c.name}<span className="block text-xs text-muted-foreground">{c.email}</span>
+                    {c.status === "deactivated" && <span className="block text-[11px] font-semibold text-sambal">Deactivated (can reactivate for 14 days)</span>}
+                    {c.marketingOptIn && <span className="block text-[11px] font-semibold text-jade">Gets offers by email</span>}
+                  </TableCell>
                   <TableCell><Badge variant="outline" className="gap-1 border-gold/30 bg-gold/10 text-gold-ink"><Crown className="size-3" /> {c.tier}</Badge></TableCell>
                   <TableCell className="tabular-nums">{c.points.toLocaleString()}</TableCell>
                   <TableCell>{c.orders}</TableCell>
@@ -109,6 +114,28 @@ export function CustomersView() {
           </div>
         )}
       </SectionCard>
+
+      <UnblockEmail />
     </div>
+  );
+}
+
+/** Owner tool: closed accounts' emails can't sign up again; this lets one through (genuine mistakes only). */
+function UnblockEmail() {
+  const [email, setEmail] = useState("");
+  return (
+    <SectionCard title="Allow a closed account's email again">
+      <p className="text-sm text-muted-foreground">When an account is closed (or not reactivated within 14 days), its email can&apos;t be used to sign up again. Only unblock it for a genuine mistake: they start again with no points.</p>
+      <form className="mt-3 flex max-w-md gap-2" onSubmit={async (e) => {
+        e.preventDefault();
+        const r = await unblockEmail(email.trim());
+        if (!r.ok) toast.error(r.error);
+        else if (r.removed) { toast.success("Done - that email can sign up again."); setEmail(""); }
+        else toast("That email wasn't blocked.");
+      }}>
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="customer@email.com" className="h-10" required />
+        <Button type="submit" variant="outline" className="h-10">Unblock</Button>
+      </form>
+    </SectionCard>
   );
 }

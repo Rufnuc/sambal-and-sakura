@@ -7,6 +7,7 @@ import { ukParts, isRealDate, addDays } from "@/server/order-time";
 import { bookingRef, withFreshIds } from "@/server/ids";
 import { canonicalPhone } from "@/server/phone";
 import { log } from "@/server/log";
+import { notifyBooking } from "@/server/notify";
 
 const ACTIVE = ["upcoming", "seated", "delayed", "waitlist"];
 const MAX_DAYS_AHEAD = 90;
@@ -52,9 +53,10 @@ export class BookingError extends Error {
 }
 
 export interface NewBooking {
-  name: string; phone: string; email?: string;
+  name: string; phone: string; email: string;
   date: string; time: string; party: number;
   occasion?: string; dietary?: string; notes?: string;
+  locale?: string;
 }
 
 /** Create a booking with a server-authoritative capacity re-check, serialised per date. */
@@ -91,10 +93,12 @@ export async function createBooking(data: NewBooking, userId?: string) {
         date: data.date, time: data.time, party: data.party,
         status: slot.state === "waitlist" ? "waitlist" : "upcoming",
         requiresCall: needsDeposit(data.party),
+        locale: data.locale ?? "en",
         occasion: data.occasion || null, dietary: data.dietary || null, notes: data.notes || null,
       },
     });
   }), ["id"]);
   log.info("booking_created", { bookingId: booking.id, date: booking.date, party: booking.party, status: booking.status });
+  notifyBooking(booking.id, booking.status === "waitlist" ? "waitlist" : "confirmed");
   return booking;
 }

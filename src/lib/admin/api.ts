@@ -8,6 +8,7 @@ import type { SiteContent } from "@/lib/site-content";
 export interface AdminCustomer {
   id: string; name: string; email: string; phone: string;
   points: number; createdAt: string; orders: number; spend: number;
+  status?: string; marketingOptIn?: boolean;
 }
 
 interface RawLine { id: string; itemId: string; name: string; unitPrice: number; qty: number; modifiers: string }
@@ -109,8 +110,8 @@ export async function patchBooking(id: string, patch: Partial<Booking>): Promise
   return res.ok;
 }
 
-export async function fetchCustomers(q = "", page = 0): Promise<{ customers: AdminCustomer[]; total: number; page: number; pageSize: number }> {
-  const res = await fetch(`/api/admin/customers?${new URLSearchParams({ q, page: String(page) })}`, { cache: "no-store" });
+export async function fetchCustomers(q = "", page = 0, optedIn = false): Promise<{ customers: AdminCustomer[]; total: number; page: number; pageSize: number }> {
+  const res = await fetch(`/api/admin/customers?${new URLSearchParams({ q, page: String(page), ...(optedIn ? { optedIn: "1" } : {}) })}`, { cache: "no-store" });
   if (!res.ok) return { customers: [], total: 0, page: 0, pageSize: 50 };
   return res.json();
 }
@@ -275,4 +276,30 @@ export async function sendTestPrint(): Promise<PrintResult> {
 export async function reprintOrder(id: string): Promise<PrintResult> {
   const res = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/print`, { method: "POST" });
   return res.json().catch(() => ({ ok: false, provider: null, message: "Could not reach the server." }));
+}
+
+/* ---- Promotional emails (owner only) ---- */
+export interface CampaignRow { id: string; subject: string; audience: string; status: string; total: number; sent: number; failed: number; createdAt: string; finishedAt: string | null }
+export async function fetchCampaigns(): Promise<{ campaigns: CampaignRow[]; optedIn: number; allowanceToday: number; dailyLimit: number; configured: boolean } | null> {
+  const res = await fetch("/api/admin/campaigns", { cache: "no-store" });
+  return res.ok ? res.json() : null;
+}
+async function jsonOrError(res: Response): Promise<{ ok: boolean; error?: string; [k: string]: unknown }> {
+  const data = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true, ...data } : { ok: false, error: data.error ?? "Something went wrong." };
+}
+export async function createCampaign(input: { subject: string; body: string; translations?: Record<string, { subject: string; body: string }>; audience: "all" | "selected"; userIds?: string[] }) {
+  return jsonOrError(await fetch("/api/admin/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }));
+}
+export async function translateCampaign(input: { locale: string; subject: string; body: string }) {
+  return jsonOrError(await fetch("/api/admin/campaigns/translate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }));
+}
+export async function sendCampaignTest(input: { subject: string; body: string; locale?: string }) {
+  return jsonOrError(await fetch("/api/admin/campaigns/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }));
+}
+export async function cancelCampaign(id: string) {
+  return jsonOrError(await fetch(`/api/admin/campaigns/${encodeURIComponent(id)}`, { method: "DELETE" }));
+}
+export async function unblockEmail(email: string) {
+  return jsonOrError(await fetch("/api/admin/blocked-emails", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }));
 }

@@ -38,6 +38,7 @@ export interface ApiOrder {
   pointsEarned: number;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string | null;
   userId: string | null;
   whenType?: string;
   scheduledTime?: string | null;
@@ -201,9 +202,10 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
   const deliveryAreaOk = fulfilment === "collection" || (postcodeValid && !!q?.inArea);
   const whenOk = when.kind === "asap" ? !!timing?.asap.ok : !!timing?.days.find((d) => d.date === when.date)?.times.includes(when.time);
   const needsHuman = !user && !!siteKey;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const canPlace =
     !!q && !paused && unavailable.length === 0 && q.minMet && deliveryAreaOk && whenOk &&
-    name.trim().length > 1 && phone.trim().length >= 7 &&
+    name.trim().length > 1 && phone.trim().length >= 7 && emailValid &&
     (fulfilment === "collection" || address.trim().length > 3) &&
     (!needsHuman || !!humanToken);
   const total = q?.total ?? localSubtotal;
@@ -225,7 +227,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
       address: fulfilment === "delivery" ? address.trim() : undefined,
       name: name.trim(),
       phone: phone.trim(),
-      email: email.trim() || undefined,
+      email: email.trim(),
       notes: notes.trim() || undefined,
       whenType: when.kind,
       scheduledFor: when.kind === "scheduled" ? `${when.date} ${when.time}` : undefined,
@@ -233,6 +235,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
       payMethod: effectiveMethod,
       expectedTotal: q.total,
       idempotencyKey: idempotencyKey.current,
+      locale, // emails come in the language they're using
       turnstileToken: humanToken || undefined,
     };
     try {
@@ -365,8 +368,10 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
             </div>
           </div>
           <div className="mt-3">
-            <Label htmlFor="email">Email {user ? "" : "(optional)"}</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" inputMode="email" autoComplete="email" placeholder="you@email.com" />
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" inputMode="email" autoComplete="email" placeholder="you@email.com" required />
+            <p className="mt-1 text-xs text-muted-foreground">We email your order confirmation and updates (on its way, ready, cancelled).</p>
+            {email.trim().length > 3 && !emailValid && <p className="mt-1 text-xs text-sambal">Enter a valid email address.</p>}
           </div>
           <div className="mt-3">
             <Label htmlFor="notes">Notes for the kitchen (optional)</Label>
@@ -559,7 +564,7 @@ function Confirmation({ order, method, payToken }: { order: ApiOrder; method: Pa
         </ol>
 
         <div className="mt-6 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
-          <Banknote className="mr-1.5 inline size-4" /> {method === "cash" ? `Have ${gbp(order.total)} in cash ready.` : "Your order will be prepared once payment is confirmed."} Prep is usually {ORDERING.prepTimeMin}-{ORDERING.prepTimeMax} min. If there&apos;s a problem with your order we&apos;ll phone <span className="notranslate" translate="no">{order.customerPhone}</span>.
+          <Banknote className="mr-1.5 inline size-4" /> {method === "cash" ? `Have ${gbp(order.total)} in cash ready.` : "Your order will be prepared once payment is confirmed."} Prep is usually {ORDERING.prepTimeMin}-{ORDERING.prepTimeMax} min.{order.customerEmail ? <> We&apos;ve emailed your confirmation to <span className="notranslate" translate="no">{order.customerEmail}</span> and will email you as your order progresses.</> : null} If there&apos;s a problem we&apos;ll phone <span className="notranslate" translate="no">{order.customerPhone}</span>.
         </div>
         {order.userId && order.pointsEarned > 0 && (
           <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-sm text-foreground">

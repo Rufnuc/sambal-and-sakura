@@ -21,6 +21,15 @@ model User {
   points       Int       @default(0)
   referralCode String    @unique
   createdAt    DateTime  @default(now())
+  // Account lifecycle: active → deactivated (can reactivate for 14 days) → closed (permanent,
+  // personal details removed, email blocked from signing up again via BlockedEmail).
+  status           String    @default("active") // active | deactivated | closed
+  deactivatedAt    DateTime?
+  closedAt         DateTime?
+  // Promotional emails only with explicit consent (UK PECR); every email has an unsubscribe link.
+  marketingOptIn   Boolean   @default(false)
+  marketingOptInAt DateTime?
+  locale           String    @default("en") // email language: en | zh | vi | ja (last used on the site)
 
   orders        Order[]
   bookings      Booking[]
@@ -76,6 +85,7 @@ model Order {
   printedAt     DateTime?
   printError    String?
   flags         String      @default("[]")     // JSON array, e.g. ["new-customer","address-unverified"]
+  locale        String      @default("en")     // language the customer ordered in (their emails use it)
   cancelReason  String?
   createdAt     DateTime    @default(now())
 
@@ -115,6 +125,8 @@ model Booking {
   dietary   String?
   notes     String?
   requiresCall Boolean @default(false) // large party: staff phone to confirm and take the deposit
+  reminderSentAt DateTime? // day-before reminder email
+  locale    String   @default("en") // email language
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -232,3 +244,59 @@ model Translation {
   @@unique([locale, hash])
   @@index([locale])
 }
+
+// Emails that can never be used to sign up again (closed accounts). Stored as a keyed one-way
+// fingerprint (HMAC), not the address itself, so the person's email isn't kept.
+model BlockedEmail {
+  hash      String   @id
+  reason    String   // closed | deleted
+  createdAt DateTime @default(now())
+}
+
+// Every email the site tries to send. `key` makes transactional emails send once only
+// (e.g. "order:SS-ABC123:received"); counts also enforce the daily sending budget.
+model EmailLog {
+  id         String   @id @default(cuid())
+  kind       String   // transactional | marketing
+  template   String
+  key        String?  @unique
+  campaignId String?
+  status     String   // sent | failed
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([kind, createdAt])
+}
+
+// Promotional emails written in Admin → Promotions. Sent in daily batches so they never use up
+// the allowance that order and booking emails need.
+model Campaign {
+  id         String   @id @default(cuid())
+  subject    String
+  body       String
+  audience   String   // all | selected
+  translations String @default("{}") // JSON {zh|vi|ja: {subject, body}}; customers in that language get it
+  status     String   @default("queued") // queued | sending | sent | cancelled
+  total      Int      @default(0)
+  sent       Int      @default(0)
+  failed     Int      @default(0)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  finishedAt DateTime?
+
+  recipients CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  status     String    @default("pending") // pending | sent | failed | skipped
+  sentAt     DateTime?
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, status])
+}
+

@@ -4,7 +4,7 @@ import { currentUser, publicUser, verifyPassword, hashPassword, destroyOtherSess
 import { updateAccountSchema, changePasswordSchema } from "@/server/validation";
 import { canonicalPhone } from "@/server/phone";
 import { limitOr429 } from "@/server/rate-limit";
-import { log } from "@/server/log";
+import { closeAccount } from "@/server/accounts";
 
 // PATCH: update name/phone, or change password ({currentPassword, newPassword}).
 export async function PATCH(req: Request) {
@@ -27,7 +27,12 @@ export async function PATCH(req: Request) {
 
   const parsed = updateAccountSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid details." }, { status: 400 });
-  const data = { ...parsed.data, ...(parsed.data.phone ? { phone: canonicalPhone(parsed.data.phone) } : {}) };
+  const { marketingOptIn, ...rest } = parsed.data;
+  const data = {
+    ...rest,
+    ...(rest.phone ? { phone: canonicalPhone(rest.phone) } : {}),
+    ...(typeof marketingOptIn === "boolean" ? { marketingOptIn, marketingOptInAt: marketingOptIn ? new Date() : null } : {}),
+  };
   const updated = await prisma.user.update({ where: { id: user.id }, data });
   return NextResponse.json({ user: publicUser(updated) });
 }
@@ -49,8 +54,8 @@ export async function GET(req: Request) {
   });
 }
 
-// DELETE {password}: delete the account. Order records are kept for the restaurant's accounts,
-// but with the personal details removed.
+// DELETE {password}: close the account for good. Personal details are removed and the email can't
+// be used to sign up again; order records stay (without personal details) for the restaurant's accounts.
 export async function DELETE(req: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -62,12 +67,7 @@ export async function DELETE(req: Request) {
   if (!password || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.json({ error: "Password is incorrect." }, { status: 400 });
   }
-  await prisma.$transaction([
-    prisma.order.updateMany({ where: { userId: user.id }, data: { userId: null, customerName: "Deleted customer", customerPhone: "", customerEmail: null, address: null, notes: null } }),
-    prisma.booking.updateMany({ where: { userId: user.id }, data: { userId: null, name: "Deleted customer", phone: "", email: null, notes: null, dietary: null } }),
-    prisma.user.delete({ where: { id: user.id } }), // sessions, rewards and points go with it
-  ]);
+  await closeAccount(user, "deleted");
   await destroySession();
-  log.info("account_deleted", {});
   return NextResponse.json({ ok: true });
 }

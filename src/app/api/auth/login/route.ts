@@ -5,6 +5,7 @@ import { loginSchema } from "@/server/validation";
 import { clientIp, limitOr429 } from "@/server/rate-limit";
 import { audit } from "@/server/audit";
 import { alertOwner } from "@/server/log";
+import { reactivationDeadline } from "@/server/accounts";
 
 const FAIL = "Incorrect email or password.";
 
@@ -37,6 +38,16 @@ export async function POST(req: Request) {
     }
     return NextResponse.json({ error: FAIL }, { status: 401 });
   }
+
+  // Deactivated: correct password, but they must choose to reactivate (within 14 days).
+  if (user.status === "deactivated") {
+    const deadline = reactivationDeadline(user);
+    if (deadline && deadline.getTime() > Date.now()) {
+      return NextResponse.json({ error: "This account is deactivated.", deactivated: true, reactivateBy: deadline.toISOString() }, { status: 403 });
+    }
+    return NextResponse.json({ error: "This account has been closed." }, { status: 403 });
+  }
+  if (user.status !== "active") return NextResponse.json({ error: FAIL }, { status: 401 }); // closed accounts can't sign in
 
   await createSession(user);
   if (isStaffRole(user.role)) await audit({ actor: { id: user.id, email: user.email }, action: "login.success", entity: "user", entityId: user.id, ip });

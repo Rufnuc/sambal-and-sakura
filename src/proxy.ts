@@ -9,7 +9,9 @@ import { NextResponse, type NextRequest } from "next/server";
 // notifications are exempt: they're verified by signature instead.
 
 const WRITE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const EXEMPT = ["/api/pay/wechat/notify"];
+// Exempt: WeChat's payment notifications (verified by signature) and email apps' one-click
+// unsubscribe (form-encoded POST, verified by the signed link).
+const EXEMPT = ["/api/pay/wechat/notify", "/api/marketing/unsubscribe"];
 
 export function proxy(req: NextRequest) {
   if (WRITE.has(req.method) && !EXEMPT.includes(req.nextUrl.pathname)) {

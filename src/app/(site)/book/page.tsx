@@ -20,11 +20,12 @@ import { useAuth } from "@/lib/store/auth";
 import { useSiteContent } from "@/components/site-content-provider";
 import { telHref } from "@/lib/site-content";
 import { Turnstile } from "@/components/turnstile";
+import { useLocale } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
 interface ApiBooking {
   id: string; name: string; phone: string; date: string; time: string;
-  party: number; status: string; occasion?: string | null; requiresCall?: boolean;
+  party: number; status: string; occasion?: string | null; requiresCall?: boolean; email?: string | null;
 }
 
 const OCCASIONS = ["None", "Birthday", "Anniversary", "Date night", "Business", "Celebration"];
@@ -79,16 +80,18 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [occasion, setOccasion] = useState("None");
   const [dietary, setDietary] = useState("");
   const [notes, setNotes] = useState("");
   const { business: b } = useSiteContent();
+  const { locale } = useLocale();
   const [siteKey, setSiteKey] = useState<string | null>(null);
   const [humanToken, setHumanToken] = useState("");
   const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
-    if (user) { setName((n) => n || user.name); setPhone((p) => p || user.phone); }
+    if (user) { setName((n) => n || user.name); setPhone((p) => p || user.phone); setEmail((e) => e || user.email); }
   }, [user]);
   useEffect(() => {
     fetch("/api/public-config").then((r) => r.json()).then((d) => setSiteKey(d.turnstileSiteKey ?? null)).catch(() => {});
@@ -111,16 +114,18 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
   const deposit = needsDeposit(party);
   const selectedSlot = slots.find((s) => s.time === time) ?? null;
 
-  const canConfirm = !tooBig && !!time && name.trim().length > 1 && phone.trim().length >= 7 && !submitting && (!needsHuman || !!humanToken);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const canConfirm = !tooBig && !!time && name.trim().length > 1 && phone.trim().length >= 7 && emailValid && !submitting && (!needsHuman || !!humanToken);
 
   async function confirm() {
     if (!canConfirm || !selectedSlot) return;
     setSubmitting(true);
     const payload = {
-      name: name.trim(), phone: phone.trim(), date, time,
+      name: name.trim(), phone: phone.trim(), email: email.trim(), date, time,
       party, occasion: occasion !== "None" ? occasion : undefined,
       dietary: dietary.trim() || undefined, notes: notes.trim() || undefined,
       turnstileToken: humanToken || undefined,
+      locale, // confirmation + reminder emails in the language they're using
     };
     try {
       const res = await fetch("/api/bookings", {
@@ -236,6 +241,11 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
           <div className="grid gap-3 sm:grid-cols-2">
             <div><Label htmlFor="bname">Name</Label><Input id="bname" value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 h-11" autoComplete="name" /></div>
             <div><Label htmlFor="bphone">Phone</Label><Input id="bphone" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1.5 h-11" inputMode="tel" autoComplete="tel" placeholder="07…" /></div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="bemail">Email</Label>
+              <Input id="bemail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" inputMode="email" autoComplete="email" placeholder="you@email.com" required />
+              <p className="mt-1 text-xs text-muted-foreground">We email your confirmation and a reminder the day before.</p>
+            </div>
           </div>
           <div className="mt-3">
             <Label>Occasion</Label>
@@ -318,7 +328,7 @@ function BookingConfirmation({ booking }: { booking: ApiBooking }) {
           <p className="mt-4 text-sm text-muted-foreground">We&apos;ll phone you if a table frees up. Your table isn&apos;t confirmed until we do.</p>
         )}
         <div className="mt-4 flex items-center gap-1.5 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
-          <CheckCircle2 className="size-4" /> Need to change or cancel? Call <a className="underline" href={telHref(b.phone)}>{b.phone}</a> and quote your reference.
+          <CheckCircle2 className="size-4" /> {booking.email ? <>Confirmation emailed to <span className="notranslate" translate="no">{booking.email}</span>. </> : null}Need to change or cancel? Call <a className="underline" href={telHref(b.phone)}>{b.phone}</a> and quote your reference.
         </div>
       </div>
       <div className="mt-8 flex flex-wrap justify-center gap-3">

@@ -58,6 +58,14 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
 
+      # --- Customer emails (Brevo) - see DEPLOY.md "Customer emails" ---
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM              # e.g. orders@sambalandsakura.co.uk (domain verified in Brevo)
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: Sambal & Sakura
+
       # --- Security switches (see DEPLOY.md "Security switches") ---
       - key: TURNSTILE_SITE_KEY      # Cloudflare Turnstile bot check on guest checkout / sign-up / bookings
         sync: false

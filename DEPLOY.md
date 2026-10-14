@@ -68,6 +68,23 @@ On every deploy Render will: install, derive the Postgres schema, generate the c
 6. **Reviews start switched off and empty.** Only add genuine reviews from real customers who agreed to be quoted; the site refuses to show the old demo ones.
 7. Set up the **Security switches** below (bot check + alerts) before you advertise the site.
 
+### Customer emails (Brevo)
+Order updates (received, on its way / ready, completed, cancelled), booking confirmations and day-before reminders, account emails, and the offer emails you write in Admin → Promotions all go by email. Customers must give an email to order or book.
+
+1. Create a free account at brevo.com (300 emails a day; enough for about 100 orders a day).
+2. **Senders, Domains & Dedicated IPs → Domains → Add a domain**: add the restaurant's domain and create the DNS records Brevo shows (DKIM, and DMARC if asked) at your domain registrar. Without this, emails land in spam or are refused.
+3. **SMTP & API → API keys → Generate**. Set in Render: `BREVO_API_KEY`, `EMAIL_FROM` (e.g. `orders@sambalandsakura.co.uk`), and leave `EMAIL_FROM_NAME`.
+4. Admin → Promotions → **Email customers → Send me a test** to check it arrives.
+
+How sending is protected: each order/booking email is sent once only; if Brevo fails you get an owner alert. Offer emails only go to customers who ticked "Email me offers" (the law requires a clear yes), always include an unsubscribe link, and only use the day's spare allowance (40% is kept for order emails), finishing the next day if needed. If you move to a paid Brevo plan, set `EMAIL_DAILY_LIMIT` to the new daily allowance.
+
+**Keep `SESSION_SECRET` the same forever** once live: it signs unsubscribe links and blocks closed accounts' emails.
+
+### Customer accounts
+- **Deactivate**: the customer is signed out and can reactivate within 14 days by signing in (points and rewards come back). After 14 days the account closes automatically.
+- **Close**: immediate and permanent. Personal details are removed; orders stay (without personal details) for your accounts.
+- A closed account's email can never sign up again, which stops people re-creating accounts to collect sign-up rewards. The email itself isn't stored, only a fingerprint of it. For a genuine mistake, Admin → Customers → **Allow a closed account's email again**.
+
 ### Security switches
 - **Bot check** (stops scripts placing fake orders, creating accounts or booking out a night): create a free Cloudflare Turnstile widget for your domain at dash.cloudflare.com → Turnstile, then set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Signed-in customers never see it; guests usually don't either (it only asks when something looks automated).
 - **Owner alerts** (failed kitchen print, order not started after 5 minutes, WeChat refund needed, repeated failed staff sign-ins, translation limit reached): install the free **ntfy** app on your phone, subscribe to a long random topic name, and set `ALERT_WEBHOOK_URL=https://ntfy.sh/<that-topic>`. Keep the topic name secret.

@@ -15,6 +15,7 @@ export interface Account {
   id: string; name: string; email: string; phone: string;
   role: string; points: number; referralCode: string; createdAt: string;
   pendingPoints?: number; // earned on orders not completed yet (not spendable)
+  marketingOptIn?: boolean;
 }
 
 export const LOYALTY = {
@@ -39,18 +40,19 @@ export function tierFor(points: number) {
   return { current, next };
 }
 
-type Result = { ok: boolean; error?: string };
+type Result = { ok: boolean; error?: string; deactivated?: boolean; reactivateBy?: string };
 
 interface AuthState {
   user: Account | null;
   rewards: Reward[];
   loaded: boolean;
   refresh: () => Promise<void>;
-  register: (name: string, email: string, phone: string, password: string, turnstileToken?: string) => Promise<Result>;
+  register: (name: string, email: string, phone: string, password: string, turnstileToken?: string, marketingOptIn?: boolean, locale?: string) => Promise<Result>;
   login: (email: string, password: string) => Promise<Result>;
+  reactivate: (email: string, password: string) => Promise<Result>;
   logout: (everywhere?: boolean) => Promise<void>;
   redeemPoints: () => Promise<Result>;
-  updateProfile: (patch: { name?: string; phone?: string }) => Promise<Result>;
+  updateProfile: (patch: { name?: string; phone?: string; marketingOptIn?: boolean }) => Promise<Result>;
 }
 
 async function postJson(url: string, body?: unknown) {
@@ -78,8 +80,8 @@ export const useAuth = create<AuthState>()((set, get) => ({
     }
   },
 
-  register: async (name, email, phone, password, turnstileToken) => {
-    const { res, data } = await postJson("/api/auth/register", { name, email, phone, password, turnstileToken: turnstileToken || undefined });
+  register: async (name, email, phone, password, turnstileToken, marketingOptIn = false, locale = "en") => {
+    const { res, data } = await postJson("/api/auth/register", { name, email, phone, password, marketingOptIn, locale, turnstileToken: turnstileToken || undefined });
     if (!res.ok) return { ok: false, error: data.error };
     await get().refresh();
     return { ok: true };
@@ -87,6 +89,13 @@ export const useAuth = create<AuthState>()((set, get) => ({
 
   login: async (email, password) => {
     const { res, data } = await postJson("/api/auth/login", { email, password });
+    if (!res.ok) return { ok: false, error: data.error, deactivated: !!data.deactivated, reactivateBy: data.reactivateBy };
+    await get().refresh();
+    return { ok: true };
+  },
+
+  reactivate: async (email, password) => {
+    const { res, data } = await postJson("/api/account/reactivate", { email, password });
     if (!res.ok) return { ok: false, error: data.error };
     await get().refresh();
     return { ok: true };

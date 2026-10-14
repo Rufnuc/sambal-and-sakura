@@ -12,6 +12,7 @@ import { addPendingOrderPoints, confirmOrderPoints, reverseOrderPoints } from "@
 import { audit, type AuditActor } from "@/server/audit";
 import { log, alertOwner } from "@/server/log";
 import { noteOrderActivity } from "@/server/activity";
+import { notifyOrder } from "@/server/notify";
 import { ORDERING } from "@/lib/data/site";
 
 export class OrderError extends Error {
@@ -139,13 +140,14 @@ export interface CreateOrderInput extends QuoteInput {
   address?: string;
   name: string;
   phone: string;
-  email?: string;
+  email: string;
   notes?: string;
   whenType: "asap" | "scheduled";
   scheduledFor?: string;
   payMethod: "cash" | "wechat";
   expectedTotal?: number;
   idempotencyKey?: string;
+  locale?: string;
 }
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -211,7 +213,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
         data: {
           id: orderRef(),
           userId: user?.id ?? null,
-          customerName: input.name, customerPhone: canonicalPhone(input.phone), customerEmail: input.email || user?.email || null,
+          customerName: input.name, customerPhone: canonicalPhone(input.phone), customerEmail: input.email,
           fulfilment: input.fulfilment, status: "received",
           subtotal: quote.subtotal, deliveryFee: quote.deliveryFee, discount: quote.discount, total: quote.total,
           voucherCode: voucher && quote.voucherApplied ? voucher.code : null,
@@ -225,6 +227,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
           idempotencyKey: input.idempotencyKey || null,
           printStatus: "pending", // WeChat orders print once paid (see the WeChat notify route)
           flags: JSON.stringify(flags),
+          locale: input.locale ?? "en",
           lines: { create: quote.lines.map((l) => ({ itemId: l.itemId, name: l.name, unitPrice: l.unitPrice, qty: l.qty, modifiers: JSON.stringify(l.modifiers) })) },
         },
         include: { lines: true },
@@ -242,10 +245,14 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
           await tx.voucherRedemption.create({ data: { group: voucher.onePerCustomer, phoneKey: phoneKey(input.phone), orderId: created.id } });
         }
       }
-      if (user) await addPendingOrderPoints(tx, user.id, created.id, pointsEarned);
+      if (user) {
+        await addPendingOrderPoints(tx, user.id, created.id, pointsEarned);
+        if (input.locale && input.locale !== user.locale) await tx.user.update({ where: { id: user.id }, data: { locale: input.locale } }); // emails follow their latest language
+      }
       return created;
     }), ["id"]);
     noteOrderActivity();
+    notifyOrder(order.id, "received");
     log.info("order_created", { orderId: order.id, fulfilment: order.fulfilment, total: order.total, payMethod: order.paymentMethod, user: !!user, flags });
     return { order, payToken, replay: false };
   } catch (e) {
@@ -302,5 +309,5 @@ export async function changeOrderStatus(orderId: string, to: string, actor: Audi
       void alertOwner(`refund:${orderId}`, `Order ${orderId} was cancelled but was paid by WeChat (£${order.total.toFixed(2)}). Refund it in the WeChat Pay merchant platform.`);
     }
     return tx.order.findUnique({ where: { id: orderId }, include: { lines: true } });
-  });
+  }).then((o) => { notifyOrder(orderId, to); return o; });
 }

@@ -23,6 +23,9 @@ const ACTION_LABEL: Record<string, string> = {
   "login.success": "Staff signed in",
   "login.failed": "Failed sign-in",
   "login.rate_limited": "Sign-in blocked (too many tries)",
+  "campaign.create": "Offer email sent",
+  "campaign.cancel": "Offer email stopped",
+  "email.unblock": "Closed account's email unblocked",
 };
 
 /** Owner-only: "Connection check" (is the rate limiter seeing real visitor IPs?) and the activity log. */

@@ -68,7 +68,7 @@ export async function currentUser(): Promise<User | null> {
   if (!session) return null;
   const now = Date.now();
   const idleExpired = isStaffRole(session.user.role) && now - session.lastSeenAt.getTime() > STAFF_IDLE_HOURS * 3600_000;
-  if (session.expiresAt.getTime() < now || idleExpired) {
+  if (session.expiresAt.getTime() < now || idleExpired || session.user.status !== "active") {
     await prisma.session.deleteMany({ where: { token: hashed } }).catch(() => {});
     return null;
   }
@@ -116,7 +116,7 @@ export function publicUser(u: User) {
   return {
     id: u.id, name: u.name, email: u.email, phone: u.phone,
     role: u.role, points: u.points, referralCode: u.referralCode,
-    createdAt: u.createdAt,
+    marketingOptIn: u.marketingOptIn, createdAt: u.createdAt,
   };
 }
 

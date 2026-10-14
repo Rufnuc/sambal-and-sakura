@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { currentUser } from "@/server/auth";
+import { notifyBooking } from "@/server/notify";
 
 // Customers can cancel their own upcoming bookings.
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -13,5 +14,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "This booking can no longer be changed." }, { status: 400 });
   }
   const updated = await prisma.booking.update({ where: { id }, data: { status: "cancelled" } });
+  notifyBooking(id, "cancelled");
   return NextResponse.json({ booking: updated });
 }

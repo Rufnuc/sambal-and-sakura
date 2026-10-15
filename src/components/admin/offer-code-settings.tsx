@@ -42,6 +42,7 @@ export function OfferCodeSettings({ offer, onChange }: { offer: OfferCfg; onChan
       <div className="col-span-2 flex flex-col gap-1 text-xs sm:col-span-1">
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!offer.firstOrderOnly} onChange={(e) => onChange({ ...offer, firstOrderOnly: e.target.checked || undefined, oncePerCustomer: e.target.checked ? undefined : offer.oncePerCustomer })} className="size-4" /> First order only</label>
         <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!offer.oncePerCustomer} disabled={!!offer.firstOrderOnly} onChange={(e) => onChange({ ...offer, oncePerCustomer: e.target.checked || undefined })} className="size-4" /> Once per customer</label>
+        <label className="flex items-center gap-1.5" title="The code still works at checkout - for flyers, emails or staff to hand out"><input type="checkbox" checked={!!offer.hidden} onChange={(e) => onChange({ ...offer, hidden: e.target.checked || undefined })} className="size-4" /> Hidden from Offers page</label>
       </div>
     </div>
   );

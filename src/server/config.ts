@@ -36,12 +36,20 @@ export const getZones = () => getJson<ZoneConfig[]>("zones", ORDERING.deliveryZo
 export const setZones = (v: ZoneConfig[]) => setJson("zones", v);
 
 /* ---- Offers ---- */
-// Offers saved before codes had their own settings get the original values for SAKURA10 / FAMILY52 / FREEGYOZA.
-export const getOffers = async (): Promise<Offer[]> => (await getJson<Offer[]>("offers", OFFERS)).map((o) => {
-  const legacy = o.code ? LEGACY_CODE_VALUES[o.code.toUpperCase()] : undefined;
-  return legacy && !(o.pctOff || o.amountOff || o.freeItemId) ? { ...o, ...legacy } : o;
-});
-export const setOffers = (v: Offer[]) => setJson("offers", v);
+// Offers saved before codes had their own settings get the original values for SAKURA10 / FAMILY52 / FREEGYOZA,
+// and lists saved before WELCOME10 became an offer get it added (hidden). Once the owner saves the offers
+// again ("offersV2"), the list is exactly what they saved, so removing WELCOME10 then sticks.
+const WELCOME10 = OFFERS.find((o) => o.code === "WELCOME10")!;
+export const getOffers = async (): Promise<Offer[]> => {
+  const [saved, v2] = await Promise.all([getJson<Offer[] | null>("offers", null), getJson<boolean>("offersV2", false)]);
+  if (!saved) return OFFERS;
+  const list = saved.map((o) => {
+    const legacy = o.code ? LEGACY_CODE_VALUES[o.code.toUpperCase()] : undefined;
+    return legacy && !(o.pctOff || o.amountOff || o.freeItemId) ? { ...o, ...legacy } : o;
+  });
+  return !v2 && !list.some((o) => o.code?.toUpperCase() === "WELCOME10") ? [...list, WELCOME10] : list;
+};
+export const setOffers = async (v: Offer[]) => { await setJson("offers", v); await setJson("offersV2", true); };
 
 /* ---- Wheel prizes ---- */
 export const getWheelPrizes = () => getJson<WheelPrize[]>("wheelPrizes", WHEEL_PRIZES);

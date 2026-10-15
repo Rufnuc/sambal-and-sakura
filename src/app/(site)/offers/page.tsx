@@ -26,7 +26,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
   const { tab } = await searchParams;
   const initialTab: Tab = tab === "wheel" || tab === "refer" ? tab : "offers";
   const [rawOffers, prizes, referral, promos, menu] = await Promise.all([getOffers(), getWheelPrizes(), getReferralConfig(), getPromotions(), getEffectiveMenu()]);
-  const offers = rawOffers.map((o) => ({ ...o, gives: describeCode(o, menu) }));
+  const offers = rawOffers.filter((o) => !o.hidden).map((o) => ({ ...o, gives: describeCode(o, menu) })); // hidden codes stay private
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">

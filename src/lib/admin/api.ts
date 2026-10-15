@@ -184,7 +184,7 @@ export interface ReferralCfg { enabled: boolean; give: number; get: number; minS
 export interface ZoneCfg { id: string; label: string; postcodes: string[]; fee: number; etaMins: number }
 export interface OfferCfg {
   id: string; title: string; description: string; code?: string; badge?: string; terms: string; kind: string;
-  pctOff?: number; amountOff?: number; freeItemId?: string; minSpend?: number; firstOrderOnly?: boolean; oncePerCustomer?: boolean;
+  pctOff?: number; amountOff?: number; freeItemId?: string; minSpend?: number; firstOrderOnly?: boolean; oncePerCustomer?: boolean; hidden?: boolean;
 }
 export interface WheelPrizeCfg { id: string; label: string; kind: string; weight: number; color: string; amount?: number }
 export interface JobCfg { id: string; title: string; type: string; location: string; summary: string; description: string; active: boolean }

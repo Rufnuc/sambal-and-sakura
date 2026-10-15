@@ -89,6 +89,7 @@ export const LEGACY_CODE_VALUES: Record<string, Pick<Offer, "pctOff" | "amountOf
   SAKURA10: { pctOff: 10, minSpend: 12, firstOrderOnly: true },
   FAMILY52: { amountOff: 8, minSpend: 52 },
   FREEGYOZA: { freeItemId: "chicken-gyoza", minSpend: 25 },
+  WELCOME10: { pctOff: 10, minSpend: 12, firstOrderOnly: true },
 };
 
 /** The checkout voucher for a public offer code, from the live offers list (null if no offer has it). */

@@ -88,6 +88,7 @@ How sending is protected: each order/booking email is sent once only; if Brevo f
 
 ### Offer codes
 - **Admin → Promotions → Offers & vouchers**: give an offer a code (letters, numbers, dashes) and choose what it gives - **% off**, **£ off** or **a free dish** - plus an optional minimum food spend, **First order only** (one first-order offer per customer) or **Once per customer** (by phone number). Checkout applies exactly that, and the Offers page shows it under the code (e.g. "15% off · food £20+ · once per customer").
+- **Hidden from Offers page**: the code still works at checkout but isn't advertised - for flyers, emails or staff to hand out. **WELCOME10** is set up this way: 10% off a first-time customer's first order (food £12+); change or remove it like any other offer.
 - Remove an offer, or its code, and the code stops working straight away. Codes only work while Offers is switched on under Campaigns.
 - The site refuses settings that wouldn't work: a code with nothing (or two things) to give, two offers with the same code, £ off bigger than the minimum spend, or a dish that isn't on the menu.
 

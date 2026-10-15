@@ -49,11 +49,12 @@ export const offersSchema = z.array(z.object({
   minSpend: z.number().min(0).max(500).refine(pence, "Use pounds and pence, e.g. 20 or 12.50.").optional(),
   firstOrderOnly: z.boolean().optional(),
   oncePerCustomer: z.boolean().optional(),
+  hidden: z.boolean().optional(),
 }).strict()
   .transform((o) => {
     const code = o.code || undefined;
     // No code: nothing to redeem, so drop any code settings.
-    if (!code) return { ...o, code, pctOff: undefined, amountOff: undefined, freeItemId: undefined, minSpend: undefined, firstOrderOnly: undefined, oncePerCustomer: undefined };
+    if (!code) return { ...o, code, pctOff: undefined, amountOff: undefined, freeItemId: undefined, minSpend: undefined, firstOrderOnly: undefined, oncePerCustomer: undefined, hidden: undefined };
     return { ...o, code };
   })
   .superRefine((o, ctx) => {

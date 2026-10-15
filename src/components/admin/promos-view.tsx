@@ -60,7 +60,7 @@ export function PromosView() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Offers" value={String(offers.length)} accent="gold" />
+        <StatCard label="Offers" value={String(offers.filter((o) => !o.hidden).length)} sub={offers.some((o) => o.hidden) ? `+ ${offers.filter((o) => o.hidden).length} hidden code${offers.filter((o) => o.hidden).length === 1 ? "" : "s"}` : undefined} accent="gold" />
         <StatCard label="Orders w/ discount" value={String(discountedOrders)} accent="jade" />
         <StatCard label="Wheel spins" value={String(spins)} sub="last 14 days" accent="sakura" />
         <StatCard label="Referral" value={`${gbpShort(referral.give)}/${gbpShort(referral.get)}`} sub={promotions.referral.enabled ? "give / get" : "ended"} accent="sambal" />

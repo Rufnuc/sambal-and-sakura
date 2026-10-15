@@ -79,6 +79,7 @@ export interface Offer {
   minSpend?: number;      // food total needed (£)
   firstOrderOnly?: boolean;   // only for phones/accounts that haven't ordered before (one first-order offer per customer)
   oncePerCustomer?: boolean;  // each phone number can use it once
+  hidden?: boolean;           // code works but isn't shown on the Offers page (flyers, emails, staff)
 }
 export const OFFERS: Offer[] = [
   { id: "first10", title: "10% off your first direct order", description: "New here? Order on the website and save instantly.",
@@ -92,6 +93,9 @@ export const OFFERS: Offer[] = [
   { id: "freegyoza", title: "Free Chicken Gyoza over £25", description: "Spend £25+ direct and we'll add our signature gyoza.",
     code: "FREEGYOZA", badge: "Freebie", kind: "freebie", terms: "Auto-applied at checkout over £25. One per order.",
     freeItemId: "chicken-gyoza", minSpend: 25 },
+  { id: "welcome10", title: "10% off for first-time customers", description: "For flyers, emails and staff to hand out.",
+    code: "WELCOME10", kind: "first-order", terms: "Min spend £12. First order only.",
+    pctOff: 10, minSpend: 12, firstOrderOnly: true, hidden: true },
 ];
 
 export interface Testimonial {

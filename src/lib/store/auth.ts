@@ -10,6 +10,7 @@ export interface Reward {
   kind: "percent" | "voucher" | "freebie";
   amount?: number | null; source: string; used: boolean;
   createdAt: string; expiresAt: string;
+  active?: boolean; // usable right now (not used, not expired, campaign not ended)
 }
 export interface Account {
   id: string; name: string; email: string; phone: string;
@@ -47,7 +48,7 @@ interface AuthState {
   rewards: Reward[];
   loaded: boolean;
   refresh: () => Promise<void>;
-  register: (name: string, email: string, phone: string, password: string, turnstileToken?: string, marketingOptIn?: boolean, locale?: string) => Promise<Result>;
+  register: (name: string, email: string, phone: string, password: string, turnstileToken?: string, marketingOptIn?: boolean, locale?: string, referralCode?: string) => Promise<Result>;
   login: (email: string, password: string) => Promise<Result>;
   reactivate: (email: string, password: string) => Promise<Result>;
   logout: (everywhere?: boolean) => Promise<void>;
@@ -80,8 +81,8 @@ export const useAuth = create<AuthState>()((set, get) => ({
     }
   },
 
-  register: async (name, email, phone, password, turnstileToken, marketingOptIn = false, locale = "en") => {
-    const { res, data } = await postJson("/api/auth/register", { name, email, phone, password, marketingOptIn, locale, turnstileToken: turnstileToken || undefined });
+  register: async (name, email, phone, password, turnstileToken, marketingOptIn = false, locale = "en", referralCode) => {
+    const { res, data } = await postJson("/api/auth/register", { name, email, phone, password, marketingOptIn, locale, turnstileToken: turnstileToken || undefined, referralCode: referralCode?.trim() || undefined });
     if (!res.ok) return { ok: false, error: data.error };
     await get().refresh();
     return { ok: true };

@@ -23,6 +23,10 @@ import { cn } from "@/lib/utils";
 interface ApiOrder { id: string; fulfilment: string; status: string; total: number; createdAt: string; lines: { qty: number }[] }
 interface ApiBooking { id: string; date: string; time: string; party: number; status: string; occasion?: string | null }
 
+const SOURCE_LABEL: Record<string, string> = {
+  welcome: "welcome offer", wheel: "Fortune Wheel", loyalty: "points", referral: "for referring a friend", "referral-welcome": "from your friend's referral",
+};
+
 export default function AccountPage() {
   const { user, loaded } = useAuth();
   if (!loaded) return <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6"><h1 className="sr-only">Your account</h1><div className="h-80 animate-pulse rounded-2xl bg-muted" /></div>;
@@ -70,7 +74,7 @@ function Dashboard() {
   if (!user) return null;
   const { current, next } = tierFor(user.points);
   const progress = next ? Math.min(100, ((user.points - current.min) / (next.min - current.min)) * 100) : 100;
-  const activeRewards = rewards.filter((r) => !r.used);
+  const activeRewards = rewards.filter((r) => r.active ?? !r.used); // the server leaves out expired ones and ended campaigns
   const canRedeem = user.points >= LOYALTY.redeemStep;
 
   async function redeem() {
@@ -139,7 +143,7 @@ function Dashboard() {
                 <li key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
                   <div className="min-w-0">
                     <p className="font-medium">{r.label}</p>
-                    <p className="text-xs text-muted-foreground">Expires {new Date(r.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · from {r.source}</p>
+                    <p className="text-xs text-muted-foreground">Expires {new Date(r.expiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} · {SOURCE_LABEL[r.source] ?? r.source}</p>
                   </div>
                   <CopyCode code={r.code} />
                 </li>
@@ -147,6 +151,7 @@ function Dashboard() {
             </ul>
           )}
           {rewards.some((r) => r.used) && <p className="mt-3 text-xs text-muted-foreground">{rewards.filter((r) => r.used).length} reward(s) used.</p>}
+          <p className="mt-3 text-sm"><Link href="/offers?tab=refer" className="font-medium text-gold-ink hover:underline">Refer a friend</Link> <span className="text-muted-foreground">- you both get money off.</span></p>
         </Card>
 
         <SecurityCard onSignOutEverywhere={() => logout(true)} />

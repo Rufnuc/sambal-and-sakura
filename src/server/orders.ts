@@ -2,9 +2,9 @@ import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getBlackouts, getDisabledZones, getOrdersPaused } from "@/server/settings";
-import { getEffectiveMenu, getZones, getMaxMiles } from "@/server/config";
+import { getEffectiveMenu, getZones, getMaxMiles, getOffers } from "@/server/config";
 import { getSiteContent } from "@/server/site-content";
-import { computeTotals, globalVoucher, isValidPostcodeServer, LOYALTY_POINTS_PER_POUND, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
+import { computeTotals, offerVoucher, isValidPostcodeServer, LOYALTY_POINTS_PER_POUND, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
 import { orderTiming, checkWhen, type OrderTiming } from "@/server/order-time";
 import { phoneKey, canonicalPhone } from "@/server/phone";
 import { orderRef, withFreshIds, isUniqueViolation } from "@/server/ids";
@@ -14,8 +14,10 @@ import { log, alertOwner } from "@/server/log";
 import { noteOrderActivity } from "@/server/activity";
 import { notifyOrder } from "@/server/notify";
 import { getCancelPolicy, countCancellations, customerCanCancel } from "@/server/cancellations";
+import { rewardReferrerIfQualified, emailReferralReward } from "@/server/referrals";
+import { getPromotions, rewardUsableUntil, type Promotions } from "@/server/promotions";
 import { printCancellation } from "@/server/print";
-import { ORDERING } from "@/lib/data/site";
+import { ORDERING, type Offer } from "@/lib/data/site";
 
 export class OrderError extends Error {
   status: number;
@@ -67,26 +69,30 @@ export interface Quote extends Omit<Totals, "zone"> {
 interface Resolved { quote: Quote; voucher: Voucher | null; ownedRewardId: string | null }
 
 /** Find the voucher: one of the signed-in customer's own rewards, or a public offer code. */
-async function resolveVoucher(code: string | undefined, user: User | null): Promise<{ voucher: Voucher | null; ownedRewardId: string | null; error: string | null }> {
+async function resolveVoucher(code: string | undefined, user: User | null, promos: Promotions, offers: Offer[]): Promise<{ voucher: Voucher | null; ownedRewardId: string | null; error: string | null }> {
   const c = code?.toUpperCase().trim();
   if (!c) return { voucher: null, ownedRewardId: null, error: null };
   if (user) {
     const reward = await prisma.reward.findFirst({ where: { userId: user.id, code: c, used: false, expiresAt: { gt: new Date() } } });
+    // A switched-off campaign's rewards work only until its grace period ends.
+    if (reward && rewardUsableUntil(reward, promos) <= new Date()) return { voucher: null, ownedRewardId: null, error: "That reward's campaign has ended, so it can no longer be used." };
     if (reward) {
-      const welcome = reward.source === "welcome";
+      // The welcome reward and a referred friend's reward are first-order offers: one per customer
+      // (by phone), so they can't be stacked with each other or with SAKURA10.
+      const welcome = reward.source === "welcome" || reward.source === "referral-welcome";
       return {
         ownedRewardId: reward.id, error: null,
         voucher: {
-          code: c, label: reward.label, minSpend: 0,
+          code: c, label: reward.label, minSpend: reward.minSpend ?? 0,
           pctOff: reward.kind === "percent" ? reward.amount ?? undefined : undefined,
           amountOff: reward.kind === "voucher" ? reward.amount ?? undefined : undefined,
-          // The welcome reward is a first-order offer: one per customer (by phone), like SAKURA10.
           ...(welcome ? { firstOrderOnly: true, onePerCustomer: "first-order" } : {}),
         },
       };
     }
   }
-  const v = globalVoucher(c);
+  const v = offerVoucher(c, offers); // the owner's live offers (Admin → Promotions)
+  if (v && !promos.offers.enabled) return { voucher: null, ownedRewardId: null, error: "That offer has ended for now." };
   return v ? { voucher: v, ownedRewardId: null, error: null } : { voucher: null, ownedRewardId: null, error: "That voucher code isn't valid." };
 }
 
@@ -110,17 +116,17 @@ async function voucherProblem(v: Voucher, phone: string | undefined, user: User 
 
 /** Price an order exactly as checkout will charge it (the single source of truth for the UI). */
 export async function buildQuote(input: QuoteInput, user: User | null): Promise<Resolved> {
-  const [disabledZones, menu, zones, blackouts, paused, site] = await Promise.all([
-    getDisabledZones(), getEffectiveMenu(), getZones(), getBlackouts(), getOrdersPaused(), getSiteContent(),
+  const [disabledZones, menu, zones, blackouts, paused, site, promos, offers] = await Promise.all([
+    getDisabledZones(), getEffectiveMenu(), getZones(), getBlackouts(), getOrdersPaused(), getSiteContent(), getPromotions(), getOffers(),
   ]);
-  const r = await resolveVoucher(input.voucherCode, user);
+  const r = await resolveVoucher(input.voucherCode, user, promos, offers);
   let voucherError = r.error;
   let voucher = r.voucher;
   if (voucher) {
     const problem = await voucherProblem(voucher, input.phone, user);
     if (problem) { voucherError = problem; voucher = null; }
   }
-  const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, disabledZones, menu, zones });
+  const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, disabledZones, menu, zones, autoFreeItem: promos.offers.enabled });
   const leadHours = Math.max(0, ...input.lines.map((l) => menu.find((m) => m.id === l.itemId)?.leadTimeHours ?? 0));
   const timing = orderTiming({ hours: site.business.hours, blackouts, leadHours, paused });
   const v = voucher ?? null;
@@ -317,7 +323,11 @@ export async function changeOrderStatus(orderId: string, to: string, actor: Audi
     });
     if (moved.count !== 1) throw new OrderError("Someone else just updated this order. Refresh and try again.", 409);
 
-    if (to === "completed") await confirmOrderPoints(tx, orderId, order.userId);
+    let referralRewarded: string | null = null;
+    if (to === "completed") {
+      await confirmOrderPoints(tx, orderId, order.userId);
+      referralRewarded = await rewardReferrerIfQualified(tx, order); // their friend's first completed order
+    }
     if (to === "cancelled") {
       await reverseOrderPoints(tx, orderId, order.userId);
       await tx.reward.updateMany({ where: { orderId }, data: { used: false, usedAt: null, orderId: null } });
@@ -328,9 +338,10 @@ export async function changeOrderStatus(orderId: string, to: string, actor: Audi
     if (to === "cancelled" && order.paymentStatus === "paid") {
       void alertOwner(`refund:${orderId}`, `Order ${orderId} was cancelled but was paid by WeChat (£${order.total.toFixed(2)}). Refund it in the WeChat Pay merchant platform.`);
     }
-    return { updated: await tx.order.findUnique({ where: { id: orderId }, include: { lines: true } }), before: order };
-  }).then(({ updated, before }) => {
+    return { updated: await tx.order.findUnique({ where: { id: orderId }, include: { lines: true } }), before: order, referralRewarded };
+  }).then(({ updated, before, referralRewarded }) => {
     notifyOrder(orderId, to);
+    if (referralRewarded) void emailReferralReward(referralRewarded);
     // The kitchen may already be cooking: print a STOP ticket for any cancelled order that was sent to the kitchen.
     if (to === "cancelled" && ["printed", "pending", "failed"].includes(before.printStatus) && (before.paymentMethod !== "wechat" || before.paymentStatus === "paid")) {
       void printCancellation(orderId);

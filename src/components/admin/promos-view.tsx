@@ -7,30 +7,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SectionCard, StatCard } from "@/components/admin/ui";
-import { fetchConfig, saveConfig, type ReferralCfg, type OfferCfg, type WheelPrizeCfg, type DealCfg } from "@/lib/admin/api";
+import { fetchConfig, saveConfig, type PromotionsCfg, type ReferralCfg, type OfferCfg, type WheelPrizeCfg, type DealCfg } from "@/lib/admin/api";
 import { fetchStats, fetchAnalytics } from "@/lib/admin/api";
 import { EmailCampaigns } from "@/components/admin/email-campaigns";
+import { ReferralsList } from "@/components/admin/referrals-list";
+import { CampaignsCard } from "@/components/admin/campaigns-card";
+import { OfferCodeSettings } from "@/components/admin/offer-code-settings";
 import { cn } from "@/lib/utils";
+import { gbpShort } from "@/lib/format";
 
 export function PromosView() {
-  const [referral, setReferral] = useState<ReferralCfg>({ give: 5, get: 5, minSpend: 20, maxPerUser: 10 });
+  const [referral, setReferral] = useState<ReferralCfg>({ enabled: true, give: 5, get: 5, minSpend: 20, maxPerUser: 10 });
   const [offers, setOffers] = useState<OfferCfg[]>([]);
   const [prizes, setPrizes] = useState<WheelPrizeCfg[]>([]);
   const [deal, setDeal] = useState<DealCfg>({ active: false, title: "", description: "", badge: "Deal of the Day" });
   const [discountedOrders, setDiscountedOrders] = useState(0);
   const [spins, setSpins] = useState(0);
   const [ready, setReady] = useState(false);
+  const [promotions, setPromotions] = useState<PromotionsCfg | null>(null);
 
   useEffect(() => {
     Promise.all([fetchConfig(), fetchStats(), fetchAnalytics(14)]).then(([c, stats, analytics]) => {
-      setReferral(c.referral); setOffers(c.offers); setPrizes(c.wheelPrizes); setDeal(c.deal);
+      setReferral(c.referral); setOffers(c.offers); setPrizes(c.wheelPrizes); setDeal(c.deal); setPromotions(c.promotions);
       setDiscountedOrders(stats ? Math.round((stats.kpis.voucherRedemptionPct / 100) * stats.kpis.orders) : 0);
       setSpins(analytics?.counts.spin_wheel_played ?? 0);
       setReady(true);
     });
   }, []);
 
-  if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
+  if (!ready || !promotions) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
 
   const totalWeight = prizes.reduce((n, p) => n + p.weight, 0) || 1;
 
@@ -51,15 +56,17 @@ export function PromosView() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-extrabold tracking-tight">Promotions</h1>
-        <p className="text-muted-foreground">Edit offers, the Fortune Wheel and referral rewards</p>
+        <p className="text-muted-foreground">Switch campaigns on or off, and edit offers, the Fortune Wheel and referral rewards</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Offers" value={String(offers.length)} accent="gold" />
         <StatCard label="Orders w/ discount" value={String(discountedOrders)} accent="jade" />
         <StatCard label="Wheel spins" value={String(spins)} sub="last 14 days" accent="sakura" />
-        <StatCard label="Referral" value={`£${referral.give}/£${referral.get}`} sub="give / get" accent="sambal" />
+        <StatCard label="Referral" value={`${gbpShort(referral.give)}/${gbpShort(referral.get)}`} sub={promotions.referral.enabled ? "give / get" : "ended"} accent="sambal" />
       </div>
+
+      <CampaignsCard initial={promotions} onSaved={(p) => { setPromotions(p); setReferral({ ...referral, enabled: p.referral.enabled }); }} />
 
       <EmailCampaigns />
 
@@ -81,8 +88,9 @@ export function PromosView() {
       </SectionCard>
 
       <SectionCard title="Referral programme" action={<Button size="sm" className="h-9 gap-1.5" onClick={saveReferral}><Save className="size-4" /> Save</Button>}>
+        {!promotions.referral.enabled && <p className="mb-3 rounded-lg bg-sambal/10 px-3 py-2 text-xs text-sambal">Refer a friend is switched off under Campaigns, so customers don&apos;t see it right now.</p>}
         <p className="mb-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-          Not live yet: the referral page is hidden from customers until referral rewards are paid out automatically. These settings are kept ready for then.
+          A new customer who signs up with a friend&apos;s code gets the friend reward on their first order (food at least the min spend). The referrer gets their reward only when that first order of at least the min spend is <b>completed</b>, from a different phone and address. Both expire after 90 days. &quot;Max per customer&quot; 0 means no limit.
         </p>
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sambal/10 text-sambal"><Gift className="size-5" /></span>
@@ -93,6 +101,14 @@ export function PromosView() {
             <div><Label className="text-xs">Max per customer</Label><Input type="number" value={referral.maxPerUser} onChange={(e) => setReferral({ ...referral, maxPerUser: Number(e.target.value) })} className="mt-1 h-10" inputMode="numeric" /></div>
           </div>
         </div>
+        <div className="mt-4 rounded-lg border border-dashed border-border p-3 text-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Customers will see</p>
+          <p className="mt-1">Friend: <b>{gbpShort(referral.give || 0)} off</b> their first order (food {gbpShort(referral.minSpend || 0)}+).</p>
+          <p>You: <b>{gbpShort(referral.get || 0)} off</b> your next order when their first {gbpShort(referral.minSpend || 0)}+ order is completed.</p>
+          <p className="mt-2 text-xs text-muted-foreground">After you press Save this updates everywhere straight away: the Offers page, the friend&apos;s banner and sign-up form, share messages, new rewards and the reward email. Rewards already given out keep the amount they were issued with.</p>
+        </div>
+        <h3 className="mt-6 mb-2 text-sm font-semibold">Referrals</h3>
+        <ReferralsList />
       </SectionCard>
 
       {/* Offers */}
@@ -102,14 +118,19 @@ export function PromosView() {
             <div key={o.id} className="grid grid-cols-1 gap-2 rounded-xl border border-border p-3 sm:grid-cols-[1.3fr_2fr_0.8fr_0.8fr_auto] sm:items-end">
               <div><Label className="text-xs">Title</Label><Input value={o.title} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, title: e.target.value } : x))} className="mt-1 h-10" /></div>
               <div><Label className="text-xs">Description</Label><Input value={o.description} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, description: e.target.value } : x))} className="mt-1 h-10" /></div>
-              <div><Label className="text-xs">Code</Label><Input value={o.code ?? ""} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, code: e.target.value.toUpperCase() } : x))} className="mt-1 h-10" /></div>
+              <div><Label className="text-xs">Code</Label><Input value={o.code ?? ""} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""), ...(!x.pctOff && !x.amountOff && !x.freeItemId ? { pctOff: 10 } : {}) } : x))} className="mt-1 h-10" /></div>
               <div><Label className="text-xs">Badge</Label><Input value={o.badge ?? ""} onChange={(e) => setOffers((os) => os.map((x, idx) => idx === i ? { ...x, badge: e.target.value } : x))} className="mt-1 h-10" /></div>
               <button aria-label="Remove offer" onClick={() => setOffers((os) => os.filter((_, idx) => idx !== i))} className="flex size-10 items-center justify-center rounded-lg text-muted-foreground hover:text-sambal"><Trash2 className="size-4" /></button>
+              {o.code?.trim() && (
+                <div className="sm:col-span-5">
+                  <OfferCodeSettings offer={o} onChange={(next) => setOffers((os) => os.map((x, idx) => idx === i ? next : x))} />
+                </div>
+              )}
             </div>
           ))}
         </div>
         <Button variant="outline" className="mt-3 h-10 gap-1.5" onClick={addOffer}><Plus className="size-4" /> Add offer</Button>
-        <p className="mt-2 text-xs text-muted-foreground">Note: discount amounts for voucher codes are set in server pricing; these cards control what customers see on the Offers page.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Give an offer a code and choose what it gives: checkout applies exactly that, and the Offers page shows it under the code. Remove an offer (or its code) and the code stops working. Codes only work while Offers is switched on under Campaigns.</p>
       </SectionCard>
 
       {/* Wheel */}

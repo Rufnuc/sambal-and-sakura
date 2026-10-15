@@ -10,6 +10,8 @@ import { useAuth } from "@/lib/store/auth";
 import { Turnstile } from "@/components/turnstile";
 import { useLocale } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { storedRef, clearRef } from "@/lib/referral-ref";
+import { gbpShort } from "@/lib/format";
 
 export function AuthDialog({
   open, onOpenChange, defaultMode = "signin",
@@ -31,23 +33,30 @@ export function AuthDialog({
   const [siteKey, setSiteKey] = useState<string | null>(null);
   const [humanToken, setHumanToken] = useState("");
   const [resetKey, setResetKey] = useState(0);
+  const [referral, setReferral] = useState<{ give: number; minSpend: number } | null>(null); // null = referrals off
+  const [refCode, setRefCode] = useState("");
 
   // The bot check (only shown when it's switched on) protects sign-up from mass fake accounts.
   useEffect(() => {
     if (!open) return;
-    fetch("/api/public-config").then((r) => r.json()).then((d) => setSiteKey(d.turnstileSiteKey ?? null)).catch(() => {});
+    fetch("/api/public-config").then((r) => r.json()).then((d) => {
+      setSiteKey(d.turnstileSiteKey ?? null);
+      setReferral(d.referral ?? null);
+      setRefCode((c) => c || storedRef()); // a friend's code from their link
+    }).catch(() => {});
   }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === "signup" && siteKey && !humanToken) { toast.error("Please complete the security check."); return; }
     setBusy(true);
-    const res = mode === "signin" ? await login(email, password) : await register(name, email, phone, password, humanToken, offers, locale);
+    const res = mode === "signin" ? await login(email, password) : await register(name, email, phone, password, humanToken, offers, locale, referral ? refCode : undefined);
     setBusy(false);
     if (res.deactivated && res.reactivateBy) { setReactivateBy(res.reactivateBy); return; }
     if (mode === "signup" && !res.ok) { setHumanToken(""); setResetKey((n) => n + 1); }
     if (res.ok) {
-      toast.success(mode === "signin" ? "Welcome back!" : "Account created - welcome! Your 50 bonus points unlock with your first completed order.");
+      if (mode === "signup") clearRef();
+      toast.success(mode === "signin" ? "Welcome back!" : referral && refCode ? `Account created - your friend's ${gbpShort(referral.give)} off is in your rewards (food ${gbpShort(referral.minSpend)}+, first order).` : "Account created - welcome! Your 50 bonus points unlock with your first completed order.");
       onOpenChange(false);
       setName(""); setEmail(""); setPhone(""); setPassword("");
     } else {
@@ -104,6 +113,13 @@ export function AuthDialog({
             <Input id="au-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required />
             {mode === "signup" && <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>}
           </div>
+          {mode === "signup" && referral && (
+            <div>
+              <Label htmlFor="au-ref">Friend&apos;s referral code <span className="font-normal text-muted-foreground">(optional)</span></Label>
+              <Input id="au-ref" value={refCode} onChange={(e) => setRefCode(e.target.value.toUpperCase())} className="mt-1.5 h-11 font-mono uppercase" autoComplete="off" maxLength={20} placeholder="e.g. MEIL-7Q2K" />
+              {refCode && <p className="mt-1 text-xs text-muted-foreground">You get {gbpShort(referral.give)} off your first order (food {gbpShort(referral.minSpend)}+).</p>}
+            </div>
+          )}
           {mode === "signup" && (
             <label className="flex items-start gap-2 text-sm text-muted-foreground">
               <input type="checkbox" checked={offers} onChange={(e) => setOffers(e.target.checked)} className="mt-0.5 size-4 accent-current" />

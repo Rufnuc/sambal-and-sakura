@@ -37,6 +37,8 @@ model User {
   sessions      Session[]
   pointsEntries PointsEntry[]
   wheel         WheelState?
+  referralsMade Referral[]  @relation("referralsMade")
+  referredBy    Referral?   @relation("referredBy")
 }
 
 model Session {
@@ -150,7 +152,8 @@ model Reward {
   code      String    @unique
   kind      String    // percent | voucher | freebie
   amount    Float?
-  source    String    // welcome | wheel | referral | loyalty
+  minSpend  Float?    // food total needed before it applies (referral rewards)
+  source    String    // welcome | wheel | referral (referrer) | referral-welcome (new friend) | loyalty
   used      Boolean   @default(false)
   usedAt    DateTime?
   orderId   String?   // the order that used it
@@ -310,3 +313,26 @@ model CampaignRecipient {
   @@index([userId])
 }
 
+
+// "Refer a friend". Created when a new customer signs up with someone's code (the friend gets their
+// reward straight away, usable on a first order only). The referrer is rewarded only when the friend's
+// first COMPLETED order reaches the minimum spend, from a different phone and address.
+model Referral {
+  id              String    @id @default(cuid())
+  referrerId      String
+  referrer        User      @relation("referralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  refereeId       String    @unique // a customer can only ever be referred once
+  referee         User      @relation("referredBy", fields: [refereeId], references: [id], onDelete: Cascade)
+  code            String    // the code they used
+  refereePhoneKey String    // one referral per phone number, even across accounts
+  status          String    @default("pending") // pending | rewarded | void
+  orderId         String?   // the friend's qualifying order
+  rewardId        String?   // the referrer's reward
+  voidReason      String?
+  createdAt       DateTime  @default(now())
+  rewardedAt      DateTime?
+
+  @@index([referrerId, status])
+  @@index([refereePhoneKey])
+  @@index([orderId])
+}

@@ -180,9 +180,12 @@ export async function saveSettings(patch: { blackouts?: string[]; disabledZones?
 }
 
 /* ---- Editable config ---- */
-export interface ReferralCfg { give: number; get: number; minSpend: number; maxPerUser: number }
+export interface ReferralCfg { enabled: boolean; give: number; get: number; minSpend: number; maxPerUser: number }
 export interface ZoneCfg { id: string; label: string; postcodes: string[]; fee: number; etaMins: number }
-export interface OfferCfg { id: string; title: string; description: string; code?: string; badge?: string; terms: string; kind: string }
+export interface OfferCfg {
+  id: string; title: string; description: string; code?: string; badge?: string; terms: string; kind: string;
+  pctOff?: number; amountOff?: number; freeItemId?: string; minSpend?: number; firstOrderOnly?: boolean; oncePerCustomer?: boolean;
+}
 export interface WheelPrizeCfg { id: string; label: string; kind: string; weight: number; color: string; amount?: number }
 export interface JobCfg { id: string; title: string; type: string; location: string; summary: string; description: string; active: boolean }
 export interface DealCfg { active: boolean; title: string; description: string; itemId?: string; price?: number; badge: string }
@@ -190,7 +193,11 @@ export interface AdminConfig {
   referral: ReferralCfg; zones: ZoneCfg[]; offers: OfferCfg[];
   wheelPrizes: WheelPrizeCfg[]; menuOverrides: Record<string, MenuOverrideCfg>;
   careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent; siteVersion: string;
+  promotions: PromotionsCfg;
 }
+export type PromoKey = "offers" | "wheel" | "referral";
+export interface PromoCfg { enabled: boolean; message: string; graceDays: number; pausedAt?: string | null }
+export type PromotionsCfg = Record<PromoKey, PromoCfg>;
 export interface MenuOverrideCfg {
   name?: string; price?: number; soldOut?: boolean;
   image?: string; category?: string; leadTimeHours?: number; description?: string; aiNotes?: string;
@@ -346,4 +353,20 @@ export async function fetchCancelPolicy(): Promise<CancelPolicy | null> {
 }
 export async function saveCancelPolicy(p: CancelPolicy) {
   return jsonOrError(await fetch("/api/admin/cancel-policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) }));
+}
+
+/* ---- Referrals ---- */
+export interface ReferralRow {
+  id: string; code: string; status: "pending" | "rewarded" | "void"; orderId: string | null; voidReason: string | null;
+  createdAt: string; rewardedAt: string | null;
+  referrer: { name: string; email: string }; referee: { name: string; email: string };
+}
+export async function fetchReferrals(): Promise<ReferralRow[]> {
+  const res = await fetch("/api/admin/referrals", { cache: "no-store" });
+  return res.ok ? (await res.json()).referrals : [];
+}
+export async function voidReferralApi(id: string, reason: string): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch("/api/admin/referrals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "void", reason }) });
+  const d = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true } : { ok: false, error: d.error ?? "Couldn't void it." };
 }

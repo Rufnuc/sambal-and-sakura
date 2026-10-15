@@ -5,6 +5,7 @@ import { currentUser } from "@/server/auth";
 import { getWheelPrizes } from "@/server/config";
 import { rewardCode, isUniqueViolation, withFreshIds } from "@/server/ids";
 import { log } from "@/server/log";
+import { getPromotions } from "@/server/promotions";
 import type { WheelPrize } from "@/lib/data/site";
 
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
@@ -45,6 +46,8 @@ async function claimSpin(userId: string): Promise<boolean> {
 export async function POST() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Sign in to spin." }, { status: 401 });
+  const promos = await getPromotions();
+  if (!promos.wheel.enabled) return NextResponse.json({ error: promos.wheel.message, paused: true }, { status: 403 });
 
   // Spins unlock with a real order, so creating accounts alone earns nothing.
   const ordered = await prisma.order.count({ where: { userId: user.id, status: { not: "cancelled" } } });

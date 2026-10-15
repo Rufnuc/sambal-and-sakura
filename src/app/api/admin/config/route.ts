@@ -22,16 +22,17 @@ import {
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
 import { clientIp } from "@/server/rate-limit";
+import { getPromotions, setPromotions, promotionsSchema, type PromotionsInput } from "@/server/promotions";
 
 // Owner-only: prices, menu, offers, wheel, careers, zones and site content.
 export async function GET() {
   if (!(await adminUser())) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const [referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site] = await Promise.all([
+  const [referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, promotions] = await Promise.all([
     getReferralConfig(), getZones(), getOffers(), getWheelPrizes(), getMenuOverrides(),
-    getCareers(), getDeal(), getMaxMiles(), getSiteContent(),
+    getCareers(), getDeal(), getMaxMiles(), getSiteContent(), getPromotions(),
   ]);
   const siteVersion = await getSiteContentVersion();
-  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion });
+  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions });
 }
 
 type Block = { key: string; label: string; schema: z.ZodType; save: (v: never) => Promise<void> };
@@ -43,6 +44,7 @@ const BLOCKS: Block[] = [
   { key: "menuOverrides", label: "Menu", schema: menuOverridesSchema, save: (v: MenuOverrides) => setMenuOverrides(v) },
   { key: "careers", label: "Careers", schema: careersSchema, save: (v: JobPosting[]) => setCareers(v) },
   { key: "deal", label: "Deal of the Day", schema: dealSchema, save: (v: DealOfDay) => setDeal(v) },
+  { key: "promotions", label: "Campaigns", schema: promotionsSchema, save: async (v: PromotionsInput) => { await setPromotions(v); } },
 ] as Block[];
 
 export async function PUT(req: Request) {

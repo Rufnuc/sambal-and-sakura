@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MENU } from "@/lib/data/menu";
-import { zText } from "@/server/sanitize";
+import { zText, zCode } from "@/server/sanitize";
 
 // Strict shapes for everything the owner can save in Admin → config. Anything else is rejected
 // with a readable message instead of being stored as-is.
@@ -34,10 +34,44 @@ export const zonesSchema = z.array(z.object({
   fee: z.number().finite().min(0).max(50), etaMins: z.number().int().min(0).max(180),
 })).max(50);
 
+const pence = (n: number) => Math.round(n * 100) === n * 100;
+const MENU_ITEM_IDS = MENU_IDS;
+
+// An offer's code works at checkout exactly as set here, so it's checked strictly: a code must say what it
+// gives (one of % off, £ off or a free dish), amounts must make sense, and no two offers may share a code.
 export const offersSchema = z.array(z.object({
-  id: text(40, 1), title: text(120, 1), description: text(400), code: text(40).optional(),
+  id: text(40, 1), title: text(120, 1), description: text(400),
+  code: zCode(20).optional(),
   badge: text(40).optional(), terms: text(400), kind: z.enum(["percent", "freebie", "bundle", "first-order"]),
-}).strict()).max(30);
+  pctOff: z.number().int("Use a whole number for % off.").min(1).max(50).optional(),
+  amountOff: z.number().min(0.5).max(100).refine(pence, "Use pounds and pence, e.g. 5 or 2.50.").optional(),
+  freeItemId: z.string().refine((id) => MENU_ITEM_IDS.has(id), "Pick a dish from the menu.").optional(),
+  minSpend: z.number().min(0).max(500).refine(pence, "Use pounds and pence, e.g. 20 or 12.50.").optional(),
+  firstOrderOnly: z.boolean().optional(),
+  oncePerCustomer: z.boolean().optional(),
+}).strict()
+  .transform((o) => {
+    const code = o.code || undefined;
+    // No code: nothing to redeem, so drop any code settings.
+    if (!code) return { ...o, code, pctOff: undefined, amountOff: undefined, freeItemId: undefined, minSpend: undefined, firstOrderOnly: undefined, oncePerCustomer: undefined };
+    return { ...o, code };
+  })
+  .superRefine((o, ctx) => {
+    if (!o.code) return;
+    const gives = [o.pctOff, o.amountOff, o.freeItemId].filter((v) => v !== undefined).length;
+    if (gives !== 1) ctx.addIssue({ code: "custom", message: `"${o.title}": choose what the code ${o.code} gives - % off, £ off or a free dish (just one).` });
+    if (o.code.length < 3) ctx.addIssue({ code: "custom", message: `"${o.title}": codes need at least 3 letters or numbers.` });
+    if (o.amountOff !== undefined && (o.minSpend ?? 0) < o.amountOff) ctx.addIssue({ code: "custom", message: `"${o.title}": the minimum spend must be at least the £ off (otherwise food could be free).` });
+  }))
+  .max(30)
+  .superRefine((list, ctx) => {
+    const seen = new Set<string>();
+    for (const o of list) {
+      if (!o.code) continue;
+      if (seen.has(o.code)) ctx.addIssue({ code: "custom", message: `Two offers use the code ${o.code} - each code can only be used once.` });
+      seen.add(o.code);
+    }
+  });
 
 // The reward value is taken from the label ("15% off" → 15, "£5 next order" → 5) unless given,
 // so what the customer is shown is exactly what they get.
@@ -69,9 +103,14 @@ export const dealSchema = z.object({
 }).strict();
 
 export const referralSchema = z.object({
+  enabled: z.boolean().default(true), // ignored on save: the Campaigns switch decides
   give: z.number().min(0).max(100), get: z.number().min(0).max(100),
   minSpend: z.number().min(0).max(500), maxPerUser: z.number().int().min(0).max(1000),
-}).strict();
+}).strict()
+  // Amounts in pounds and pence only, and the friend's reward can't be more than the food they must buy.
+  .refine((r) => [r.give, r.get, r.minSpend].every((n) => Math.round(n * 100) === n * 100), "Use pounds and pence, e.g. 5 or 2.50.")
+  .refine((r) => r.give > 0 && r.get > 0, "Both rewards need to be more than £0 (to stop referrals, switch them off under Campaigns).")
+  .refine((r) => r.minSpend >= r.give, "The minimum spend must be at least the friend's reward (otherwise they could get food free).");
 
 /** First validation problem as a sentence the owner can act on. */
 export function firstIssue(e: z.ZodError, section: string): string {

@@ -1,6 +1,8 @@
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
 import { MENU, type MenuItem, type MenuCategory } from "@/lib/data/menu";
+import { getPromotions } from "@/server/promotions";
+import { LEGACY_CODE_VALUES } from "@/server/pricing";
 
 // Operator-editable config, stored as JSON Setting rows with static defaults.
 // Customer pages + server pricing read the EFFECTIVE values from here.
@@ -16,10 +18,17 @@ async function setJson(key: string, value: unknown): Promise<void> {
 }
 
 /* ---- Referral ---- */
-export interface ReferralConfig { give: number; get: number; minSpend: number; maxPerUser: number }
-export const DEFAULT_REFERRAL: ReferralConfig = { give: 5, get: 5, minSpend: 20, maxPerUser: 10 };
-export const getReferralConfig = () => getJson<ReferralConfig>("referral", DEFAULT_REFERRAL);
-export const setReferralConfig = (v: ReferralConfig) => setJson("referral", v);
+// enabled: read from the owner's Campaigns switch (server/promotions.ts). give: friend's £ off their first order (needs minSpend of food);
+// get: referrer's £ off, issued after the friend's first completed order of at least minSpend;
+// maxPerUser: most rewarded/pending referrals one customer can have (0 = no limit).
+export interface ReferralConfig { enabled: boolean; give: number; get: number; minSpend: number; maxPerUser: number }
+export const DEFAULT_REFERRAL: ReferralConfig = { enabled: true, give: 5, get: 5, minSpend: 20, maxPerUser: 10 };
+// Merged with the defaults: settings saved before the on/off switch existed have no `enabled`.
+export const getReferralConfig = async (): Promise<ReferralConfig> => {
+  const [saved, promos] = await Promise.all([getJson<Partial<ReferralConfig>>("referral", {}), getPromotions()]);
+  return { ...DEFAULT_REFERRAL, ...saved, enabled: promos.referral.enabled };
+};
+export const setReferralConfig = ({ enabled: _ignored, ...v }: ReferralConfig) => setJson("referral", v); // on/off lives in Campaigns
 
 /* ---- Delivery zones ---- */
 export interface ZoneConfig { id: string; label: string; postcodes: string[]; fee: number; etaMins: number }
@@ -27,7 +36,11 @@ export const getZones = () => getJson<ZoneConfig[]>("zones", ORDERING.deliveryZo
 export const setZones = (v: ZoneConfig[]) => setJson("zones", v);
 
 /* ---- Offers ---- */
-export const getOffers = () => getJson<Offer[]>("offers", OFFERS);
+// Offers saved before codes had their own settings get the original values for SAKURA10 / FAMILY52 / FREEGYOZA.
+export const getOffers = async (): Promise<Offer[]> => (await getJson<Offer[]>("offers", OFFERS)).map((o) => {
+  const legacy = o.code ? LEGACY_CODE_VALUES[o.code.toUpperCase()] : undefined;
+  return legacy && !(o.pctOff || o.amountOff || o.freeItemId) ? { ...o, ...legacy } : o;
+});
 export const setOffers = (v: Offer[]) => setJson("offers", v);
 
 /* ---- Wheel prizes ---- */

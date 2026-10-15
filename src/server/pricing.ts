@@ -1,3 +1,4 @@
+import type { Offer } from "@/lib/data/site";
 import { type MenuItem } from "@/lib/data/menu";
 import { ORDERING } from "@/lib/data/site";
 import type { ZoneConfig } from "@/server/config";
@@ -81,20 +82,31 @@ export interface Voucher {
   firstOrderOnly?: boolean;   // only if this phone / account has never ordered before
 }
 
-// Public offer codes. Limits are enforced on the server (see server/orders.ts), so it doesn't
-// matter that the codes are advertised on the Offers page.
-const VOUCHERS: Record<string, Voucher> = {
-  SAKURA10: { code: "SAKURA10", label: "10% off first order", pctOff: 10, minSpend: 12, firstOrderOnly: true, onePerCustomer: "first-order" },
-  WELCOME10: { code: "WELCOME10", label: "10% welcome", pctOff: 10, minSpend: 12, firstOrderOnly: true, onePerCustomer: "first-order" },
-  FAMILY52: { code: "FAMILY52", label: "Happy Family Feast", amountOff: 8, minSpend: 52 },
-  FREEGYOZA: { code: "FREEGYOZA", label: "Free Chicken Gyoza", freeItemId: "chicken-gyoza", minSpend: 25 },
+// Offer codes come from the owner's offers (Admin → Promotions → Offers): see offerVoucher().
+// These are the values the original built-in codes had; they fill in offers that were saved before
+// codes had their own settings, so nothing changes for those until the owner edits them.
+export const LEGACY_CODE_VALUES: Record<string, Pick<Offer, "pctOff" | "amountOff" | "freeItemId" | "minSpend" | "firstOrderOnly">> = {
+  SAKURA10: { pctOff: 10, minSpend: 12, firstOrderOnly: true },
+  FAMILY52: { amountOff: 8, minSpend: 52 },
+  FREEGYOZA: { freeItemId: "chicken-gyoza", minSpend: 25 },
 };
+
+/** The checkout voucher for a public offer code, from the live offers list (null if no offer has it). */
+export function offerVoucher(code: string, offers: Offer[]): Voucher | null {
+  const c = code.toUpperCase().trim();
+  const o = offers.find((x) => x.code && x.code.toUpperCase() === c);
+  if (!o || !(o.pctOff || o.amountOff || o.freeItemId)) return null;
+  return {
+    code: c, label: o.title,
+    pctOff: o.pctOff, amountOff: o.amountOff, freeItemId: o.freeItemId, minSpend: o.minSpend ?? 0,
+    firstOrderOnly: o.firstOrderOnly || undefined,
+    // First-order offers share one group (one first-order offer per customer); others can be once each.
+    onePerCustomer: o.firstOrderOnly ? "first-order" : o.oncePerCustomer ? `offer:${c}` : undefined,
+  };
+}
 
 export const AUTO_FREE_ITEM = { itemId: "chicken-gyoza", minSpend: 25 };
 
-export function globalVoucher(code: string): Voucher | null {
-  return VOUCHERS[code.toUpperCase().trim()] ?? null;
-}
 
 export interface Totals {
   lines: PricedLine[];
@@ -111,6 +123,7 @@ export interface Totals {
 
 export function computeTotals(opts: {
   lines: IncomingLine[];
+  autoFreeItem?: boolean; // the advertised free item over a spend (off while offers are switched off)
   fulfilment: "delivery" | "collection";
   postcode?: string;
   voucher?: Voucher | null;
@@ -144,7 +157,7 @@ export function computeTotals(opts: {
     }
   }
   // "Free Chicken Gyoza over £25" is auto-applied when no other offer is used ("one per order").
-  if (!voucherApplied && subtotal >= AUTO_FREE_ITEM.minSpend) {
+  if (opts.autoFreeItem !== false && !voucherApplied && subtotal >= AUTO_FREE_ITEM.minSpend) {
     const freeItem = opts.menu.find((m) => m.id === AUTO_FREE_ITEM.itemId && !m.soldOut);
     if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free over £${AUTO_FREE_ITEM.minSpend})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
   }

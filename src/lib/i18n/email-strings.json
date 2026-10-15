@@ -418,5 +418,29 @@
     "zh": "退订",
     "vi": "Hủy đăng ký",
     "ja": "配信停止"
+  },
+  "referral.reward.subject": {
+    "en": "Your friend ordered - here's £{amount} off",
+    "zh": "您的朋友已下单 - 送您 £{amount} 优惠",
+    "vi": "Bạn của bạn đã đặt món - tặng bạn £{amount}",
+    "ja": "お友達がご注文されました - £{amount}割引をお贈りします"
+  },
+  "referral.reward.heading": {
+    "en": "Thanks for spreading the word",
+    "zh": "感谢您的推荐",
+    "vi": "Cảm ơn bạn đã giới thiệu",
+    "ja": "ご紹介ありがとうございます"
+  },
+  "referral.reward.body": {
+    "en": "Hi {name}, a friend you referred has just enjoyed their first order with us, so your reward is ready: {amount} off your next order.",
+    "zh": "{name}，您好！您推荐的朋友刚刚完成了首单，您的奖励已到账：下次订单立减 {amount}。",
+    "vi": "Chào {name}, người bạn bạn giới thiệu vừa hoàn tất đơn đầu tiên, nên phần thưởng của bạn đã sẵn sàng: giảm {amount} cho đơn tiếp theo.",
+    "ja": "{name}様、ご紹介いただいたお友達が初めてのご注文を終えられました。次回のご注文で使える {amount} 割引をお受け取りください。"
+  },
+  "referral.reward.how": {
+    "en": "Sign in and use the code {code} at checkout. It's valid until {expires}.",
+    "zh": "登录后在结账时使用优惠码 {code}，有效期至 {expires}。",
+    "vi": "Đăng nhập và nhập mã {code} khi thanh toán. Mã có hiệu lực đến {expires}.",
+    "ja": "ログインして、お会計時にコード {code} をご利用ください。有効期限は {expires} です。"
   }
 }

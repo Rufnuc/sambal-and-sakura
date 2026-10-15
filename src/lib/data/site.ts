@@ -72,16 +72,26 @@ export const ORDER_STATUS_FLOW: { id: OrderStatus; label: string }[] = [
 export interface Offer {
   id: string; title: string; description: string; code?: string;
   badge?: string; terms: string; kind: "percent" | "freebie" | "bundle" | "first-order";
+  // What the code gives at checkout (exactly one, when there's a code). Set in Admin → Promotions.
+  pctOff?: number;        // % off the food
+  amountOff?: number;     // £ off
+  freeItemId?: string;    // a dish added free
+  minSpend?: number;      // food total needed (£)
+  firstOrderOnly?: boolean;   // only for phones/accounts that haven't ordered before (one first-order offer per customer)
+  oncePerCustomer?: boolean;  // each phone number can use it once
 }
 export const OFFERS: Offer[] = [
   { id: "first10", title: "10% off your first direct order", description: "New here? Order on the website and save instantly.",
-    code: "SAKURA10", badge: "First order", kind: "first-order", terms: "Min spend £12. One use per customer. Website orders only." },
+    code: "SAKURA10", badge: "First order", kind: "first-order", terms: "Min spend £12. One use per customer. Website orders only.",
+    pctOff: 10, minSpend: 12, firstOrderOnly: true },
   { id: "family", title: "Happy Family Feast for 4 - £52", description: "Soup, mixed platter, black bean house special, sweet & sour prawn, beef & mushroom, veg and special rice.",
-    code: "FAMILY52", badge: "Best value", kind: "bundle", terms: "Collection & delivery. Cannot be combined with other offers." },
+    code: "FAMILY52", badge: "Best value", kind: "bundle", terms: "Collection & delivery. Cannot be combined with other offers.",
+    amountOff: 8, minSpend: 52 },
   { id: "lunch", title: "Express Lunch £8.95", description: "Weekday lunch service: main + drink. Dine-in & collection.",
     badge: "Weekdays", kind: "bundle", terms: "Lunch service only (11:30–14:00). Selected dishes. While stocks last." },
   { id: "freegyoza", title: "Free Chicken Gyoza over £25", description: "Spend £25+ direct and we'll add our signature gyoza.",
-    code: "FREEGYOZA", badge: "Freebie", kind: "freebie", terms: "Auto-applied at checkout over £25. One per order." },
+    code: "FREEGYOZA", badge: "Freebie", kind: "freebie", terms: "Auto-applied at checkout over £25. One per order.",
+    freeItemId: "chicken-gyoza", minSpend: 25 },
 ];
 
 export interface Testimonial {
@@ -117,24 +127,6 @@ export const FAQS: Faq[] = [
   { group: "policies", q: "What's your cancellation policy?",
     a: "Cancel a booking free up to 2 hours before. For orders, you can cancel before the kitchen starts preparing - after that we may not be able to refund as it's cash on the day." },
 ];
-
-// Features that are built in the UI but not switched on for customers yet.
-// referrals: hidden until referral rewards are actually paid out by the server (advertising a
-// reward that never arrives would be a misleading commercial practice).
-export const FEATURES = { referrals: false };
-
-export const REFERRAL = {
-  giveLabel: "£5 off",
-  getLabel: "£5 off",
-  summary: "Give a friend £5 off their first order, and you get £5 off your next one when they spend £20+.",
-  steps: [
-    "Share your unique link or code with a friend.",
-    "They get £5 off their first direct order (min £20).",
-    "Once their order completes, your £5 reward unlocks automatically.",
-  ],
-  terms:
-    "One reward per new customer. Rewards apply to website orders only and can't be combined with first-order offers. Self-referrals and duplicate accounts are void. Rewards expire 90 days after issue.",
-};
 
 // amount: % off for "percent", £ off for "voucher" (must match the label customers see).
 export interface WheelPrize { id: string; label: string; kind: "percent" | "freebie" | "voucher" | "none"; weight: number; color: "gold" | "red" | "pink" | "charcoal"; amount?: number }

@@ -3,6 +3,7 @@ import { SITE_URL } from "@/lib/site-url";
 import { RESTAURANT } from "@/lib/data/site";
 import type { SiteContent } from "@/lib/site-content";
 import STRINGS from "@/lib/i18n/email-strings.json";
+import { gbpShort } from "@/lib/format";
 
 // Email content in English, Chinese, Vietnamese and Japanese. The wording lives in
 // src/lib/i18n/email-strings.json (one place for the translator to review). Everything a customer
@@ -164,6 +165,20 @@ export function accountEmail(event: "deactivated" | "closed" | "reactivated", na
   }
   if (event === "reactivated") return build(l, biz, t(l, "account.reactivated.subject"), t(l, "account.reactivated.heading"), [t(l, "account.reactivated.body", { name: n })]);
   return build(l, biz, t(l, "account.closed.subject"), t(l, "account.closed.heading"), [t(l, "account.closed.body1", { name: n }), t(l, "account.closed.body2")]);
+}
+
+/* ------------------------------------------------------------------ referrals */
+
+/** To the referrer, once their friend's first order is completed. */
+export function referralEmail(name: string, locale: string, biz: Business, amount: number, code: string, expires: Date): Built {
+  const l = asEmailLocale(locale);
+  const when = expires.toLocaleDateString(INTL[l], { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
+  const amt = gbpShort(amount);
+  return build(l, biz, t(l, "referral.reward.subject", { amount: esc(amt.slice(1)) }), t(l, "referral.reward.heading"), [
+    t(l, "referral.reward.body", { name: firstName(name), amount: b(esc(amt)) }),
+    t(l, "referral.reward.how", { code: b(esc(code)), expires: esc(when) }),
+    button(`${SITE_URL}/menu`, t(l, "campaign.orderNow")),
+  ]);
 }
 
 /* ------------------------------------------------------------------ offers */

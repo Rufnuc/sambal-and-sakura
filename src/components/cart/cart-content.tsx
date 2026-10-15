@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus, ShoppingBag, Trash2, Tag, Banknote } from "lucide-react";
 import {
   SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription,
@@ -27,8 +27,12 @@ export function CartContent({ onClose }: { onClose: () => void }) {
       !(m.modifiers ?? []).some((g) => g.required),
   ).slice(0, 3);
 
-  const GYOZA_THRESHOLD = 25;
-  const freeGyoza = subtotal >= GYOZA_THRESHOLD;
+  // The free gyoza offer is live only while the owner has Offers switched on (null = no offer).
+  const [freeOver, setFreeOver] = useState<number | null>(null);
+  useEffect(() => {
+    fetch("/api/public-config").then((r) => r.json()).then((d) => setFreeOver(typeof d.freeItemOver === "number" ? d.freeItemOver : null)).catch(() => {});
+  }, []);
+  const freeGyoza = freeOver !== null && subtotal >= freeOver;
 
   return (
     <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
@@ -127,13 +131,13 @@ export function CartContent({ onClose }: { onClose: () => void }) {
           </div>
 
           <SheetFooter className="gap-3 border-t border-border px-5 py-4">
-            {freeGyoza ? (
+            {freeOver === null ? null : freeGyoza ? (
               <div className="flex items-center gap-2 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
                 <Tag className="size-4" /> Free Chicken Gyoza unlocked (not combined with other offer codes)
               </div>
             ) : (
               <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                <Tag className="size-4" /> Spend {gbp(GYOZA_THRESHOLD - subtotal)} more for free Chicken Gyoza
+                <Tag className="size-4" /> Spend {gbp(freeOver - subtotal)} more for free Chicken Gyoza
               </div>
             )}
             <div className="flex items-center justify-between">

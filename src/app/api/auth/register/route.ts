@@ -9,12 +9,14 @@ import { canonicalPhone, phoneKey } from "@/server/phone";
 import { WELCOME_POINTS } from "@/server/points";
 import { log } from "@/server/log";
 import { isEmailBlocked } from "@/server/accounts";
+import { getReferralConfig } from "@/server/config";
+import { checkReferralCode, referralSignupData, ReferralError } from "@/server/referrals";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Please check your details and try again." }, { status: 400 });
-  const { name, email, phone, password, marketingOptIn, locale, turnstileToken } = parsed.data;
+  const { name, email, phone, password, marketingOptIn, locale, turnstileToken, referralCode: refCode } = parsed.data;
   const ip = clientIp(req);
 
   // Duplicate-account farming: limit per network (trusted IP, see rate-limit.ts) and per phone.
@@ -35,6 +37,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "An account with that email already exists - sign in instead." }, { status: 409 });
   }
 
+  // A friend's referral code: checked before the account exists, so a bad code can be fixed or removed.
+  const refCfg = await getReferralConfig();
+  let referral: ReturnType<typeof referralSignupData> | null = null;
+  if (refCode) {
+    try {
+      const referrer = await checkReferralCode(refCode, phone, refCfg);
+      if (referrer) referral = referralSignupData(referrer, refCode, phone, refCfg);
+    } catch (e) {
+      if (e instanceof ReferralError) return NextResponse.json({ error: e.message, field: "referralCode" }, { status: 400 });
+      throw e;
+    }
+  }
+
   const expiresAt = new Date(Date.now() + 30 * 86400000);
   const passwordHash = await hashPassword(password);
   const user = await withFreshIds(() => prisma.user.create({
@@ -48,10 +63,14 @@ export async function POST(req: Request) {
       // so creating accounts on its own earns nothing.
       pointsEntries: { create: { delta: WELCOME_POINTS, reason: "welcome", status: "pending" } },
       // The welcome reward is a first-order offer: one per phone number (enforced at checkout).
-      rewards: { create: { label: "10% off your first order", code: rewardCode("WELC"), kind: "percent", amount: 10, source: "welcome", expiresAt } },
+      rewards: { create: [
+        { label: "10% off your first order", code: rewardCode("WELC"), kind: "percent", amount: 10, source: "welcome", expiresAt },
+        ...(referral ? [{ ...referral.reward, code: rewardCode("REF") }] : []), // fresh code on each retry
+      ] },
+      ...(referral ? { referredBy: referral.referredBy } : {}),
     },
   }), ["referralCode", "code"]);
-  log.info("account_created", { userId: user.id });
+  log.info("account_created", { userId: user.id, referred: !!referral });
   await createSession(user);
   return NextResponse.json({ user: publicUser(user) });
 }

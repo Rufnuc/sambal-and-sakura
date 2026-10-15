@@ -21,6 +21,7 @@ export const registerSchema = z.object({
   marketingOptIn: z.boolean().default(false),
   locale,
   turnstileToken,
+  referralCode: zCode(20).optional(), // a friend's code (from their link, or typed)
 });
 
 export const loginSchema = z.object({

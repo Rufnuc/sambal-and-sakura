@@ -4,9 +4,10 @@ import { CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/me
 import { formatHours } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
-import { getZones, getMaxMiles, getEffectiveMenu } from "@/server/config";
+import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig } from "@/server/config";
 import { getDisabledZones } from "@/server/settings";
 import { getWeChatConfig } from "@/server/wechat";
+import { gbpShort } from "@/lib/format";
 
 // One source of plain-language facts about the restaurant, built from the LIVE admin-edited data
 // (hours, delivery zones, mileage, menu). Used for the visible "at a glance" block on the Contact page
@@ -14,13 +15,13 @@ import { getWeChatConfig } from "@/server/wechat";
 
 export interface Fact { label: string; value: string }
 
-const gbp = (n: number) => `£${n % 1 === 0 ? n : n.toFixed(2)}`;
+const gbp = gbpShort;
 // Monday first (data index 0 = Sunday).
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> {
-  const [{ business: b }, zones, disabled, maxMiles, menu] = await Promise.all([
-    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(),
+  const [{ business: b }, zones, disabled, maxMiles, menu, referral] = await Promise.all([
+    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(),
   ]);
 
   const liveZones = zones.filter((z) => !disabled.includes(z.id));
@@ -54,6 +55,13 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
         liveZones.map((z) => `${z.label.replace(/^Zone \d+ - /, "")} (${z.postcodes.join(", ")}): ${gbp(z.fee)}, about ${z.etaMins} minutes`).join("; ") +
         `. Free delivery on orders over ${gbp(ORDERING.freeDeliveryThreshold)}. Minimum delivery order ${gbp(ORDERING.minOrder)}.` +
         (maxMiles > 0 ? ` Delivery is available within about ${maxMiles} miles.` : ""),
+    });
+  }
+
+  if (referral.enabled) {
+    facts.push({
+      label: "Refer a friend",
+      value: `New customers who sign up with a friend's link get ${gbp(referral.give)} off their first order (food ${gbp(referral.minSpend)} or more); the friend who referred them gets ${gbp(referral.get)} off once that order is completed.`,
     });
   }
 

@@ -86,6 +86,22 @@ How sending is protected: each order/booking email is sent once only; if Brevo f
 - Cancellations by the customer and orders marked **"Not collected"** count against them (tracked by phone, email and account). At 2 in 60 days their tickets say "call to confirm"; at 3 they can't cancel online or order cash delivery. Change all of this in **Admin → Settings → Cancellations**; reset a customer from the order's details.
 - When staff cancel, they choose why. Only "customer asked" and "not collected" count.
 
+### Offer codes
+- **Admin → Promotions → Offers & vouchers**: give an offer a code (letters, numbers, dashes) and choose what it gives - **% off**, **£ off** or **a free dish** - plus an optional minimum food spend, **First order only** (one first-order offer per customer) or **Once per customer** (by phone number). Checkout applies exactly that, and the Offers page shows it under the code (e.g. "15% off · food £20+ · once per customer").
+- Remove an offer, or its code, and the code stops working straight away. Codes only work while Offers is switched on under Campaigns.
+- The site refuses settings that wouldn't work: a code with nothing (or two things) to give, two offers with the same code, £ off bigger than the minimum spend, or a dish that isn't on the menu.
+
+### Switching campaigns off (Offers, Fortune Wheel, Refer a friend)
+- **Admin → Promotions → Campaigns** has an on/off switch for each. Switched off, its tab on the Offers page shows your message instead (default: "Sorry, this campaign has ended for now. Keep checking back - exciting offers are on the way!"), and it really stops: offer codes such as SAKURA10 and the automatic free gyoza stop at checkout, nobody can spin, and new referral codes are ignored.
+- **Rewards customers already have** (wheel prizes, referral rewards) keep working for the number of days you choose (default 14, up to 90; 0 = stop at once), never past their own expiry. Their "use by" date in the customer's account updates to match. A referral that was waiting for the friend's first order still pays out inside that period.
+- Switching back on restores everything; nothing is deleted. Every change is in the activity log.
+
+### Refer a friend
+- Every customer has a permanent code and a link (Offers → Refer a friend). A friend who opens the link sees "a friend gave you £5 off" and signs up; the code is filled in for them (or they can type it).
+- The friend gets **£5 off their first order** (food £20+, first-order offer, so not on top of the welcome 10%). The referrer gets **£5 off** only when that friend's first order of £20+ is **completed**, and gets an email. Both rewards expire after 90 days.
+- Refused or voided automatically: the referrer's own phone number, a phone that has ordered or been referred before, a delivery to the referrer's address, more than "Max per customer" referrals, more than 5 sign-ups on one code in a day.
+- **Admin → Promotions → Referral programme**: change the amounts (on/off is under Campaigns) (pounds and pence; the minimum spend must be at least the friend's reward), minimum spend and limit - a preview shows what customers will see, and after Save it changes everywhere at once (Offers page, friend banner, sign-up form, share message, new rewards, reward email, the Contact page facts and llms.txt; rewards already issued keep their amount), see every referral, and **Void** one that looks wrong (any unused rewards from it stop working). Voids are in the activity log.
+
 ### Customer accounts
 - **Deactivate**: the customer is signed out and can reactivate within 14 days by signing in (points and rewards come back). After 14 days the account closes automatically.
 - **Close**: immediate and permanent. Personal details are removed; orders stay (without personal details) for your accounts.

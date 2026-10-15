@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/faq", destination: "/contact#faq", permanent: true },
       { source: "/wheel", destination: "/offers?tab=wheel", permanent: false },
-      { source: "/refer", destination: "/offers", permanent: false }, // referral rewards aren't live yet (see FEATURES in lib/data/site.ts)
+      { source: "/refer", destination: "/offers?tab=refer", permanent: false },
     ];
   },
   // Prisma's engine must not be bundled by Turbopack.

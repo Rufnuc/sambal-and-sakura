@@ -58,8 +58,9 @@ export const setWheelPrizes = (v: WheelPrize[]) => setJson("wheelPrizes", v);
 /* ---- Menu overrides (name / price / soldOut / image / category / lead-time per item) ---- */
 export type MenuOverride = {
   name?: string; price?: number; soldOut?: boolean;
-  image?: string; category?: MenuCategory; leadTimeHours?: number; description?: string; aiNotes?: string;
+  image?: string; images?: string[]; category?: MenuCategory; leadTimeHours?: number; description?: string; aiNotes?: string;
 };
+export const MAX_DISH_PHOTOS = 6;
 export type MenuOverrides = Record<string, MenuOverride>;
 export const getMenuOverrides = () => getJson<MenuOverrides>("menuOverrides", {});
 export const setMenuOverrides = (v: MenuOverrides) => setJson("menuOverrides", v);
@@ -98,7 +99,10 @@ export async function getEffectiveMenu(): Promise<MenuItem[]> {
       description: o.description ?? m.description,
       price: typeof o.price === "number" ? o.price : m.price,
       soldOut: typeof o.soldOut === "boolean" ? o.soldOut : m.soldOut,
-      image: o.image ?? m.image,
+      // Photos: `images` (main first) when the owner has saved a set; older saves only have `image`.
+      ...(o.images
+        ? { image: o.images[0] ?? "", images: o.images }
+        : { image: o.image ?? m.image, images: o.image ? [o.image] : undefined }),
       category: o.category ?? m.category,
       leadTimeHours: typeof o.leadTimeHours === "number" ? o.leadTimeHours : m.leadTimeHours,
       aiNotes: o.aiNotes ?? m.aiNotes,

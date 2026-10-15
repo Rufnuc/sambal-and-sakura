@@ -17,6 +17,7 @@ import { formatHours } from "@/lib/hours";
 import { RestaurantJsonLd, WebSiteJsonLd } from "@/components/seo/structured-data";
 import { MapEmbed } from "@/components/brand/map-embed";
 import { HeroSlideshow } from "@/components/brand/hero-slideshow";
+import { realPhoto } from "@/lib/photo";
 
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -26,12 +27,14 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const [menu, content] = await Promise.all([getEffectiveMenu(), getSiteContent()]);
-  const signature = menu.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6);
+  // The owner's picks (Admin → Site content → Home page), else chef's specials and popular dishes.
+  const picked = content.signature.dishIds.map((id) => menu.find((m) => m.id === id)).filter((m): m is MenuItem => !!m);
+  const signature = picked.length ? picked : menu.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6);
   return (
     <>
       <RestaurantJsonLd />
       <WebSiteJsonLd />
-      <Hero content={content} />
+      <Hero content={content} menu={menu} />
       <ValueStrip items={content.valueStrip} />
       <SignatureDishes items={signature} />
       <Reviews reviews={content.reviews} />
@@ -42,19 +45,31 @@ export default async function HomePage() {
 }
 
 /* ----------------------------------------------------------------- Hero */
-function Hero({ content }: { content: SiteContent }) {
+// The three stacked plates (sizes are fractions of the square, so they scale with the column).
+const PLATES = [
+  "left-0 top-[5%] w-[57%] rotate-[-6deg]",
+  "right-0 top-0 w-[50%] rotate-[5deg]",
+  "bottom-0 right-[9%] w-[46%] rotate-[-3deg]",
+];
+
+function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
   const { business: b, hero, reviews } = content;
+  const plates = hero.images.slice(0, 3).map((img) => {
+    const dish = menu.find((m) => m.id === img.dishId);
+    return dish ? { name: dish.name, category: dish.category, src: img.photo || realPhoto(dish.image) } : null;
+  });
+  const featured = hero.featured >= 0 ? plates[hero.featured] : null;
   const showRating = reviews.show && reviews.items.length > 0;
   return (
     <section className="relative overflow-hidden bg-sidebar text-sidebar-foreground">
       <HeroSlideshow />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 lg:py-24">
         <div className="max-w-xl">
           <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold-ink">
             <Sparkles className="size-3.5" /> {hero.badge}
           </Badge>
-          <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-7xl">
+          <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-balance sm:text-6xl md:text-5xl lg:text-7xl">
             {hero.headlineStart}<span className="text-gold-ink">{hero.headlineAccent}</span>{hero.headlineEnd}
           </h1>
           <p className="mt-5 max-w-md text-lg text-sidebar-foreground/75 text-pretty">
@@ -83,15 +98,18 @@ function Hero({ content }: { content: SiteContent }) {
           </div>
         </div>
 
-        {/* Visual: layered plates + floating cards */}
-        <div className="relative mx-auto hidden aspect-square w-full max-w-md lg:block">
-          <DishImage name="Chicken Katsu Curry Don" category="japanese" className="absolute left-0 top-6 size-64 rotate-[-6deg] shadow-2xl ring-4 ring-sidebar" rounded="rounded-3xl" />
-          <DishImage name="Aromatic Crispy Duck" category="wrapping" className="absolute right-0 top-0 size-56 rotate-[5deg] shadow-2xl ring-4 ring-sidebar" rounded="rounded-3xl" />
-          <DishImage name="Salt & Pepper King Prawns" category="salt-pepper" className="absolute bottom-0 right-10 size-52 rotate-[-3deg] shadow-2xl ring-4 ring-sidebar" rounded="rounded-3xl" />
-          <div className="absolute bottom-10 left-0 rounded-2xl bg-background px-4 py-3 text-foreground shadow-xl">
-            <p className="text-xs text-muted-foreground">Signature</p>
-            <p className="font-display text-lg font-bold">Aromatic Crispy Duck</p>
-          </div>
+        {/* Visual: layered plates + a name card, chosen in Admin → Site content → Home page. Only shown where
+            it fits beside the text (tablets and up); phones get the text alone. */}
+        <div className="relative mx-auto hidden aspect-square w-full max-w-md md:block">
+          {plates.map((p, i) => p && (
+            <DishImage key={i} name={p.name} category={p.category} src={p.src} eager className={`absolute aspect-square shadow-2xl ring-4 ring-sidebar ${PLATES[i]}`} rounded="rounded-3xl" />
+          ))}
+          {featured && (
+            <div className="absolute bottom-[9%] left-0 max-w-[60%] rounded-2xl bg-background px-3 py-2 text-foreground shadow-xl sm:px-4 sm:py-3">
+              <p className="text-xs text-muted-foreground">Signature</p>
+              <p className="font-display text-base font-bold leading-tight sm:text-lg">{featured.name}</p>
+            </div>
+          )}
         </div>
       </div>
     </section>

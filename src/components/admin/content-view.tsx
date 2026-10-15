@@ -12,6 +12,7 @@ import { fetchConfig, saveSite } from "@/lib/admin/api";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
 import type { DayHours } from "@/lib/data/site";
 import { cn } from "@/lib/utils";
+import { HeroImagesEditor, SignatureEditor } from "@/components/admin/home-dishes-editor";
 
 const TABS = [
   { id: "business", label: "Business details" },
@@ -44,9 +45,13 @@ export function ContentView() {
   const [stale, setStale] = useState(false);                      // someone else saved since this page loaded
   const [tab, setTab] = useState<TabId>("business");
   const [saving, setSaving] = useState(false);
+  const [menuPhotos, setMenuPhotos] = useState<Record<string, string | undefined>>({}); // dish photos from Admin → Menu
 
   function load() {
-    return fetchConfig().then((cfg) => { setC(cfg.site); setSaved(cfg.site); setVersion(cfg.siteVersion); setStale(false); });
+    return fetchConfig().then((cfg) => {
+      setC(cfg.site); setSaved(cfg.site); setVersion(cfg.siteVersion); setStale(false);
+      setMenuPhotos(Object.fromEntries(Object.entries(cfg.menuOverrides).map(([id, o]) => [id, o.image])));
+    });
   }
   useEffect(() => { load(); }, []);
 
@@ -98,7 +103,7 @@ export function ContentView() {
 
       {tab === "business" && <BusinessTab c={c} setBusiness={setBusiness} />}
       {tab === "hours" && <HoursTab hours={c.business.hours} onChange={(hours) => setBusiness({ hours })} />}
-      {tab === "home" && <HomeTab c={c} set={set} />}
+      {tab === "home" && <HomeTab c={c} set={set} menuPhotos={menuPhotos} />}
       {tab === "reviews" && <ReviewsTab c={c} set={set} />}
       {tab === "faq" && <FaqTab c={c} set={set} />}
 
@@ -237,7 +242,7 @@ function HoursTab({ hours, onChange }: { hours: DayHours[]; onChange: (h: DayHou
 }
 
 /* --------------------------------------------------------------- Home */
-function HomeTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) => void }) {
+function HomeTab({ c, set, menuPhotos }: { c: SiteContent; set: (p: Partial<SiteContent>) => void; menuPhotos: Record<string, string | undefined> }) {
   const setHero = (p: Partial<SiteContent["hero"]>) => set({ hero: { ...c.hero, ...p } });
   const setCta = (p: Partial<SiteContent["cta"]>) => set({ cta: { ...c.cta, ...p } });
   const setItem = (i: number, p: Partial<SiteContent["valueStrip"][number]>) => set({ valueStrip: c.valueStrip.map((v, idx) => (idx === i ? { ...v, ...p } : v)) });
@@ -253,6 +258,14 @@ function HomeTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) =>
           </div>
           <p className="text-sm">Preview: <span className="font-display font-bold">{c.hero.headlineStart}<span className="text-gold-ink">{c.hero.headlineAccent}</span>{c.hero.headlineEnd}</span></p>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Banner images">
+        <HeroImagesEditor hero={c.hero} onChange={setHero} menuPhotos={menuPhotos} />
+      </SectionCard>
+
+      <SectionCard title="Signature dishes">
+        <SignatureEditor ids={c.signature.dishIds} onChange={(dishIds) => set({ signature: { dishIds } })} />
       </SectionCard>
 
       <SectionCard

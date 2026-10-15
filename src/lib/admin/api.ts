@@ -200,7 +200,7 @@ export interface PromoCfg { enabled: boolean; message: string; graceDays: number
 export type PromotionsCfg = Record<PromoKey, PromoCfg>;
 export interface MenuOverrideCfg {
   name?: string; price?: number; soldOut?: boolean;
-  image?: string; category?: string; leadTimeHours?: number; description?: string; aiNotes?: string;
+  image?: string; images?: string[]; category?: string; leadTimeHours?: number; description?: string; aiNotes?: string;
 }
 
 /**

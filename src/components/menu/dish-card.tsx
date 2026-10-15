@@ -1,5 +1,6 @@
 "use client";
 
+import { realPhoto } from "@/lib/photo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Check, Flame, Leaf, Star, ChefHat, Sparkles } from "lucide-react";
 import {
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { DishImage } from "@/components/brand/dish-image";
+import { DishGallery } from "@/components/brand/dish-gallery";
 import { DishAssistant } from "@/components/menu/dish-assistant";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
@@ -27,12 +28,6 @@ const TAG_META: Record<string, { label: string; icon: React.ElementType; classNa
   new: { label: "New", icon: Sparkles, className: "bg-sakura/20 text-sambal dark:text-sakura border-sakura/40" },
 };
 
-// Base menu data carries placeholder paths (/menu/*.jpg) that don't exist yet.
-// Only operator-uploaded (/uploads/) or remote (http) images are rendered as real photos.
-export function realPhoto(src?: string): string | undefined {
-  if (!src) return undefined;
-  return src.startsWith("/uploads/") || src.startsWith("http") ? src : undefined;
-}
 
 function SpiceDots({ level }: { level?: number }) {
   if (!level) return null;
@@ -68,12 +63,13 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
   }
 
   const tags = item.tags.filter((t) => TAG_META[t]).slice(0, 2);
-  const photo = realPhoto(item.image);
+  // All of the dish's real photos, main first (placeholder paths in the base menu are skipped).
+  const photos = (item.images?.length ? item.images : [item.image]).map((p) => realPhoto(p)).filter((p): p is string => !!p);
 
   return (
     <div className={cn("group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:shadow-md", className)}>
       <div className="relative">
-        <DishImage name={item.name} category={item.category} className={cn("w-full", dense ? "aspect-square sm:aspect-[4/3]" : "aspect-[4/3]")} rounded="rounded-none" src={photo} />
+        <DishGallery name={item.name} category={item.category} photos={photos} className={cn("w-full", dense ? "aspect-square sm:aspect-[4/3]" : "aspect-[4/3]")} rounded="rounded-none" />
         {item.leadTimeHours ? (
           <div className={cn("absolute rounded-full bg-background/90 font-semibold text-gold-ink backdrop-blur", dense ? "bottom-2 left-2 px-2 py-0.5 text-[10px] sm:bottom-3 sm:left-3 sm:px-2.5 sm:py-1 sm:text-xs" : "bottom-3 left-3 px-2.5 py-1 text-xs")}>
             Pre-order · {item.leadTimeHours}h notice

@@ -53,19 +53,21 @@ export function DishImage({
   className,
   rounded = "rounded-xl",
   src,
+  eager = false,
 }: {
   name: string;
   category: MenuCategory;
   className?: string;
   rounded?: string;
   src?: string;
+  eager?: boolean; // above-the-fold images (the home banner) load straight away
 }) {
   // Real photo when the operator has uploaded one; branded placeholder otherwise.
   if (src) {
     return (
       <div className={cn("relative overflow-hidden bg-muted", rounded, className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={name} loading="lazy" decoding="async" width={900} height={675} className="size-full object-cover" />
+        <img src={src} alt={name} loading={eager ? "eager" : "lazy"} decoding="async" width={900} height={675} className="size-full object-cover" />
       </div>
     );
   }

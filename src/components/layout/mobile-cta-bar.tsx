@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, CalendarCheck, House, User } from "lucide-react";
+import { ShoppingBag, CalendarCheck, House, User, UtensilsCrossed } from "lucide-react";
 import { useCart, cartCount } from "@/lib/store/cart";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useBump } from "@/lib/use-bump";
@@ -20,9 +20,13 @@ export function MobileCtaBar() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-md grid-cols-4">
+      <div className="mx-auto grid max-w-md grid-cols-5">
         <CtaItem href="/" label="Home" active={pathname === "/"}>
           <House className="size-5" />
+        </CtaItem>
+
+        <CtaItem href="/menu" label="Menu" active={pathname === "/menu"}>
+          <UtensilsCrossed className="size-5" />
         </CtaItem>
 
         <CtaItem href="/book" label="Book" active={pathname === "/book"}>

@@ -4,6 +4,12 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
 import { cleanText } from "@/server/sanitize";
+import { MENU } from "@/lib/data/menu";
+
+const MENU_IDS = new Set(MENU.map((m) => m.id));
+const dishId = z.string().refine((id) => MENU_IDS.has(id), "Pick a dish from the menu");
+// Our own uploaded photos or an https link (e.g. Cloudinary); never javascript:, data: etc. Empty = use the dish's menu photo.
+const photoUrl = z.string().trim().max(500).refine((s) => s === "" || (s.startsWith("/uploads/") && !s.includes("..")) || /^https:\/\/[^\s"'<>]+$/i.test(s), "Photos must be uploaded here or be an https link");
 
 // Admin-editable site content, stored as one JSON Setting row with static defaults.
 // getSiteContent() NEVER throws: if the database is unreachable (e.g. the very first build/deploy
@@ -59,7 +65,13 @@ const schemas = {
     social: z.object({ instagram: httpsLink, tiktok: httpsLink, facebook: httpsLink, rednote: httpsLink, wechat: str(80) }),
     hours: z.array(daySchema).length(7),
   }),
-  hero: z.object({ badge: str(80), headlineStart: str(80), headlineAccent: str(60), headlineEnd: str(40) }),
+  hero: z.object({
+    badge: str(80), headlineStart: str(80), headlineAccent: str(60), headlineEnd: str(40),
+    // Defaults: content saved before these existed must still validate (or the whole banner would reset).
+    images: z.array(z.object({ dishId, photo: photoUrl })).length(3).default(DEFAULT_SITE_CONTENT.hero.images),
+    featured: z.number().int().min(-1).max(2).default(DEFAULT_SITE_CONTENT.hero.featured),
+  }),
+  signature: z.object({ dishIds: z.array(dishId).max(6).refine((ids) => new Set(ids).size === ids.length, "Each dish can only be picked once") }),
   valueStrip: z.array(z.object({ icon: z.enum(VALUE_ICONS), title: str(70), text: str(160) })).max(6),
   cta: z.object({ heading: str(120), subtext: str(200) }),
   reviews: z.object({

@@ -86,6 +86,11 @@ How sending is protected: each order/booking email is sent once only; if Brevo f
 - Cancellations by the customer and orders marked **"Not collected"** count against them (tracked by phone, email and account). At 2 in 60 days their tickets say "call to confirm"; at 3 they can't cancel online or order cash delivery. Change all of this in **Admin → Settings → Cancellations**; reset a customer from the order's details.
 - When staff cancel, they choose why. Only "customer asked" and "not collected" count.
 
+### Home page banner and signature dishes
+- **Admin → Site content → Home page → Banner images**: pick the dish for each of the three stacked plates. Each shows that dish's photo from Admin → Menu, or upload a photo just for the banner. Choose which dish's name goes on the small "Signature" card (or none). The plates show beside the headline on tablets and larger screens; phones show the headline alone (there isn't room beside it).
+- **Signature dishes**: leave on Automatic (chef's specials and popular dishes) or choose up to 6 in your own order.
+- Press **Save changes**; the home page updates straight away.
+
 ### Offer codes
 - **Admin → Promotions → Offers & vouchers**: give an offer a code (letters, numbers, dashes) and choose what it gives - **% off**, **£ off** or **a free dish** - plus an optional minimum food spend, **First order only** (one first-order offer per customer) or **Once per customer** (by phone number). Checkout applies exactly that, and the Offers page shows it under the code (e.g. "15% off · food £20+ · once per customer").
 - **Hidden from Offers page**: the code still works at checkout but isn't advertised - for flyers, emails or staff to hand out. **WELCOME10** is set up this way: 10% off a first-time customer's first order (food £12+); change or remove it like any other offer.
@@ -133,6 +138,8 @@ In Render → Settings → Custom Domains, also tick **redirect** for the onrend
 If you put **Cloudflare** in front: turn OFF **Security → Bots → "Block AI bots"** (and "AI Crawl Control" blocking). Cloudflare enables it by default on new sites and it hides the restaurant from ChatGPT, Perplexity, Claude and Gemini regardless of `robots.txt`.
 
 ### Menu photos (Cloudinary)
+Each dish can have **up to 6 photos** (Admin → Menu → edit a dish → Photos; pick several at once). The first is the main photo, shown first on the menu and used on the home banner; customers swipe through the rest (arrows on computers). Reorder with the arrows; remove with the bin.
+
 Photos are shrunk in the browser before upload (max 1200px, WebP, typically 100-250KB instead of several MB), so they're small even without Cloudinary. With Cloudinary they're also served in the best format for each phone.
 
 In Cloudinary's dashboard copy the cloud name, API key and API secret, and set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` in Render. These make uploads **signed** (only this server can upload). The older unsigned-preset option (`CLOUDINARY_UPLOAD_PRESET`) still works but lets anyone who learns the preset name upload to your account.

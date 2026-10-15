@@ -12,6 +12,8 @@ const money = z.number().finite().min(0).max(1000);
 const imageUrl = z.string().trim().max(500).refine((s) => s === "" || s.startsWith("/") && !s.startsWith("//") || /^https:\/\//i.test(s), "Images must be an https link or an uploaded photo.");
 
 const MENU_IDS = new Set(MENU.map((m) => m.id));
+// A dish photo: uploaded here (/uploads/...) or an https link. Never javascript:, data:, or path tricks.
+const dishPhoto = z.string().trim().max(500).refine((s) => (s.startsWith("/uploads/") && !s.includes("..")) || /^https:\/\/[^\s"'<>]+$/i.test(s), "Photos must be uploaded here or be an https link.");
 const CATEGORIES = [...new Set(MENU.map((m) => m.category))] as [string, ...string[]];
 
 export const menuOverridesSchema = z.record(
@@ -21,6 +23,7 @@ export const menuOverridesSchema = z.record(
     price: money.optional(),
     soldOut: z.boolean().optional(),
     image: imageUrl.optional(),
+    images: z.array(dishPhoto).max(6, "Up to 6 photos per dish.").refine((a) => new Set(a).size === a.length, "That photo is already added.").optional(),
     category: z.enum(CATEGORIES).optional(),
     leadTimeHours: z.number().int().min(0).max(168).optional(),
     description: text(600).optional(),

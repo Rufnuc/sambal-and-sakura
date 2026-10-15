@@ -33,7 +33,8 @@ export interface MenuItem {
   allergens: Allergen[];
   tags: DietTag[];
   spiceLevel?: 0 | 1 | 2 | 3;
-  image: string;
+  image: string;            // main photo (the first of `images` when the owner has uploaded some)
+  images?: string[];        // all photos, main first (Admin → Menu); customers can swipe through them
   soldOut?: boolean;
   leadTimeHours?: number;   // >0 = pre-order / advance-notice dish (e.g. 24 = order a day ahead)
   aiNotes?: string;         // admin-written extra context the dish AI assistant can draw on

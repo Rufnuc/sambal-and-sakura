@@ -10,6 +10,9 @@ export const FAQ_GROUPS = ["ordering", "delivery", "booking", "payment", "allerg
 
 export interface ValueItem { icon: ValueIcon; title: string; text: string }
 
+/** One of the three stacked plates in the top banner: a dish, shown with its menu photo unless `photo` is set. */
+export interface HeroImage { dishId: string; photo: string }
+
 export interface SiteContent {
   business: {
     tagline: string;
@@ -22,7 +25,12 @@ export interface SiteContent {
     social: { instagram: string; tiktok: string; facebook: string; rednote: string; wechat: string };
     hours: DayHours[]; // index 0 = Sunday
   };
-  hero: { badge: string; headlineStart: string; headlineAccent: string; headlineEnd: string };
+  hero: {
+    badge: string; headlineStart: string; headlineAccent: string; headlineEnd: string;
+    images: HeroImage[];  // exactly 3 plates (front-left, back-right, bottom-right)
+    featured: number;     // which plate's name is shown on the small card (0-2), or -1 for no card
+  };
+  signature: { dishIds: string[] }; // "Signature dishes" on the home page, in order; empty = chosen automatically
   valueStrip: ValueItem[];
   cta: { heading: string; subtext: string };
   reviews: { show: boolean; sourceNote: string; items: Testimonial[] };
@@ -49,7 +57,14 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     headlineStart: "Where chili meets ",
     headlineAccent: "cherry blossom",
     headlineEnd: ".",
+    images: [
+      { dishId: "chicken-katsu-don", photo: "" },
+      { dishId: "duck-half", photo: "" },
+      { dishId: "sp-king-prawns", photo: "" },
+    ],
+    featured: 1,
   },
+  signature: { dishIds: [] },
   valueStrip: [
     { icon: "banknote", title: "Cash only", text: "Pay on delivery or collection - simple and secure." },
     { icon: "bike", title: `Free delivery over £${ORDERING.freeDeliveryThreshold}`, text: `From £${ORDERING.deliveryZones[0].fee.toFixed(2)} across Middlesbrough.` },

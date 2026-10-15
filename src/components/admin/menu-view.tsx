@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Flame, Leaf, Pencil, Upload, Loader2, Clock } from "lucide-react";
+import { Search, Flame, Leaf, Pencil, Upload, Loader2, Clock, ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { SectionCard, StatCard } from "@/components/admin/ui";
 import { DishImage } from "@/components/brand/dish-image";
-import { realPhoto } from "@/components/menu/dish-card";
+import { realPhoto } from "@/lib/photo";
 import { MENU, CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/menu";
 import { saveConfig, uploadImage, fetchMenuAvailability, setSoldOut, type AdminConfig, type MenuOverrideCfg } from "@/lib/admin/api";
 import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Overrides = AdminConfig["menuOverrides"];
+const MAX_PHOTOS = 6;
 const CATS = Object.keys(CATEGORY_LABELS) as MenuCategory[];
 
 export function MenuView() {
@@ -39,7 +40,7 @@ export function MenuView() {
       description: o.description ?? m.description,
       price: typeof o.price === "number" ? o.price : m.price,
       soldOut: typeof o.soldOut === "boolean" ? o.soldOut : m.soldOut,
-      image: o.image ?? m.image,
+      ...(o.images ? { image: o.images[0] ?? "", images: o.images } : { image: o.image ?? m.image, images: o.image ? [o.image] : undefined }),
       category: (o.category as MenuCategory) ?? m.category,
       leadTimeHours: typeof o.leadTimeHours === "number" ? o.leadTimeHours : m.leadTimeHours,
       aiNotes: o.aiNotes ?? m.aiNotes,
@@ -78,7 +79,9 @@ export function MenuView() {
     set("category", patch.category, base.category);
     set("leadTimeHours", typeof patch.leadTimeHours === "number" && patch.leadTimeHours > 0 ? patch.leadTimeHours : undefined, base.leadTimeHours);
     set("aiNotes", patch.aiNotes?.trim(), base.aiNotes);
-    set("image", patch.image, base.image);
+    // Photos: the whole set (main first); `image` mirrors the main one for anything that shows a single photo.
+    if (patch.images && patch.images.length) { o.images = patch.images; o.image = patch.images[0]; }
+    else { delete o.images; delete o.image; }
     if (typeof overrides[id]?.soldOut === "boolean") o.soldOut = overrides[id]!.soldOut; // keep existing sold-out state
     const next = { ...overrides, [id]: o };
     if (Object.keys(o).length === 0) delete next[id];
@@ -172,7 +175,7 @@ function EditDialog({ item, onClose, onSave }: { item: MenuItem | null; onClose:
   const [category, setCategory] = useState<MenuCategory>("starters");
   const [lead, setLead] = useState("");
   const [aiNotes, setAiNotes] = useState("");
-  const [image, setImage] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]); // main first
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -181,20 +184,26 @@ function EditDialog({ item, onClose, onSave }: { item: MenuItem | null; onClose:
       setName(item.name); setPrice(String(item.price)); setDescription(item.description);
       setCategory(item.category); setLead(item.leadTimeHours ? String(item.leadTimeHours) : "");
       setAiNotes(item.aiNotes ?? "");
-      setImage(realPhoto(item.image) ?? "");
+      setPhotos((item.images?.length ? item.images : [item.image]).map((p) => realPhoto(p)).filter((p): p is string => !!p));
     }
   }, [item]);
 
+  // Several photos can be picked at once; each is shrunk in the browser and uploaded in turn.
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const res = await uploadImage(file);
-    setUploading(false);
-    if (res.ok && res.url) { setImage(res.url); toast.success("Photo uploaded"); }
-    else toast.error(res.error ?? "Upload failed.");
+    const files = [...(e.target.files ?? [])].slice(0, Math.max(0, MAX_PHOTOS - photos.length));
     if (fileRef.current) fileRef.current.value = "";
+    if (!files.length) { if (photos.length >= MAX_PHOTOS) toast.error(`Up to ${MAX_PHOTOS} photos per dish.`); return; }
+    setUploading(true);
+    let added = 0;
+    for (const file of files) {
+      const res = await uploadImage(file);
+      if (res.ok && res.url) { const url = res.url; setPhotos((p) => (p.includes(url) || p.length >= MAX_PHOTOS ? p : [...p, url])); added++; }
+      else toast.error(res.error ?? "Upload failed.");
+    }
+    setUploading(false);
+    if (added) toast.success(`${added} photo${added === 1 ? "" : "s"} added - press Save to publish`);
   }
+  const movePhoto = (i: number, d: number) => setPhotos((p) => { const n = [...p]; const j = i + d; if (j < 0 || j >= n.length) return p; [n[i], n[j]] = [n[j], n[i]]; return n; });
 
   return (
     <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
@@ -203,19 +212,32 @@ function EditDialog({ item, onClose, onSave }: { item: MenuItem | null; onClose:
           <>
             <DialogHeader><DialogTitle className="font-display">Edit item</DialogTitle></DialogHeader>
             <div className="flex flex-col gap-3">
-              {/* Photo */}
+              {/* Photos: up to 6, the first is the main one (customers can swipe through the rest) */}
               <div>
-                <Label>Photo</Label>
-                <div className="mt-1.5 flex items-center gap-3">
-                  <DishImage name={name || item.name} category={category} className="size-20 shrink-0" rounded="rounded-lg" src={image || undefined} />
-                  <div className="flex flex-col gap-1.5">
-                    <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
-                    <Button type="button" variant="outline" className="h-9 gap-1.5" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                      {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} {image ? "Replace" : "Upload"}
-                    </Button>
-                    {image && <button className="text-left text-xs text-sambal hover:underline" onClick={() => setImage("")}>Remove photo</button>}
-                  </div>
+                <Label>Photos <span className="font-normal text-muted-foreground">({photos.length}/{MAX_PHOTOS})</span></Label>
+                <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {photos.map((src, i) => (
+                    <div key={src} className="relative">
+                      <DishImage name={name || item.name} category={category} className="aspect-square w-full" rounded="rounded-lg" src={src} />
+                      {i === 0 && <span className="absolute left-1 top-1 rounded-full bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">Main</span>}
+                      <div className="absolute inset-x-1 bottom-1 flex justify-between gap-1">
+                        <div className="flex gap-0.5">
+                          <button type="button" aria-label="Move earlier" disabled={i === 0} onClick={() => movePhoto(i, -1)} className="flex size-6 items-center justify-center rounded-full bg-background/90 text-foreground shadow disabled:opacity-40"><ArrowLeft className="size-3.5" /></button>
+                          <button type="button" aria-label="Move later" disabled={i === photos.length - 1} onClick={() => movePhoto(i, 1)} className="flex size-6 items-center justify-center rounded-full bg-background/90 text-foreground shadow disabled:opacity-40"><ArrowRight className="size-3.5" /></button>
+                        </div>
+                        <button type="button" aria-label="Remove photo" onClick={() => setPhotos((p) => p.filter((x) => x !== src))} className="flex size-6 items-center justify-center rounded-full bg-background/90 text-sambal shadow"><Trash2 className="size-3.5" /></button>
+                      </div>
+                    </div>
+                  ))}
+                  {photos.length < MAX_PHOTOS && (
+                    <button type="button" disabled={uploading} onClick={() => fileRef.current?.click()} className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-xs text-muted-foreground transition hover:bg-muted disabled:opacity-60">
+                      {uploading ? <Loader2 className="size-5 animate-spin" /> : <Upload className="size-5" />}
+                      {uploading ? "Uploading…" : photos.length ? "Add photos" : "Upload photos"}
+                    </button>
+                  )}
                 </div>
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple hidden onChange={onPick} />
+                <p className="mt-1 text-xs text-muted-foreground">The first photo is the main one: shown first on the menu, and used on the home banner. Customers can swipe through the rest. Use the arrows to reorder.</p>
               </div>
               <div><Label htmlFor="ed-name">Name</Label><Input id="ed-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5 h-11" /></div>
               <div><Label htmlFor="ed-desc">Description</Label><Input id="ed-desc" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1.5 h-11" /></div>
@@ -251,7 +273,7 @@ function EditDialog({ item, onClose, onSave }: { item: MenuItem | null; onClose:
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <Button disabled={uploading} onClick={() => onSave(item.id, {
                 name, description, price: parseFloat(price), category,
-                leadTimeHours: lead ? parseInt(lead, 10) : 0, aiNotes, image,
+                leadTimeHours: lead ? parseInt(lead, 10) : 0, aiNotes, images: photos,
               })}>Save</Button>
             </DialogFooter>
           </>

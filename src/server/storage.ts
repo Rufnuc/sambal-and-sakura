@@ -41,11 +41,15 @@ function cloudinaryConfigured() {
   return signedCloudinary() || Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_UPLOAD_PRESET);
 }
 
-async function toCloudinary(file: File): Promise<StoredImage> {
+// Where uploads go: menu photos, pictures for promotional emails, and files (PDF) linked from them.
+export type UploadKind = "menu" | "campaign" | "campaign-file";
+const FOLDER: Record<UploadKind, string> = { menu: "menu", campaign: "campaign", "campaign-file": "files" };
+
+async function toCloudinary(file: File, kind: UploadKind = "menu"): Promise<StoredImage> {
   const cloud = process.env.CLOUDINARY_CLOUD_NAME!;
   const form = new FormData();
   form.append("file", file);
-  const folder = "sambal-sakura/menu";
+  const folder = `sambal-sakura/${FOLDER[kind]}`;
   form.append("folder", folder);
   if (signedCloudinary()) {
     // Signed upload: SHA-1 of the sorted parameters + the API secret (Cloudinary's scheme).
@@ -57,34 +61,58 @@ async function toCloudinary(file: File): Promise<StoredImage> {
   } else {
     form.append("upload_preset", process.env.CLOUDINARY_UPLOAD_PRESET!);
   }
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: form });
+  // PDFs are stored as "raw" files (delivered exactly as uploaded); pictures as images.
+  const resource = kind === "campaign-file" ? "raw" : "image";
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/${resource}/upload`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`Cloudinary upload failed (${res.status})`);
   const data = (await res.json()) as { secure_url: string; public_id: string };
-  // Deliver an auto-optimised, auto-format, width-capped version for the menu grid.
-  const optimised = data.secure_url.replace("/upload/", "/upload/f_auto,q_auto,w_900,c_limit/");
-  return { url: optimised, via: "cloudinary" };
+  if (resource === "raw") return { url: data.secure_url, via: "cloudinary" };
+  // Deliver an auto-optimised, width-capped version: 900px for the menu grid, 1200px for email pictures.
+  // Emails get a fixed format (jpg), because some email apps can't show WebP/AVIF.
+  const transform = kind === "campaign" ? "f_jpg,q_auto,w_1200,c_limit" : "f_auto,q_auto,w_900,c_limit";
+  return { url: data.secure_url.replace("/upload/", `/upload/${transform}/`), via: "cloudinary" };
 }
 
-async function toLocalDisk(file: File): Promise<StoredImage> {
+async function toLocalDisk(file: File, kind: UploadKind = "menu"): Promise<StoredImage> {
   const buf = Buffer.from(await file.arrayBuffer());
-  const ext = file.type === "image/png" ? "png" : file.type === "image/avif" ? "avif" : file.type === "image/webp" ? "webp" : "jpg";
+  const ext = file.type === "application/pdf" ? "pdf" : file.type === "image/png" ? "png" : file.type === "image/avif" ? "avif" : file.type === "image/webp" ? "webp" : "jpg";
   const name = `${Date.now().toString(36)}-${randomBytes(4).toString("hex")}.${ext}`;
-  const dir = join(process.cwd(), "public", "uploads", "menu");
+  const dir = join(process.cwd(), "public", "uploads", FOLDER[kind]);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, name), buf);
-  return { url: `/uploads/menu/${name}`, via: "local" };
+  return { url: `/uploads/${FOLDER[kind]}/${name}`, via: "local" };
 }
 
 export class StorageNotConfiguredError extends Error {}
 export class InvalidImageError extends Error {}
 
-export async function storeImage(file: File): Promise<StoredImage> {
+export async function storeImage(file: File, kind: Exclude<UploadKind, "campaign-file"> = "menu"): Promise<StoredImage> {
   if (!(await looksLikeImage(file))) throw new InvalidImageError("That file isn't a real JPG, PNG, WebP or AVIF image.");
-  if (cloudinaryConfigured()) return toCloudinary(file);
+  if (cloudinaryConfigured()) return toCloudinary(file, kind);
   // Production hosts (e.g. Render) have an ephemeral disk: files saved locally vanish on the next
   // deploy. Refuse rather than silently losing the restaurant's photos.
   if (process.env.NODE_ENV === "production") {
     throw new StorageNotConfiguredError("Photo storage isn't set up yet. Add the Cloudinary keys in the server settings.");
   }
-  return toLocalDisk(file);
+  return toLocalDisk(file, kind);
+}
+
+/* ---- Files linked from promotional emails (PDF only: menus, flyers) ---- */
+const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10MB
+
+export function fileUploadError(file: File): string | null {
+  if (!file || typeof file.size !== "number") return "No file received.";
+  if (file.type !== "application/pdf") return "Use a PDF file (e.g. a menu or flyer).";
+  if (file.size > MAX_FILE_BYTES) return "The file must be 10MB or smaller.";
+  return null;
+}
+
+export async function storeFile(file: File): Promise<StoredImage> {
+  const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  if (String.fromCharCode(...head) !== "%PDF-") throw new InvalidImageError("That file isn't a real PDF.");
+  if (cloudinaryConfigured()) return toCloudinary(file, "campaign-file");
+  if (process.env.NODE_ENV === "production") {
+    throw new StorageNotConfiguredError("File storage isn't set up yet. Add the Cloudinary keys in the server settings.");
+  }
+  return toLocalDisk(file, "campaign-file");
 }

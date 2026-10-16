@@ -4,7 +4,7 @@ import { CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/me
 import { formatHours } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
-import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig } from "@/server/config";
+import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig, getDeliveryRules } from "@/server/config";
 import { getDisabledZones } from "@/server/settings";
 import { getWeChatConfig } from "@/server/wechat";
 import { gbpShort } from "@/lib/format";
@@ -20,8 +20,8 @@ const gbp = gbpShort;
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> {
-  const [{ business: b }, zones, disabled, maxMiles, menu, referral] = await Promise.all([
-    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(),
+  const [{ business: b }, zones, disabled, maxMiles, menu, referral, delivery] = await Promise.all([
+    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(), getDeliveryRules(),
   ]);
 
   const liveZones = zones.filter((z) => !disabled.includes(z.id));
@@ -53,7 +53,8 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
       label: "Delivery",
       value:
         liveZones.map((z) => `${z.label.replace(/^Zone \d+ - /, "")} (${z.postcodes.join(", ")}): ${gbp(z.fee)}, about ${z.etaMins} minutes`).join("; ") +
-        `. Free delivery on orders over ${gbp(ORDERING.freeDeliveryThreshold)}. Minimum delivery order ${gbp(ORDERING.minOrder)}.` +
+        (delivery.freeDeliveryOver !== null ? `. Free delivery on orders of ${gbp(delivery.freeDeliveryOver)} or more` : "") +
+        `. Minimum delivery order ${gbp(delivery.minOrder)}.` +
         (maxMiles > 0 ? ` Delivery is available within about ${maxMiles} miles.` : ""),
     });
   }

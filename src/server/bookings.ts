@@ -3,6 +3,7 @@ import { getBlackouts } from "@/server/settings";
 import { slotsForDate, canSeatParty, needsDeposit, type Booking as LibBooking, type Slot } from "@/lib/booking";
 import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
 import { getSiteContent } from "@/server/site-content";
+import { getFloorTables } from "@/server/config";
 import { ukParts, isRealDate, addDays } from "@/server/order-time";
 import { bookingRef, withFreshIds } from "@/server/ids";
 import { canonicalPhone } from "@/server/phone";
@@ -43,8 +44,8 @@ export async function getAvailability(date: string, party: number): Promise<Slot
     where: { date, status: { in: ACTIVE } },
     select: { date: true, time: true, party: true, status: true, tableId: true },
   });
-  const { business } = await getSiteContent();
-  return slotsForDate(date, party, toLib(rows), business.hours, notBefore(date));
+  const [{ business }, tables] = await Promise.all([getSiteContent(), getFloorTables()]);
+  return slotsForDate(date, party, toLib(rows), business.hours, notBefore(date), tables);
 }
 
 export class BookingError extends Error {
@@ -62,7 +63,8 @@ export interface NewBooking {
 /** Create a booking with a server-authoritative capacity re-check, serialised per date. */
 export async function createBooking(data: NewBooking, userId?: string) {
   if (data.party > MAX_ONLINE_PARTY) throw new BookingError(`Parties over ${MAX_ONLINE_PARTY} must call the restaurant.`, 400);
-  if (!canSeatParty(data.party)) throw new BookingError("We can't seat a party that size online.", 400);
+  const tables = await getFloorTables();
+  if (!canSeatParty(data.party, tables)) throw new BookingError("We can't seat a party that size online.", 400);
   const problem = dateProblem(data.date);
   if (problem) throw new BookingError(problem, 400);
   if ((await getBlackouts()).includes(data.date)) throw new BookingError("We're closed on that date.", 409);
@@ -82,7 +84,7 @@ export async function createBooking(data: NewBooking, userId?: string) {
       where: { date: data.date, status: { in: ACTIVE } },
       select: { date: true, time: true, party: true, status: true, tableId: true },
     });
-    const slot = slotsForDate(data.date, data.party, toLib(rows), business.hours, notBefore(data.date)).find((s) => s.time === data.time);
+    const slot = slotsForDate(data.date, data.party, toLib(rows), business.hours, notBefore(data.date), tables).find((s) => s.time === data.time);
     if (!slot || slot.state === "full") throw new BookingError("That slot is no longer available.", 409);
 
     return tx.booking.create({

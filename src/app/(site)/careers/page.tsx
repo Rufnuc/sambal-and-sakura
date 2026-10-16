@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Briefcase, MapPin, Clock, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Briefcase, MapPin, Clock } from "lucide-react";
+import { ApplyDialog } from "@/components/careers/apply-dialog";
 import { Badge } from "@/components/ui/badge";
 import { getCareers } from "@/server/config";
 import { RESTAURANT } from "@/lib/data/site";
@@ -55,8 +55,8 @@ export default async function CareersPage() {
 
       {jobs.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-          No open roles right now - but we&apos;re always happy to hear from great people. Email{" "}
-          <a href={`mailto:${b.email}`} className="font-medium text-gold-ink hover:underline">{b.email}</a>.
+          <p>No open roles right now - but we&apos;re always happy to hear from great people.</p>
+          <div className="mt-4 flex justify-center"><ApplyDialog fallbackEmail={b.email} label="Send us your CV" /></div>
         </div>
       ) : (
         <div className="mt-10 flex flex-col gap-5">
@@ -70,9 +70,7 @@ export default async function CareersPage() {
                     <Badge variant="outline" className="gap-1"><MapPin className="size-3" /> {j.location}</Badge>
                   </div>
                 </div>
-                <Button asChild className="h-11 gap-2 font-semibold">
-                  <a href={`mailto:${b.email}?subject=${encodeURIComponent("Application: " + j.title)}`}><Mail className="size-4" /> Apply</a>
-                </Button>
+                <ApplyDialog jobId={j.id} jobTitle={j.title} fallbackEmail={b.email} />
               </div>
               <p className="mt-3 font-medium">{j.summary}</p>
               <p className="mt-2 text-muted-foreground text-pretty">{j.description}</p>
@@ -82,9 +80,9 @@ export default async function CareersPage() {
       )}
 
       <div className="mt-10 rounded-2xl border border-border bg-muted/40 p-6 text-sm text-muted-foreground">
-        To apply, email your CV to{" "}
+        Apply with the button on a role, or email your CV to{" "}
         <a href={`mailto:${b.email}`} className="font-medium text-gold-ink hover:underline">{b.email}</a>{" "}
-        or call <a href={telHref(b.phone)} className="font-medium text-gold-ink hover:underline">{b.phone}</a>.
+        or call <a href={telHref(b.phone)} className="font-medium text-gold-ink hover:underline">{b.phone}</a>. Your application goes to our team by email and isn&apos;t stored on this website.
       </div>
     </div>
   );

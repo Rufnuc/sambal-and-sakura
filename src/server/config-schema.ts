@@ -37,6 +37,11 @@ export const zonesSchema = z.array(z.object({
   fee: z.number().finite().min(0).max(50), etaMins: z.number().int().min(0).max(180),
 })).max(50);
 
+export const deliveryRulesSchema = z.object({
+  minOrder: z.number().finite().min(0).max(200),
+  freeDeliveryOver: z.number().finite().min(0).max(500).nullable(), // null = no free delivery
+}).strict();
+
 const pence = (n: number) => Math.round(n * 100) === n * 100;
 const MENU_ITEM_IDS = MENU_IDS;
 
@@ -117,6 +122,23 @@ export const referralSchema = z.object({
   .refine((r) => r.minSpend >= r.give, "The minimum spend must be at least the friend's reward (otherwise they could get food free).");
 
 /** First validation problem as a sentence the owner can act on. */
+// Floor plan tables (Admin -> Floor plan). Names unique; "joins with" only names other tables in the list.
+export const floorTablesSchema = z.array(z.object({
+  id: zText(16, { min: 1 }),
+  seats: z.number().int().min(1).max(30),
+  zone: zText(30, { min: 1 }),
+  combinesWith: z.array(zText(16, { min: 1 })).max(6).optional(),
+  x: z.number().finite().min(0).max(100),
+  y: z.number().finite().min(0).max(100),
+  shape: z.enum(["round", "square", "long"]),
+})).min(1, "Keep at least one table.").max(80).superRefine((tables, ctx) => {
+  const ids = tables.map((t) => t.id.toLowerCase());
+  ids.forEach((id, i) => { if (ids.indexOf(id) !== i) ctx.addIssue({ code: "custom", message: `Two tables are called "${tables[i].id}" - give each table its own name.`, path: [i, "id"] }); });
+  tables.forEach((t, i) => (t.combinesWith ?? []).forEach((o) => {
+    if (o.toLowerCase() === t.id.toLowerCase() || !ids.includes(o.toLowerCase())) ctx.addIssue({ code: "custom", message: `${t.id} joins with "${o}", which isn't another table.`, path: [i, "combinesWith"] });
+  }));
+});
+
 export function firstIssue(e: z.ZodError, section: string): string {
   const i = e.issues[0];
   const where = i?.path.length ? ` (${i.path.join(" › ")})` : "";

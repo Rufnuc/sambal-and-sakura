@@ -1,11 +1,11 @@
-import { COMPANY, ORDERING, RESTAURANT } from "@/lib/data/site";
+import { COMPANY, RESTAURANT } from "@/lib/data/site";
 import { MAX_ONLINE_PARTY, BOOKING_POLICY } from "@/lib/data/tables";
 import { formatAddress } from "@/lib/site-content";
 import { gbpShort } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
 import { getCancelPolicy } from "@/server/cancellations";
 import { getPromotions } from "@/server/promotions";
-import { getReferralConfig, getMaxMiles } from "@/server/config";
+import { getReferralConfig, getMaxMiles, getDeliveryRules } from "@/server/config";
 import { wechatAvailable } from "@/server/wechat";
 import { ORDER_PII_DAYS, BOOKING_PII_DAYS, EVENT_DAYS } from "@/server/retention";
 import { CUSTOMER_SESSION_DAYS, STAFF_SESSION_HOURS } from "@/server/auth";
@@ -35,15 +35,15 @@ const days = (n: number) => (n % 365 === 0 ? `${n / 365} year${n === 365 ? "" : 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 async function facts() {
-  const [{ business: b }, cancel, promos, referral, maxMiles] = await Promise.all([
-    getSiteContent(), getCancelPolicy(), getPromotions(), getReferralConfig(), getMaxMiles(),
+  const [{ business: b }, cancel, promos, referral, maxMiles, delivery] = await Promise.all([
+    getSiteContent(), getCancelPolicy(), getPromotions(), getReferralConfig(), getMaxMiles(), getDeliveryRules(),
   ]);
   const env = process.env;
   return {
     phone: b.phone,
     email: b.email,
     address: formatAddress(b.address),
-    cancel, promos, referral, maxMiles,
+    cancel, promos, referral, maxMiles, delivery,
     wechat: wechatAvailable(),
     // Which outside services are switched on (keys set), so the privacy policy lists only real recipients.
     on: {
@@ -87,7 +87,7 @@ function privacy(f: Facts): LegalDoc {
     ["Neon", "Database", "Everything the site stores", "EU"],
     ["IONOS", "Our domain name and email inbox", "Emails you send us (including CVs)", "EU / UK"],
   ];
-  if (f.on.brevo) vendors.push(["Brevo", "Sends order, booking and account emails, and promotional emails if you opted in", "Name, email address, email content", "EU"]);
+  if (f.on.brevo) vendors.push(["Brevo", "Sends order, booking and account emails, promotional emails if you opted in, and job applications to our inbox", "Name, email address, email content (and CVs for job applications)", "EU"]);
   if (f.on.sunmi) vendors.push(["Sunmi", "Prints orders on the kitchen printer", "Order details: name, phone, address, items, notes", "Outside the UK"]);
   if (f.on.printnode) vendors.push(["PrintNode", "Prints orders on the kitchen printer", "Order details: name, phone, address, items, notes", "UK / EU"]);
   if (f.wechat) vendors.push(["WeChat Pay (Tenpay)", "Takes payment if you choose WeChat Pay", "Order number and amount; WeChat holds your payment details", "China"]);
@@ -127,7 +127,7 @@ function privacy(f: Facts): LegalDoc {
           ["Account details", "Name, email, phone, password (stored only as a scrambled hash we can't read), language, whether you want offer emails, points, rewards, your referral code and who referred you, your order and booking history", "When you create and use an account"],
           ["Allergy and dietary information", "Anything you tell us about allergies, intolerances or diets", "Only if you choose to tell us"],
           ["Questions to the dish assistant", "The question you type into \"Ask about this\"", "When you use it"],
-          ["Messages and job applications", "Emails you send us, including CVs", "When you contact us"],
+          ["Messages and job applications", "Emails you send us; job applications from the Careers page (name, email, phone, message and CV)", "When you contact us or apply for a job"],
           ["Technical information", "IP address (kept briefly to stop abuse), a login cookie, items kept in your browser (see our [Cookie Policy](/legal/cookies)) and, if you accept, anonymous visit statistics", "When you use the site"],
         ] } },
         "To fulfil an order we need your name and phone number, and for delivery your address. Without them we can't take the order. Everything else is optional.",
@@ -143,6 +143,7 @@ function privacy(f: Facts): LegalDoc {
           ["Prevent fraud and misuse (e.g. rate limits, bot checks, the cancellation rule below, blocking reuse of rewards) and keep the site secure", "Legitimate interests: protecting the business and our customers"],
           ["Keep records of what staff do in our admin system", "Legitimate interests: security and accountability"],
           ["Answer your questions and complaints; improve our food and service", "Legitimate interests"],
+          ["Consider your job application", "Steps you asked us to take before a possible employment contract, and legitimate interests (recruiting staff)"],
           ["Count anonymous visits and page use", "Consent: only if you accept cookies"],
           ["Keep accounting and tax records", "Legal obligation"],
           ["Use allergy and dietary information", "Explicit consent (see below)"],
@@ -176,7 +177,7 @@ function privacy(f: Facts): LegalDoc {
         `**Anonymous visit statistics:** deleted after ${EVENT_DAYS} days.`,
         "**Abuse-prevention records** (such as IP addresses used for rate limits) are deleted when they expire, usually within hours to a day.",
         "**Promotional email list:** until you unsubscribe or close your account.",
-        "**Emails and CVs** sent to us: deleted when no longer needed; CVs within 6 months unless you ask us to keep yours.",
+        "**Emails and CVs** sent to us (including through the Careers page, which emails them to us and doesn't store them on the website): deleted when no longer needed; CVs within 6 months unless you ask us to keep yours.",
       ] }] },
       { id: "rights", h: "Your rights", body: [
         "You have the right to:",
@@ -236,7 +237,7 @@ function terms(f: Facts): LegalDoc {
       ] },
       { id: "delivery", h: "Delivery and collection", body: [{ list: [
         `We deliver to the postcodes shown at checkout${f.maxMiles > 0 ? `, within about ${f.maxMiles} miles of the restaurant` : ""}. The delivery fee for your area is shown before you order.`,
-        `The minimum order for delivery is ${gbpShort(ORDERING.minOrder)} of food. Delivery is free on orders of ${gbpShort(ORDERING.freeDeliveryThreshold)} or more.`,
+        `The minimum order for delivery is ${gbpShort(f.delivery.minOrder)} of food.${f.delivery.freeDeliveryOver !== null ? ` Delivery is free on orders of ${gbpShort(f.delivery.freeDeliveryOver)} or more of food.` : ""}`,
         "Delivery and collection times are estimates. We'll do our best, but busy times, traffic and weather can cause delays.",
         "If nobody answers when we deliver, we'll try to phone you. If we can't hand over the order, we may have to take it back. A cash order that can't be delivered counts as a cancelled order (see below).",
         "For collection, please come at the time shown. We can't keep food hot indefinitely.",

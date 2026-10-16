@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zText } from "@/server/sanitize";
 import { prisma } from "@/server/db";
 import { adminUser } from "@/server/auth";
-import { createCampaign, marketableWhere } from "@/server/campaigns";
+import { createCampaign, marketableWhere, campaignMediaSchema } from "@/server/campaigns";
 import { emailConfigured, marketingAllowanceToday, DAILY_LIMIT } from "@/server/email";
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
@@ -26,6 +26,7 @@ const schema = z.object({
   translations: z.object({ zh: version.optional(), vi: version.optional(), ja: version.optional() }).optional(),
   audience: z.enum(["all", "selected"]),
   userIds: z.array(z.string().max(40)).max(5000).optional(),
+  ...campaignMediaSchema,
 });
 
 export async function POST(req: Request) {
@@ -33,7 +34,10 @@ export async function POST(req: Request) {
   if (!u) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!emailConfigured()) return NextResponse.json({ error: "Email isn't set up yet (add the Brevo key in the server settings)." }, { status: 400 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Add a subject (3+ characters) and a message (10+ characters)." }, { status: 400 });
+  if (!parsed.success) {
+    const media = parsed.error.issues.find((i) => ["imageUrl", "fileUrl", "fileName"].includes(String(i.path[0])));
+    return NextResponse.json({ error: media ? media.message : "Add a subject (3+ characters) and a message (10+ characters)." }, { status: 400 });
+  }
   if (parsed.data.audience === "selected" && !parsed.data.userIds?.length) return NextResponse.json({ error: "Pick at least one customer." }, { status: 400 });
   // Keep only language versions that have both a subject and a message.
   const translations = Object.fromEntries(Object.entries(parsed.data.translations ?? {}).filter(([, v]) => v && v.subject.length >= 3 && v.body.length >= 10));

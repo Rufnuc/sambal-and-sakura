@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogoMark } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { InstallAppButton } from "@/components/admin/install-app-button";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, React.ElementType> = {
@@ -92,6 +93,7 @@ export function AdminShell({ children, userName = "Staff", role = "admin", secti
           <p className="font-display text-lg font-bold lg:hidden">Operations</p>
 
           <div className="ml-auto flex items-center gap-2">
+            <InstallAppButton />
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition hover:bg-muted">
                 <span className="hidden sm:inline">{userName}</span> <ChevronDown className="size-4" />

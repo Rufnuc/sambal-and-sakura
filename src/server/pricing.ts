@@ -1,7 +1,6 @@
 import type { Offer } from "@/lib/data/site";
 import { type MenuItem } from "@/lib/data/menu";
-import { ORDERING } from "@/lib/data/site";
-import type { ZoneConfig } from "@/server/config";
+import type { ZoneConfig, DeliveryRules } from "@/server/config";
 
 /**
  * Server-authoritative pricing. The client sends only item ids + selected modifier option ids +
@@ -131,6 +130,7 @@ export function computeTotals(opts: {
   disabledZones: string[];
   menu: MenuItem[];
   zones: ZoneConfig[];
+  delivery: DeliveryRules; // minimum order + free-delivery amount (admin setting)
 }): Totals {
   const priced: PricedLine[] = [];
   const issues: LineIssue[] = [];
@@ -142,7 +142,8 @@ export function computeTotals(opts: {
 
   const zone = opts.fulfilment === "delivery" && opts.postcode ? findZone(opts.postcode, opts.zones, opts.disabledZones) : null;
   const inArea = opts.fulfilment === "collection" || !!zone;
-  const deliveryFee = opts.fulfilment === "collection" || !zone || subtotal >= ORDERING.freeDeliveryThreshold ? 0 : zone.fee;
+  const freeDelivery = opts.delivery.freeDeliveryOver !== null && subtotal >= opts.delivery.freeDeliveryOver;
+  const deliveryFee = opts.fulfilment === "collection" || !zone || freeDelivery ? 0 : zone.fee;
 
   let discount = 0;
   let voucherApplied = false;
@@ -166,7 +167,7 @@ export function computeTotals(opts: {
 
   const total = round2(Math.max(0, subtotal + deliveryFee - discount));
   // The delivery minimum is on the food subtotal before discounts.
-  const minMet = opts.fulfilment === "collection" ? subtotal > 0 : subtotal >= ORDERING.minOrder;
+  const minMet = opts.fulfilment === "collection" ? subtotal > 0 : subtotal >= opts.delivery.minOrder;
 
   return { lines: priced, issues, subtotal, deliveryFee, discount, total, zone, minMet, inArea, voucherApplied };
 }

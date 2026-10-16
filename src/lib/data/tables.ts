@@ -1,22 +1,31 @@
-// Table inventory & booking policy. PLACEHOLDER - tune to the real floor plan.
+// Table inventory & booking policy. The owner edits the real tables in Admin -> Floor plan (saved in
+// the database, Setting "floorTables"); TABLES is only the starting layout until they do.
 
-export interface Table { id: string; seats: number; zone: string; combinesWith?: string[] }
+export type TableShape = "round" | "square" | "long";
+export interface Table {
+  id: string;            // short name shown on the plan, e.g. "T1" or "Window 2"
+  seats: number;
+  zone: string;          // area, e.g. Window / Main / Booth
+  combinesWith?: string[]; // tables that can be pushed together with this one for a bigger party
+  x?: number; y?: number;  // position on the floor plan, as % of its width / height (centre of the table)
+  shape?: TableShape;
+}
 
 export const TABLES: Table[] = [
-  { id: "T1", seats: 2, zone: "Window" },
-  { id: "T2", seats: 2, zone: "Window" },
-  { id: "T3", seats: 2, zone: "Bar", combinesWith: ["T4"] },
-  { id: "T4", seats: 2, zone: "Bar", combinesWith: ["T3"] },
-  { id: "T5", seats: 4, zone: "Main" },
-  { id: "T6", seats: 4, zone: "Main" },
-  { id: "T7", seats: 4, zone: "Main", combinesWith: ["T8"] },
-  { id: "T8", seats: 4, zone: "Main", combinesWith: ["T7"] },
-  { id: "T9", seats: 6, zone: "Booth" },
-  { id: "T10", seats: 6, zone: "Booth" },
+  { id: "T1", seats: 2, zone: "Window", x: 12, y: 15, shape: "round" },
+  { id: "T2", seats: 2, zone: "Window", x: 30, y: 15, shape: "round" },
+  { id: "T3", seats: 2, zone: "Bar", combinesWith: ["T4"], x: 70, y: 15, shape: "square" },
+  { id: "T4", seats: 2, zone: "Bar", combinesWith: ["T3"], x: 85, y: 15, shape: "square" },
+  { id: "T5", seats: 4, zone: "Main", x: 15, y: 50, shape: "square" },
+  { id: "T6", seats: 4, zone: "Main", x: 38, y: 50, shape: "square" },
+  { id: "T7", seats: 4, zone: "Main", combinesWith: ["T8"], x: 62, y: 50, shape: "square" },
+  { id: "T8", seats: 4, zone: "Main", combinesWith: ["T7"], x: 82, y: 50, shape: "square" },
+  { id: "T9", seats: 6, zone: "Booth", x: 25, y: 83, shape: "long" },
+  { id: "T10", seats: 6, zone: "Booth", x: 70, y: 83, shape: "long" },
 ];
 
-export const TOTAL_SEATS = TABLES.reduce((n, t) => n + t.seats, 0); // 36
-export const LARGEST_TABLE = Math.max(...TABLES.map((t) => t.seats)); // 6
+export const totalSeats = (tables: Table[]) => tables.reduce((n, t) => n + t.seats, 0);
+export const TOTAL_SEATS = totalSeats(TABLES); // the default layout's 36 (live total: totalSeats(tables))
 export const MAX_ONLINE_PARTY = 10; // above this → phone + deposit
 
 export const BOOKING_POLICY = {

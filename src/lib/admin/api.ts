@@ -2,6 +2,7 @@
 
 import type { PlacedOrder } from "@/lib/order";
 import type { Booking, BookingStatus } from "@/lib/booking";
+import type { Table } from "@/lib/data/tables";
 import type { OrderStatus } from "@/lib/data/site";
 import type { SiteContent } from "@/lib/site-content";
 
@@ -94,8 +95,10 @@ export async function setOrdersPaused(paused: boolean): Promise<boolean | null> 
 }
 
 /** Upcoming bookings (from yesterday on), or the last 60 days with past=true. */
-export async function fetchBookings(past = false): Promise<Booking[]> {
-  const res = await fetch(`/api/admin/bookings${past ? "?past=1" : ""}`, { cache: "no-store" });
+export async function fetchBookings(past = false, q = ""): Promise<Booking[]> {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q); else if (past) params.set("past", "1");
+  const res = await fetch(`/api/admin/bookings${params.size ? `?${params}` : ""}`, { cache: "no-store" });
   if (!res.ok) return [];
   const data = await res.json();
   return (data.bookings as RawBooking[]).map(normBooking);
@@ -189,11 +192,13 @@ export interface OfferCfg {
 export interface WheelPrizeCfg { id: string; label: string; kind: string; weight: number; color: string; amount?: number }
 export interface JobCfg { id: string; title: string; type: string; location: string; summary: string; description: string; active: boolean }
 export interface DealCfg { active: boolean; title: string; description: string; itemId?: string; price?: number; badge: string }
+// Delivery prices: minimum food for delivery, and free delivery from this food total (null = never free).
+export interface DeliveryCfg { minOrder: number; freeDeliveryOver: number | null }
 export interface AdminConfig {
   referral: ReferralCfg; zones: ZoneCfg[]; offers: OfferCfg[];
   wheelPrizes: WheelPrizeCfg[]; menuOverrides: Record<string, MenuOverrideCfg>;
   careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent; siteVersion: string;
-  promotions: PromotionsCfg;
+  promotions: PromotionsCfg; delivery: DeliveryCfg;
 }
 export type PromoKey = "offers" | "wheel" | "referral";
 export interface PromoCfg { enabled: boolean; message: string; graceDays: number; pausedAt?: string | null }
@@ -225,14 +230,37 @@ async function compressImage(file: File, maxSide = 1200, quality = 0.82): Promis
   }
 }
 
-export async function uploadImage(original: File): Promise<{ ok: boolean; url?: string; error?: string }> {
+export async function uploadImage(original: File, kind: "menu" | "campaign" = "menu"): Promise<{ ok: boolean; url?: string; error?: string }> {
   const file = await compressImage(original);
   const form = new FormData();
   form.append("file", file);
+  form.append("kind", kind);
   const res = await fetch("/api/admin/upload", { method: "POST", body: form });
   const data = await res.json().catch(() => ({}));
   if (res.ok && data.url) return { ok: true, url: data.url };
   return { ok: false, error: data.error ?? "Upload failed." };
+}
+
+/** A PDF (menu, flyer) to link from a promotional email. Not compressed. */
+export async function uploadCampaignFile(file: File): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("kind", "campaign-file");
+  const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok && data.url) return { ok: true, url: data.url };
+  return { ok: false, error: data.error ?? "Upload failed." };
+}
+
+/** The floor plan tables (any staff with Bookings/Floor access can read; only the owner can save). */
+export async function fetchFloorTables(): Promise<{ tables: Table[]; canEdit: boolean } | null> {
+  const res = await fetch("/api/admin/floor", { cache: "no-store" });
+  return res.ok ? res.json() : null;
+}
+export async function saveFloorTables(tables: Table[]): Promise<{ ok: true; tables: Table[] } | { ok: false; error: string }> {
+  const res = await fetch("/api/admin/floor", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tables }) });
+  const data = await res.json().catch(() => ({}));
+  return res.ok ? { ok: true, tables: data.tables } : { ok: false, error: data.error ?? "Could not save the floor plan." };
 }
 
 export async function fetchConfig(): Promise<AdminConfig> {
@@ -322,13 +350,14 @@ async function jsonOrError(res: Response): Promise<{ ok: boolean; error?: string
   const data = await res.json().catch(() => ({}));
   return res.ok ? { ok: true, ...data } : { ok: false, error: data.error ?? "Something went wrong." };
 }
-export async function createCampaign(input: { subject: string; body: string; translations?: Record<string, { subject: string; body: string }>; audience: "all" | "selected"; userIds?: string[] }) {
+export interface CampaignMediaInput { imageUrl?: string | null; fileUrl?: string | null; fileName?: string | null }
+export async function createCampaign(input: { subject: string; body: string; translations?: Record<string, { subject: string; body: string }>; audience: "all" | "selected"; userIds?: string[] } & CampaignMediaInput) {
   return jsonOrError(await fetch("/api/admin/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }));
 }
 export async function translateCampaign(input: { locale: string; subject: string; body: string }) {
   return jsonOrError(await fetch("/api/admin/campaigns/translate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }));
 }
-export async function sendCampaignTest(input: { subject: string; body: string; locale?: string }) {
+export async function sendCampaignTest(input: { subject: string; body: string; locale?: string } & CampaignMediaInput) {
   return jsonOrError(await fetch("/api/admin/campaigns/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }));
 }
 export async function cancelCampaign(id: string) {

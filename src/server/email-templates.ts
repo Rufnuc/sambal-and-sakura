@@ -183,13 +183,27 @@ export function referralEmail(name: string, locale: string, biz: Business, amoun
 
 /* ------------------------------------------------------------------ offers */
 
+/** Optional picture and file link on a promotional email (URLs already checked: our uploads only). */
+export interface CampaignMedia { imageUrl?: string | null; fileUrl?: string | null; fileName?: string | null }
+const absUrl = (u: string) => (u.startsWith("/") ? `${SITE_URL}${u}` : u);
+
 /** A promotional email written by the owner (already chosen in the customer's language). */
-export function campaignEmail(subject: string, body: string, name: string, locale: string, unsubscribeUrl: string, biz: Business): Built {
+export function campaignEmail(subject: string, body: string, name: string, locale: string, unsubscribeUrl: string, biz: Business, media: CampaignMedia = {}): Built {
   const l = asEmailLocale(locale);
   const paras = body.trim().split(/\n{2,}/).map((p) => esc(p).replace(/\n/g, "<br>"));
   const greeting = t(l, "campaign.greeting", { name: firstName(name) });
   const footer = `${t(l, "campaign.why")} <a href="${esc(unsubscribeUrl)}" style="color:#6b6257">${t(l, "campaign.unsubscribe")}</a>`;
-  const html = layout(l, biz, esc(subject), [greeting, ...paras, `<a href="${esc(SITE_URL)}/menu" style="display:inline-block;background:#1f1b16;color:#ecbb4e;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:bold">${t(l, "campaign.orderNow")}</a>`], footer);
-  const text = [stripTags(greeting), "", body.trim(), "", `${stripTags(t(l, "campaign.orderNow"))}: ${SITE_URL}/menu`, "", `${stripTags(t(l, "campaign.unsubscribe"))}: ${unsubscribeUrl}`].join("\n");
+  const btn = (href: string, label: string, dark = true) =>
+    `<a href="${esc(href)}" style="display:inline-block;background:${dark ? "#1f1b16" : "#ffffff"};color:${dark ? "#ecbb4e" : "#1f1b16"};border:1px solid #1f1b16;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:bold">${label}</a>`;
+  const image = media.imageUrl ? `<img src="${esc(absUrl(media.imageUrl))}" alt="${esc(subject)}" width="520" style="display:block;width:100%;max-width:520px;height:auto;border-radius:12px;border:0">` : null;
+  const fileLabel = media.fileName ? esc(media.fileName) : t(l, "campaign.openFile");
+  const file = media.fileUrl ? btn(absUrl(media.fileUrl), `&#128196; ${fileLabel}`, false) : null;
+  const blocks = [greeting, ...(image ? [image] : []), ...paras, ...(file ? [file] : []), btn(`${SITE_URL}/menu`, t(l, "campaign.orderNow"))];
+  const html = layout(l, biz, esc(subject), blocks, footer);
+  const text = [
+    stripTags(greeting), "", body.trim(), "",
+    ...(media.fileUrl ? [`${media.fileName || stripTags(t(l, "campaign.openFile"))}: ${absUrl(media.fileUrl)}`, ""] : []),
+    `${stripTags(t(l, "campaign.orderNow"))}: ${SITE_URL}/menu`, "", `${stripTags(t(l, "campaign.unsubscribe"))}: ${unsubscribeUrl}`,
+  ].join("\n");
   return { subject, html, text };
 }

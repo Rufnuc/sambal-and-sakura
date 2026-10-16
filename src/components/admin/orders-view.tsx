@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Check, X, Clock, Printer, Volume2, VolumeX, PauseCircle, PlayCircle, AlertTriangle, Search } from "lucide-react";
+import { ChevronRight, Check, X, Clock, Printer, Volume2, VolumeX, PauseCircle, PlayCircle, AlertTriangle, Search, MonitorSmartphone } from "lucide-react";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 10_000;
+const ALARM_REPEAT_MS = 15_000; // repeat the chime this often until a new order is accepted
 const LATE_MS = 5 * 60_000;
 
 const FILTERS: { id: OrderStatus | "all" | "active"; label: string }[] = [
@@ -56,10 +58,23 @@ function nextStatus(o: PlacedOrder): OrderStatus | null {
 }
 
 // A short two-tone chime made in the browser (no sound file needed).
-function chime() {
+// One shared audio context, unlocked by the first tap on the page: phones and tablets (iPad Safari
+// especially) block sound that a timer starts unless the context was created during a tap.
+let audioCtx: AudioContext | null = null;
+function unlockAudio() {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+  } catch { /* no audio */ }
+}
+const audioLocked = () => !audioCtx || audioCtx.state !== "running";
+
+function chime() {
+  try {
+    unlockAudio();
+    const ctx = audioCtx;
+    if (!ctx) return;
     [880, 1320].forEach((f, i) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.frequency.value = f; o.type = "sine";
@@ -95,6 +110,10 @@ export function OrdersView() {
   const [custCancels, setCustCancels] = useState<{ count: number; windowDays: number; flagAt: number } | null>(null);
   const [sound, setSound] = useState(() => { try { return typeof window !== "undefined" && localStorage.getItem("ss_admin_sound") === "1"; } catch { return false; } });
   const [now, setNow] = useState(() => Date.now());
+  // Keep the tablet's screen on while this page is open (on by default; remembered per device).
+  const [awake, setAwake] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem("ss_admin_awake") !== "0"; } catch { return true; } });
+  const wake = useWakeLock(awake);
+  const [audioReady, setAudioReady] = useState(false); // a tap has unlocked sound on this page
   const known = useRef<Set<string> | null>(null);
   const alarmed = useRef<Set<string>>(new Set());
 
@@ -130,14 +149,42 @@ export function OrdersView() {
     }
   }, [days, query, sound]);
 
-  // Live updates: poll every 10 s and whenever the tab comes back into view.
+  // Live updates: poll every 10 s, even in a background tab (browsers slow that to about once a
+  // minute, which still catches new orders), and straight away when the tab comes back into view
+  // or the internet connection returns.
   useEffect(() => {
     void load();
-    const id = setInterval(() => { if (document.visibilityState === "visible") void load(); }, POLL_MS);
-    const onVis = () => { if (document.visibilityState === "visible") void load(); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+    const id = setInterval(() => { void load(); }, POLL_MS);
+    const now = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", now);
+    window.addEventListener("online", now);
+    window.addEventListener("focus", now);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", now); window.removeEventListener("online", now); window.removeEventListener("focus", now); };
   }, [load]);
+
+  // Sound needs one tap after the page loads (browser rule). Ask for it, and unlock on the first tap.
+  const soundLocked = sound && !audioReady;
+  useEffect(() => {
+    if (!sound) return;
+    const unlock = () => { unlockAudio(); setTimeout(() => setAudioReady(!audioLocked()), 100); };
+    document.addEventListener("pointerdown", unlock);
+    document.addEventListener("keydown", unlock);
+    return () => { document.removeEventListener("pointerdown", unlock); document.removeEventListener("keydown", unlock); };
+  }, [sound]);
+
+  // Keep alarming every 15 s while a new order hasn't been accepted (moved past "received"), or a
+  // customer cancellation hasn't been acknowledged - so a busy kitchen can't miss it.
+  const newWaiting = orders.some((o) => o.status === "received" && (o.paymentMethod !== "wechat" || o.paymentStatus === "paid"));
+  const needsAttention = newWaiting || orders.some((o) =>
+    (o.status === "cancelled" && o.cancelKind === "customer" && (o.cancelledAt ?? 0) > now - 2 * 3600_000 && !acks.has(o.id)));
+  useEffect(() => {
+    if (!needsAttention) return;
+    const id = setInterval(() => {
+      if (sound) chime();
+      try { navigator.vibrate?.([300, 150, 300]); } catch { /* not supported */ }
+    }, ALARM_REPEAT_MS);
+    return () => clearInterval(id);
+  }, [needsAttention, sound]);
 
   const activeCount = orders.filter(isActive).length;
   const waiting = orders.filter((o) => isLate(o, now)).length;
@@ -192,11 +239,16 @@ export function OrdersView() {
     setPaused(r);
     toast(r ? "Online orders paused" : "Online orders are back on");
   }
+  function toggleAwake() {
+    const next = !awake;
+    setAwake(next);
+    try { localStorage.setItem("ss_admin_awake", next ? "1" : "0"); } catch { /* ignore */ }
+  }
   function toggleSound() {
     const next = !sound;
     setSound(next);
     try { localStorage.setItem("ss_admin_sound", next ? "1" : "0"); } catch { /* ignore */ }
-    if (next) chime(); // also unlocks audio in the browser (needs a tap)
+    if (next) { chime(); setTimeout(() => setAudioReady(!audioLocked()), 100); } // the tap also unlocks audio
   }
 
   if (!ready) return <div className="h-96 animate-pulse rounded-xl bg-muted" />;
@@ -212,6 +264,11 @@ export function OrdersView() {
           <Button variant="outline" className="h-9 gap-1.5" onClick={toggleSound} aria-pressed={sound}>
             {sound ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />} {sound ? "Sound on" : "Turn sound on"}
           </Button>
+          {wake !== "unsupported" && (
+            <Button variant="outline" className="h-9 gap-1.5" onClick={toggleAwake} aria-pressed={awake} title="Stops this screen going to sleep while the Orders page is open">
+              <MonitorSmartphone className="size-4" /> {awake ? (wake === "on" ? "Screen stays on" : "Screen on: tap the page") : "Keep screen on"}
+            </Button>
+          )}
           <Button variant={paused ? "default" : "outline"} className={cn("h-9 gap-1.5", !paused && "border-sambal/40 text-sambal")} onClick={togglePause}>
             {paused ? <PlayCircle className="size-4" /> : <PauseCircle className="size-4" />} {paused ? "Resume online orders" : "Pause online orders"}
           </Button>
@@ -225,6 +282,8 @@ export function OrdersView() {
         </div>
       ))}
       {paused && <Banner tone="sambal">Online ordering is PAUSED. Customers see a message asking them to phone.</Banner>}
+      {sound && soundLocked && <Banner tone="sambal">Tap anywhere on this page to switch the order alarm on (the browser needs one tap after the page opens).</Banner>}
+      {newWaiting && <Banner tone="sambal">New order waiting: the alarm repeats every 15 seconds until it&apos;s accepted (moved to Preparing).</Banner>}
       {offline && <Banner tone="sambal">Can&apos;t reach the server - check the internet connection. Showing the last orders loaded.</Banner>}
       {waiting > 0 && <Banner tone="sambal">{waiting} order{waiting > 1 ? "s have" : " has"} been waiting over 5 minutes. Start {waiting > 1 ? "them" : "it"} or call the customer.</Banner>}
       {printIssues > 0 && <Banner tone="gold">{printIssues} order{printIssues > 1 ? "s" : ""} didn&apos;t print. Check the printer, then use Reprint (it retries automatically too).</Banner>}
@@ -242,7 +301,7 @@ export function OrdersView() {
         </select>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order no., phone or name" className="h-9 w-56 pl-8" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order no., name, phone, email or postcode" aria-label="Search orders" className="h-9 w-64 pl-8" />
         </div>
       </div>
 

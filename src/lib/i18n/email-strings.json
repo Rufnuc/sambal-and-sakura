@@ -407,6 +407,12 @@
     "vi": "Đặt món ngay",
     "ja": "今すぐ注文"
   },
+  "campaign.openFile": {
+    "en": "Open the file",
+    "zh": "打开文件",
+    "vi": "Mở tệp",
+    "ja": "ファイルを開く"
+  },
   "campaign.why": {
     "en": "You're getting this because you said yes to offers from us.",
     "zh": "您收到此邮件是因为您同意接收我们的优惠信息。",

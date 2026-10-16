@@ -40,3 +40,12 @@ export interface PlacedOrder {
   cancelKind?: string;   // customer | no-show | staff
   cancelledAt?: number;
 }
+
+/** Delivery prices from /api/public-config (admin settings), for "Delivery from £x · free on £y+" hints. */
+export interface DeliveryHint { minOrder: number; freeOver: number | null; fromFee: number | null }
+
+export function deliveryHintText(d: DeliveryHint | null): string {
+  if (!d) return "";
+  const gbp = (n: number) => `£${n.toFixed(2)}`;
+  return [d.fromFee !== null ? `From ${gbp(d.fromFee)}` : "", d.freeOver !== null ? `free on ${gbp(d.freeOver)}+` : ""].filter(Boolean).join(" · ");
+}

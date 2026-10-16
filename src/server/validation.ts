@@ -96,7 +96,7 @@ export const orderStatusSchema = z.object({
 
 export const bookingStatusSchema = z.object({
   status: z.enum(["upcoming", "seated", "completed", "cancelled", "no-show", "delayed", "waitlist"]).optional(),
-  tableId: zId(10).optional(),
+  tableId: zText(16, { min: 1 }).optional(), // a table name from the floor plan (may contain spaces)
   name: personName.optional(),
   phone: zPhoneText.pipe(z.string().min(5)).optional(),
   date: dateKey.optional(),

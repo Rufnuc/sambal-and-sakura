@@ -142,7 +142,19 @@ Each dish can have **up to 6 photos** (Admin → Menu → edit a dish → Photos
 
 Photos are shrunk in the browser before upload (max 1200px, WebP, typically 100-250KB instead of several MB), so they're small even without Cloudinary. With Cloudinary they're also served in the best format for each phone.
 
-In Cloudinary's dashboard copy the cloud name, API key and API secret, and set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` in Render. These make uploads **signed** (only this server can upload). The older unsigned-preset option (`CLOUDINARY_UPLOAD_PRESET`) still works but lets anyone who learns the preset name upload to your account.
+Cloudinary also stores the **pictures and PDFs for promotional emails** (Admin → Promotions → Email customers). Without it, uploads are refused on the live site (Render's disk is wiped on every deploy).
+
+**Set it up (about 5 minutes, free plan is enough):**
+1. Sign up at [cloudinary.com](https://cloudinary.com/users/register_free) (free plan: 25 credits a month, plenty for a restaurant).
+2. Open **Dashboard** (or **Settings → API Keys**) and copy three values: **Cloud name**, **API key**, **API secret**.
+3. In Render → your service → **Environment**, add `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` with those values, then **Save, rebuild and deploy**.
+4. So PDFs in promotional emails open for customers: in Cloudinary go to **Settings → Security** and turn on **"Allow delivery of PDF and ZIP files"** (it's off on new free accounts), then save.
+5. Check: Admin → Menu → edit a dish → add a photo. It should upload and show. Then Admin → Promotions → Email customers → "Add a picture" / "Add a PDF" → "Send me a test".
+
+These keys make uploads **signed** (only this server can upload). The older unsigned-preset option (`CLOUDINARY_UPLOAD_PRESET`) still works but lets anyone who learns the preset name upload to your account. Never put the API secret anywhere except Render's Environment page.
+
+### Job applications (Careers page)
+"Apply" opens a form: name, email, phone, an optional message and a CV (PDF or Word, up to 4 MB). It's emailed through Brevo to the restaurant email in Site content (or to `CAREERS_EMAIL` if you set it), with the CV attached; pressing **Reply** answers the applicant, who also gets a short "we've received it" email. Nothing is stored on the website. Needs the Brevo settings above; without them the form tells applicants to email instead. Delete CVs from the mailbox within 6 months if you don't hire the person (that's what the Privacy Policy promises).
 
 ### WeChat Pay
 Set **all** of `WECHAT_APPID`, `WECHAT_MCHID`, `WECHAT_SERIAL_NO`, `WECHAT_PRIVATE_KEY`, `WECHAT_NOTIFY_URL`, `WECHAT_API_V3_KEY` and `WECHAT_PLATFORM_PUBLIC_KEY`. In the merchant console, set the payment notification URL to `https://YOUR-DOMAIN/api/pay/wechat/notify`.

@@ -3,7 +3,8 @@ import { SITE_URL } from "@/lib/site-url";
 import { hmac } from "@/server/secrets";
 import { getSiteContent } from "@/server/site-content";
 import { marketingAllowanceToday, sendMarketing } from "@/server/email";
-import { campaignEmail } from "@/server/email-templates";
+import { campaignEmail, type CampaignMedia } from "@/server/email-templates";
+import { z } from "zod";
 import { log } from "@/server/log";
 import { markCampaignWork, campaignWorkPending, clearCampaignWork } from "@/server/activity";
 
@@ -18,7 +19,17 @@ export const marketableWhere = { role: "customer", status: "active", marketingOp
 
 export type CampaignTranslations = Partial<Record<"zh" | "vi" | "ja", { subject: string; body: string }>>;
 
-export async function createCampaign(input: { subject: string; body: string; translations?: CampaignTranslations; audience: "all" | "selected"; userIds?: string[]; createdBy: string }) {
+// A picture/file on a promotional email must be one uploaded through the admin (our Cloudinary
+// account, or /uploads in development) - never an arbitrary link someone pasted in.
+const OUR_MEDIA = /^(\/uploads\/(campaign|files)\/[\w.-]+|https:\/\/res\.cloudinary\.com\/[\w-]+\/(image|raw)\/upload\/[\w,./%-]+)$/;
+export const zMediaUrl = z.string().max(500).regex(OUR_MEDIA, "Upload the picture or file here first.");
+export const campaignMediaSchema = {
+  imageUrl: zMediaUrl.nullish(),
+  fileUrl: zMediaUrl.nullish(),
+  fileName: z.string().max(80).transform((v) => v.replace(/[<>"\n\r]/g, "").trim()).nullish(),
+};
+
+export async function createCampaign(input: { subject: string; body: string; translations?: CampaignTranslations; audience: "all" | "selected"; userIds?: string[]; createdBy: string } & CampaignMedia) {
   const recipients = await prisma.user.findMany({
     where: { ...marketableWhere, ...(input.audience === "selected" ? { id: { in: input.userIds ?? [] } } : {}) },
     select: { id: true },
@@ -26,6 +37,7 @@ export async function createCampaign(input: { subject: string; body: string; tra
   const campaign = await prisma.campaign.create({
     data: {
       subject: input.subject, body: input.body, audience: input.audience, createdBy: input.createdBy,
+      imageUrl: input.imageUrl || null, fileUrl: input.fileUrl || null, fileName: input.fileUrl ? input.fileName || null : null,
       translations: JSON.stringify(input.translations ?? {}),
       total: recipients.length, status: recipients.length ? "queued" : "sent", finishedAt: recipients.length ? null : new Date(),
       recipients: { create: recipients.map((r) => ({ userId: r.id })) },
@@ -66,9 +78,10 @@ export async function processCampaigns(): Promise<void> {
     const unsub = unsubscribeUrl(user.id);
     // Their language version if the owner wrote one, otherwise English (with English greeting/footer).
     const version = user.locale !== "en" ? translations[user.locale as keyof CampaignTranslations] : undefined;
+    const media = { imageUrl: campaign.imageUrl, fileUrl: campaign.fileUrl, fileName: campaign.fileName };
     const m = version?.subject && version.body
-      ? campaignEmail(version.subject, version.body, user.name, user.locale, unsub, business)
-      : campaignEmail(campaign.subject, campaign.body, user.name, "en", unsub, business);
+      ? campaignEmail(version.subject, version.body, user.name, user.locale, unsub, business, media)
+      : campaignEmail(campaign.subject, campaign.body, user.name, "en", unsub, business, media);
     const ok = await sendMarketing(campaign.id, { to: { email: user.email, name: user.name }, ...m, unsubscribeUrl: unsub });
     // Recorded straight after each send, so a restart mid-batch never emails anyone twice.
     await prisma.campaignRecipient.update({ where: { id: r.id }, data: { status: ok ? "sent" : "failed", sentAt: ok ? new Date() : null } });

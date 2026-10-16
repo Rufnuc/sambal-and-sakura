@@ -50,3 +50,10 @@ export const zPhoneText = z.string().max(40).transform((v) => v.normalize("NFKC"
 
 /** A search box value (admin): cleaned single line. */
 export const cleanQuery = (v: string | null | undefined, max = 60) => cleanText(v ?? "").slice(0, max);
+
+/** Spellings to try for a name search ("priya", "Priya", "PRIYA"): SQLite and Postgres differ on case. */
+export function nameVariants(q: string): string[] {
+  const lower = q.toLowerCase();
+  const title = lower.replace(/(^|[\s'-])(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
+  return [...new Set([q, lower, title, q.toUpperCase()])];
+}

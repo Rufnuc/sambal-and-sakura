@@ -23,7 +23,7 @@ import { MENU } from "@/lib/data/menu";
 import { ORDERING, ORDER_STATUS_FLOW } from "@/lib/data/site";
 import { useSiteContent } from "@/components/site-content-provider";
 import { telHref } from "@/lib/site-content";
-import { isValidPostcode } from "@/lib/order";
+import { isValidPostcode, deliveryHintText, type DeliveryHint } from "@/lib/order";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { useAuth, LOYALTY } from "@/lib/store/auth";
@@ -52,7 +52,7 @@ interface Quote {
   issues: { itemId: string; name: string; problem: "unavailable" | "invalid-options" }[];
   subtotal: number; deliveryFee: number; discount: number; total: number;
   zone: { label: string; fee: number; etaMins: number } | null;
-  minMet: boolean; inArea: boolean; minOrder: number; freeDeliveryThreshold: number;
+  minMet: boolean; inArea: boolean; minOrder: number; freeDeliveryThreshold: number | null;
   voucher: { code: string; label: string; minSpend: number; applied: boolean } | null;
   voucherError: string | null;
   timing: { paused: boolean; asap: { ok: boolean; reason?: string }; leadHours: number; days: { date: string; label: string; times: string[] }[] };
@@ -91,8 +91,10 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
   const { locale } = useLocale();
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
   const [wechatOk, setWechatOk] = useState(false);
+  const [deliveryHint, setDeliveryHint] = useState<DeliveryHint | null>(null);
   useEffect(() => {
     fetch("/api/pay/methods").then((r) => r.json()).then((d) => setWechatOk(!!d.wechat)).catch(() => setWechatOk(false));
+    fetch("/api/public-config").then((r) => r.json()).then((d) => { if (d.delivery) setDeliveryHint(d.delivery as DeliveryHint); }).catch(() => {});
   }, []);
   // If WeChat stops being offered (e.g. language switched away from Chinese), fall back to cash.
   const wechatShown = locale === "zh" && wechatOk;
@@ -288,7 +290,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
         {/* Fulfilment */}
         <Card title="How would you like it?">
           <div className="grid grid-cols-2 gap-3">
-            <ToggleCard active={fulfilment === "delivery"} onClick={() => setFulfilment("delivery")} icon={Bike} label="Delivery" sub={`From ${gbp(ORDERING.deliveryZones[0].fee)} · free over ${gbp(ORDERING.freeDeliveryThreshold)}`} />
+            <ToggleCard active={fulfilment === "delivery"} onClick={() => setFulfilment("delivery")} icon={Bike} label="Delivery" sub={deliveryHintText(deliveryHint) || "To your door"} />
             <ToggleCard active={fulfilment === "collection"} onClick={() => setFulfilment("collection")} icon={ShoppingBag} label="Collection" sub={`Ready in ${ORDERING.prepTimeMin}-${ORDERING.prepTimeMax} min`} />
           </div>
 

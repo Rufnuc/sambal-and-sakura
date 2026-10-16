@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { DishImage } from "@/components/brand/dish-image";
 import { useCart, cartSubtotal } from "@/lib/store/cart";
 import { MENU } from "@/lib/data/menu";
-import { ORDERING } from "@/lib/data/site";
+import { deliveryHintText, type DeliveryHint } from "@/lib/order";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
 
@@ -29,8 +29,12 @@ export function CartContent({ onClose }: { onClose: () => void }) {
 
   // The free gyoza offer is live only while the owner has Offers switched on (null = no offer).
   const [freeOver, setFreeOver] = useState<number | null>(null);
+  const [delivery, setDelivery] = useState<DeliveryHint | null>(null);
   useEffect(() => {
-    fetch("/api/public-config").then((r) => r.json()).then((d) => setFreeOver(typeof d.freeItemOver === "number" ? d.freeItemOver : null)).catch(() => {});
+    fetch("/api/public-config").then((r) => r.json()).then((d) => {
+      setFreeOver(typeof d.freeItemOver === "number" ? d.freeItemOver : null);
+      if (d.delivery) setDelivery(d.delivery as DeliveryHint);
+    }).catch(() => {});
   }, []);
   const freeGyoza = freeOver !== null && subtotal >= freeOver;
 
@@ -145,7 +149,7 @@ export function CartContent({ onClose }: { onClose: () => void }) {
               <span className="font-display text-xl font-bold">{gbp(subtotal)}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Delivery from {gbp(ORDERING.deliveryZones[0].fee)} · free over {gbp(ORDERING.freeDeliveryThreshold)}. Fees & ETA confirmed at checkout.
+              {delivery && deliveryHintText(delivery) ? `Delivery: ${deliveryHintText(delivery).replace(/^From/, "from")}. ` : ""}Fees & ETA confirmed at checkout.
             </p>
             <Separator />
             <Button asChild className="h-12 text-base font-semibold">

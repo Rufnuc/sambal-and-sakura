@@ -65,6 +65,8 @@ services:
         sync: false
       - key: EMAIL_FROM_NAME
         value: Sambal & Sakura
+      - key: CAREERS_EMAIL           # optional: where Careers-page applications go (default: Site content email)
+        sync: false
 
       # --- Security switches (see DEPLOY.md "Security switches") ---
       - key: TURNSTILE_SITE_KEY      # Cloudflare Turnstile bot check on guest checkout / sign-up / bookings

@@ -10,14 +10,15 @@ import {
   getCareers, setCareers,
   getDeal, setDeal,
   getMaxMiles, setMaxMiles,
-  type MenuOverrides, type ZoneConfig, type JobPosting, type DealOfDay, type ReferralConfig,
+  getDeliveryRules, setDeliveryRules,
+  type MenuOverrides, type ZoneConfig, type JobPosting, type DealOfDay, type ReferralConfig, type DeliveryRules,
 } from "@/server/config";
 import { TESTIMONIALS, type Offer, type WheelPrize } from "@/lib/data/site";
 
 const SAMPLE_REVIEW_TEXTS = new Set(TESTIMONIALS.map((t) => t.text.trim()));
 import { getSiteContent, getSiteContentVersion, setSiteContent } from "@/server/site-content";
 import {
-  menuOverridesSchema, zonesSchema, offersSchema, wheelPrizesSchema, careersSchema, dealSchema, referralSchema, firstIssue,
+  menuOverridesSchema, zonesSchema, offersSchema, wheelPrizesSchema, careersSchema, dealSchema, referralSchema, deliveryRulesSchema, firstIssue,
 } from "@/server/config-schema";
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
@@ -27,18 +28,19 @@ import { getPromotions, setPromotions, promotionsSchema, type PromotionsInput } 
 // Owner-only: prices, menu, offers, wheel, careers, zones and site content.
 export async function GET() {
   if (!(await adminUser())) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const [referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, promotions] = await Promise.all([
+  const [referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, promotions, delivery] = await Promise.all([
     getReferralConfig(), getZones(), getOffers(), getWheelPrizes(), getMenuOverrides(),
-    getCareers(), getDeal(), getMaxMiles(), getSiteContent(), getPromotions(),
+    getCareers(), getDeal(), getMaxMiles(), getSiteContent(), getPromotions(), getDeliveryRules(),
   ]);
   const siteVersion = await getSiteContentVersion();
-  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions });
+  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions, delivery });
 }
 
 type Block = { key: string; label: string; schema: z.ZodType; save: (v: never) => Promise<void> };
 const BLOCKS: Block[] = [
   { key: "referral", label: "Referral settings", schema: referralSchema, save: (v: ReferralConfig) => setReferralConfig(v) },
   { key: "zones", label: "Delivery zones", schema: zonesSchema, save: (v: ZoneConfig[]) => setZones(v) },
+  { key: "delivery", label: "Delivery prices", schema: deliveryRulesSchema, save: (v: DeliveryRules) => setDeliveryRules(v) },
   { key: "offers", label: "Offers", schema: offersSchema, save: (v: Offer[]) => setOffers(v) },
   { key: "wheelPrizes", label: "Fortune Wheel prizes", schema: wheelPrizesSchema, save: (v: WheelPrize[]) => setWheelPrizes(v) },
   { key: "menuOverrides", label: "Menu", schema: menuOverridesSchema, save: (v: MenuOverrides) => setMenuOverrides(v) },

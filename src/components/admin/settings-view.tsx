@@ -10,9 +10,9 @@ import { SectionCard } from "@/components/admin/ui";
 import { OwnerTools } from "@/components/admin/owner-tools";
 import { CancelPolicyCard } from "@/components/admin/cancel-policy-card";
 import { ORDERING } from "@/lib/data/site";
-import { BOOKING_POLICY, MAX_ONLINE_PARTY, TOTAL_SEATS } from "@/lib/data/tables";
+import { BOOKING_POLICY, MAX_ONLINE_PARTY } from "@/lib/data/tables";
 import {
-  fetchSettings, saveSettings, fetchConfig, saveConfig, changePassword, fetchPrinterInfo, sendTestPrint, type ZoneCfg, type PrintResult,
+  fetchSettings, saveSettings, fetchConfig, saveConfig, changePassword, fetchPrinterInfo, sendTestPrint, type ZoneCfg, type PrintResult, type DeliveryCfg,
 } from "@/lib/admin/api";
 import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,8 @@ export function SettingsView() {
   const [zones, setZones] = useState<ZoneCfg[]>([]);
   const [newDate, setNewDate] = useState("");
   const [maxMiles, setMaxMiles] = useState(6);
+  const [delivery, setDelivery] = useState<DeliveryCfg>({ minOrder: 12, freeDeliveryOver: 25 });
+  const [freeAmount, setFreeAmount] = useState(25); // remembered while free delivery is switched off
   const [ready, setReady] = useState(false);
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [printer, setPrinter] = useState<{ provider: "sunmi" | "printnode" | null; printerSn: string | null } | null>(null);
@@ -33,7 +35,9 @@ export function SettingsView() {
 
   useEffect(() => {
     Promise.all([fetchSettings(), fetchConfig()]).then(([s, c]) => {
-      setBlackouts(s.blackouts); setDisabledZones(s.disabledZones); setZones(c.zones); setMaxMiles(c.maxMiles ?? 6); setReady(true);
+      setBlackouts(s.blackouts); setDisabledZones(s.disabledZones); setZones(c.zones); setMaxMiles(c.maxMiles ?? 6);
+      if (c.delivery) { setDelivery(c.delivery); if (c.delivery.freeDeliveryOver !== null) setFreeAmount(c.delivery.freeDeliveryOver); }
+      setReady(true);
     });
   }, []);
 
@@ -42,6 +46,14 @@ export function SettingsView() {
     const r = await sendTestPrint();
     setTesting(false); setTestResult(r);
     if (r.ok) toast.success("Test ticket sent - check the printer"); else toast.error(r.message);
+  }
+
+  async function saveDelivery() {
+    try {
+      const c = await saveConfig({ delivery });
+      if (c.delivery) setDelivery(c.delivery);
+      toast.success("Delivery prices saved");
+    } catch (e) { toast.error((e as Error).message); }
   }
 
   async function saveMiles() {
@@ -142,7 +154,7 @@ export function SettingsView() {
           })}
         </div>
         <Button variant="outline" className="mt-3 h-10 gap-1.5" onClick={addZone}><Plus className="size-4" /> Add zone</Button>
-        <p className="mt-3 text-xs text-muted-foreground">Free delivery over {gbp(ORDERING.freeDeliveryThreshold)} · minimum order {gbp(ORDERING.minOrder)}. Remember to Save zones after editing.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Minimum order and free delivery are set in &quot;Delivery prices&quot; below. Remember to Save zones after editing.</p>
       </SectionCard>
 
       {/* Max delivery range */}
@@ -151,6 +163,36 @@ export function SettingsView() {
         <div className="flex items-end gap-3">
           <div><Label className="text-xs">Max miles</Label><Input type="number" step="0.5" value={maxMiles} onChange={(e) => setMaxMiles(Number(e.target.value))} className="mt-1 h-10 w-32" inputMode="decimal" /></div>
         </div>
+      </SectionCard>
+
+      {/* Minimum order + free delivery */}
+      <SectionCard title="Delivery prices" action={<Button size="sm" className="h-9 gap-1.5" onClick={saveDelivery}><Save className="size-4" /> Save</Button>}>
+        <div className="flex flex-wrap items-end gap-5">
+          <div>
+            <Label htmlFor="min-order" className="text-xs">Minimum delivery order (£ of food)</Label>
+            <Input id="min-order" type="number" step="0.5" min={0} value={delivery.minOrder} onChange={(e) => setDelivery((d) => ({ ...d, minOrder: Number(e.target.value) }))} className="mt-1 h-10 w-32" inputMode="decimal" />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setDelivery((d) => ({ ...d, freeDeliveryOver: d.freeDeliveryOver === null ? freeAmount : null }))}
+              role="switch" aria-checked={delivery.freeDeliveryOver !== null} aria-label="Free delivery"
+              className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", delivery.freeDeliveryOver !== null ? "bg-jade" : "bg-muted")}
+            >
+              <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", delivery.freeDeliveryOver !== null ? "translate-x-6" : "translate-x-1")} />
+            </button>
+            <span className="text-sm font-medium">Free delivery</span>
+          </div>
+          {delivery.freeDeliveryOver !== null && (
+            <div>
+              <Label htmlFor="free-over" className="text-xs">Free on orders of (£ of food)</Label>
+              <Input id="free-over" type="number" step="0.5" min={0} value={delivery.freeDeliveryOver} onChange={(e) => { const v = Number(e.target.value); setFreeAmount(v); setDelivery((d) => ({ ...d, freeDeliveryOver: v })); }} className="mt-1 h-10 w-32" inputMode="decimal" />
+            </div>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {delivery.freeDeliveryOver !== null ? `Delivery is free when the food comes to ${gbp(delivery.freeDeliveryOver)} or more.` : "Free delivery is off: every delivery pays its zone fee."}
+          {" "}Checkout, the basket and the Terms update when you save. If the home page &quot;highlights&quot; mention free delivery, update them in Site content too.
+        </p>
       </SectionCard>
 
       {/* Kitchen printer */}
@@ -184,7 +226,7 @@ export function SettingsView() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SectionCard title="Booking rules" action={<ShieldCheck className="size-5 text-jade" />}>
           <dl className="divide-y divide-border text-sm">
-            <Rule label="Total covers" value={`${TOTAL_SEATS} seats`} />
+            <Rule label="Tables and seats" value="Set in Floor plan → Edit layout" />
             <Rule label="Walk-in reserve (peak)" value={`${Math.round(BOOKING_POLICY.walkInReservePct.peak * 100)}%`} />
             <Rule label="Walk-in reserve (standard)" value={`${Math.round(BOOKING_POLICY.walkInReservePct.standard * 100)}%`} />
             <Rule label="Deposit from" value={`${BOOKING_POLICY.depositThresholdParty}+ guests`} />
@@ -194,8 +236,8 @@ export function SettingsView() {
         <SectionCard title="Order rules" action={<Clock className="size-5 text-gold-ink" />}>
           <dl className="divide-y divide-border text-sm">
             <Rule label="Payment" value="Cash (WeChat Pay for Chinese-language guests when set up)" />
-            <Rule label="Minimum delivery order" value={gbp(ORDERING.minOrder)} />
-            <Rule label="Free delivery threshold" value={gbp(ORDERING.freeDeliveryThreshold)} />
+            <Rule label="Minimum delivery order" value={gbp(delivery.minOrder)} />
+            <Rule label="Free delivery" value={delivery.freeDeliveryOver !== null ? `On ${gbp(delivery.freeDeliveryOver)}+` : "Off"} />
             <Rule label="Average prep time" value={`${ORDERING.prepTimeMins} min`} />
             <Rule label="Last ASAP order" value={`${ORDERING.asapCutoffBeforeCloseMins} min before closing`} />
           </dl>

@@ -7,6 +7,9 @@ import { ADMIN_SECTIONS, canAccess, parsePermissions } from "@/lib/admin/section
 export const metadata: Metadata = {
   title: "Operations",
   robots: { index: false, follow: false },
+  // Installable staff app (opens on Orders). See src/app/admin/app.webmanifest/route.ts.
+  manifest: "/admin/app.webmanifest",
+  appleWebApp: { capable: true, title: "S&S Orders", statusBarStyle: "black-translucent" },
 };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

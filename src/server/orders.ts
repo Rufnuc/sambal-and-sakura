@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getBlackouts, getDisabledZones, getOrdersPaused } from "@/server/settings";
-import { getEffectiveMenu, getZones, getMaxMiles, getOffers } from "@/server/config";
+import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules } from "@/server/config";
 import { getSiteContent } from "@/server/site-content";
 import { computeTotals, offerVoucher, isValidPostcodeServer, LOYALTY_POINTS_PER_POUND, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
 import { orderTiming, checkWhen, type OrderTiming } from "@/server/order-time";
@@ -17,7 +17,7 @@ import { getCancelPolicy, countCancellations, customerCanCancel } from "@/server
 import { rewardReferrerIfQualified, emailReferralReward } from "@/server/referrals";
 import { getPromotions, rewardUsableUntil, type Promotions } from "@/server/promotions";
 import { printCancellation } from "@/server/print";
-import { ORDERING, type Offer } from "@/lib/data/site";
+import type { Offer } from "@/lib/data/site";
 
 export class OrderError extends Error {
   status: number;
@@ -60,7 +60,7 @@ export interface QuoteInput {
 export interface Quote extends Omit<Totals, "zone"> {
   zone: { id: string; label: string; fee: number; etaMins: number } | null;
   minOrder: number;
-  freeDeliveryThreshold: number;
+  freeDeliveryThreshold: number | null; // null = no free delivery
   voucher: { code: string; label: string; minSpend: number; applied: boolean } | null;
   voucherError: string | null;
   timing: OrderTiming;
@@ -116,8 +116,8 @@ async function voucherProblem(v: Voucher, phone: string | undefined, user: User 
 
 /** Price an order exactly as checkout will charge it (the single source of truth for the UI). */
 export async function buildQuote(input: QuoteInput, user: User | null): Promise<Resolved> {
-  const [disabledZones, menu, zones, blackouts, paused, site, promos, offers] = await Promise.all([
-    getDisabledZones(), getEffectiveMenu(), getZones(), getBlackouts(), getOrdersPaused(), getSiteContent(), getPromotions(), getOffers(),
+  const [disabledZones, menu, zones, blackouts, paused, site, promos, offers, delivery] = await Promise.all([
+    getDisabledZones(), getEffectiveMenu(), getZones(), getBlackouts(), getOrdersPaused(), getSiteContent(), getPromotions(), getOffers(), getDeliveryRules(),
   ]);
   const r = await resolveVoucher(input.voucherCode, user, promos, offers);
   let voucherError = r.error;
@@ -126,7 +126,7 @@ export async function buildQuote(input: QuoteInput, user: User | null): Promise<
     const problem = await voucherProblem(voucher, input.phone, user);
     if (problem) { voucherError = problem; voucher = null; }
   }
-  const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, disabledZones, menu, zones, autoFreeItem: promos.offers.enabled });
+  const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, disabledZones, menu, zones, delivery, autoFreeItem: promos.offers.enabled });
   const leadHours = Math.max(0, ...input.lines.map((l) => menu.find((m) => m.id === l.itemId)?.leadTimeHours ?? 0));
   const timing = orderTiming({ hours: site.business.hours, blackouts, leadHours, paused });
   const v = voucher ?? null;
@@ -135,8 +135,8 @@ export async function buildQuote(input: QuoteInput, user: User | null): Promise<
     ownedRewardId: v ? r.ownedRewardId : null,
     quote: {
       ...totals,
-      minOrder: ORDERING.minOrder,
-      freeDeliveryThreshold: ORDERING.freeDeliveryThreshold,
+      minOrder: delivery.minOrder,
+      freeDeliveryThreshold: delivery.freeDeliveryOver,
       voucher: v ? { code: v.code, label: v.label, minSpend: v.minSpend ?? 0, applied: totals.voucherApplied } : null,
       voucherError,
       timing,
@@ -182,7 +182,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
   }
   if (input.voucherCode && quote.voucherError) throw new OrderError(quote.voucherError, 400, { quote });
   if (quote.lines.length === 0) throw new OrderError("No valid items in your order.");
-  if (!quote.minMet) throw new OrderError(`The minimum for delivery is £${ORDERING.minOrder.toFixed(2)} of food.`);
+  if (!quote.minMet) throw new OrderError(`The minimum for delivery is £${quote.minOrder.toFixed(2)} of food.`);
 
   const when = checkWhen(input.whenType, input.scheduledFor, quote.timing);
   if (!when.ok) throw new OrderError(when.error, 409, { quote });

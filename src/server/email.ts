@@ -23,6 +23,10 @@ export interface EmailMessage {
   text: string;
   /** Adds List-Unsubscribe headers (promotional email). */
   unsubscribeUrl?: string;
+  /** Where "Reply" goes (e.g. a job applicant), instead of our sending address. */
+  replyTo?: { email: string; name?: string };
+  /** Files sent with the email (base64 content). Keep the total under 4 MB. */
+  attachments?: { name: string; content: string }[];
 }
 
 async function sentToday(kind?: "transactional" | "marketing"): Promise<number> {
@@ -43,6 +47,8 @@ async function brevoSend(m: EmailMessage): Promise<void> {
     htmlContent: m.html,
     textContent: m.text,
   };
+  if (m.replyTo) body.replyTo = { email: m.replyTo.email, ...(m.replyTo.name ? { name: m.replyTo.name.slice(0, 70) } : {}) };
+  if (m.attachments?.length) body.attachment = m.attachments;
   if (m.unsubscribeUrl) {
     body.headers = { "List-Unsubscribe": `<${m.unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
   }

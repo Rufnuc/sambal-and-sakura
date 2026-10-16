@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Mail, Send, Search, X, Languages } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Mail, Send, Search, X, Languages, ImagePlus, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionCard } from "@/components/admin/ui";
-import { fetchCampaigns, createCampaign, sendCampaignTest, cancelCampaign, translateCampaign, fetchCustomers, type CampaignRow, type AdminCustomer } from "@/lib/admin/api";
+import { fetchCampaigns, createCampaign, sendCampaignTest, cancelCampaign, translateCampaign, fetchCustomers, uploadImage, uploadCampaignFile, type CampaignRow, type AdminCustomer, type CampaignMediaInput } from "@/lib/admin/api";
 import { cn } from "@/lib/utils";
 
 const STATUS: Record<string, string> = { queued: "Waiting to send", sending: "Sending", sent: "Sent", cancelled: "Stopped" };
@@ -34,6 +34,25 @@ export function EmailCampaigns() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AdminCustomer[]>([]);
   const [busy, setBusy] = useState(false);
+  // Optional picture (shown in the email) and PDF (opened with a button) - the same for every language.
+  const [media, setMedia] = useState<CampaignMediaInput>({});
+  const [uploading, setUploading] = useState<"image" | "file" | null>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  async function addImage(f: File | undefined) {
+    if (!f) return;
+    setUploading("image");
+    const r = await uploadImage(f, "campaign");
+    setUploading(null);
+    if (r.ok && r.url) setMedia((m) => ({ ...m, imageUrl: r.url })); else toast.error(r.error ?? "Upload failed.");
+  }
+  async function addFile(f: File | undefined) {
+    if (!f) return;
+    setUploading("file");
+    const r = await uploadCampaignFile(f);
+    setUploading(null);
+    if (r.ok && r.url) setMedia((m) => ({ ...m, fileUrl: r.url, fileName: m.fileName || f.name.replace(/\.pdf$/i, "") })); else toast.error(r.error ?? "Upload failed.");
+  }
 
   const load = useCallback(() => fetchCampaigns().then(setInfo), []);
   useEffect(() => {
@@ -55,11 +74,11 @@ export function EmailCampaigns() {
     if (!window.confirm(`Send "${subject.trim()}" to ${recipients} customer${recipients === 1 ? "" : "s"}?`)) return;
     setBusy(true);
     const translations = Object.fromEntries((["zh", "vi", "ja"] as const).filter((l) => versions[l].subject.trim() && versions[l].body.trim()).map((l) => [l, { subject: versions[l].subject.trim(), body: versions[l].body.trim() }]));
-    const r = await createCampaign({ subject: subject.trim(), body: body.trim(), translations, audience, userIds: audience === "selected" ? [...picked.keys()] : undefined });
+    const r = await createCampaign({ subject: subject.trim(), body: body.trim(), translations, audience, userIds: audience === "selected" ? [...picked.keys()] : undefined, ...media });
     setBusy(false);
     if (!r.ok) { toast.error(r.error); return; }
     toast.success("Queued - it sends in batches over the next few minutes.");
-    setVersions({ en: EMPTY, zh: EMPTY, vi: EMPTY, ja: EMPTY }); setLang("en"); setPicked(new Map());
+    setVersions({ en: EMPTY, zh: EMPTY, vi: EMPTY, ja: EMPTY }); setLang("en"); setPicked(new Map()); setMedia({});
     void load();
   }
   async function autoTranslate() {
@@ -73,7 +92,7 @@ export function EmailCampaigns() {
   }
   async function test() {
     setBusy(true);
-    const r = await sendCampaignTest({ subject: (cur.subject || subject).trim(), body: (cur.body || body).trim(), locale: cur.subject && cur.body ? lang : "en" });
+    const r = await sendCampaignTest({ subject: (cur.subject || subject).trim(), body: (cur.body || body).trim(), locale: cur.subject && cur.body ? lang : "en", ...media });
     setBusy(false);
     if (r.ok) toast.success(`Test sent to ${String(r.to)}`); else toast.error(r.error);
   }
@@ -107,6 +126,42 @@ export function EmailCampaigns() {
           <Label htmlFor="cm-body">Message</Label>
           <Textarea id="cm-body" value={cur.body} onChange={(e) => setCur({ body: e.target.value })} maxLength={5000} className="mt-1.5 min-h-32 notranslate" translate="no" placeholder={"Write it like a normal email. Leave a blank line between paragraphs.\nThe greeting, an \"Order now\" button and the unsubscribe link are added for you (in each customer's language)."} />
         </div>
+        <div className="rounded-lg border border-border p-3">
+          <p className="text-sm font-medium">Picture and file <span className="font-normal text-muted-foreground">(optional, same for every language)</span></p>
+          <input ref={imageRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { void addImage(e.target.files?.[0]); e.target.value = ""; }} />
+          <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => { void addFile(e.target.files?.[0]); e.target.value = ""; }} />
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <div>
+              {media.imageUrl ? (
+                <div className="relative overflow-hidden rounded-lg border border-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={media.imageUrl} alt="Email picture" className="max-h-40 w-full object-cover" />
+                  <button aria-label="Remove picture" onClick={() => setMedia((m) => ({ ...m, imageUrl: null }))} className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-background/90 shadow"><X className="size-4" /></button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" className="h-10 w-full gap-1.5" disabled={uploading !== null} onClick={() => imageRef.current?.click()}>
+                  <ImagePlus className="size-4" /> {uploading === "image" ? "Uploading…" : "Add a picture"}
+                </Button>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">Shown at the top of the email. JPG or PNG.</p>
+            </div>
+            <div>
+              {media.fileUrl ? (
+                <div className="flex items-center gap-2 rounded-lg border border-border p-2">
+                  <FileText className="size-5 shrink-0 text-gold-ink" />
+                  <Input value={media.fileName ?? ""} onChange={(e) => setMedia((m) => ({ ...m, fileName: e.target.value }))} maxLength={80} aria-label="Button text for the file" className="h-8" />
+                  <button aria-label="Remove file" onClick={() => setMedia((m) => ({ ...m, fileUrl: null, fileName: null }))} className="flex size-7 shrink-0 items-center justify-center rounded-full hover:bg-muted"><X className="size-4" /></button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" className="h-10 w-full gap-1.5" disabled={uploading !== null} onClick={() => fileRef.current?.click()}>
+                  <FileText className="size-4" /> {uploading === "file" ? "Uploading…" : "Add a PDF (menu, flyer)"}
+                </Button>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">Customers open it with a button in the email (not attached, so it isn&apos;t caught by spam filters). Up to 10 MB.</p>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {(["all", "selected"] as const).map((a) => (
             <button key={a} type="button" onClick={() => setAudience(a)} className={cn("rounded-full border px-4 py-1.5 text-sm transition", audience === a ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted")}>

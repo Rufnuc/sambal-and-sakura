@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
 import { MENU, type MenuItem, type MenuCategory } from "@/lib/data/menu";
+import { TABLES, type Table } from "@/lib/data/tables";
 import { getPromotions } from "@/server/promotions";
 import { LEGACY_CODE_VALUES } from "@/server/pricing";
 
@@ -34,6 +35,30 @@ export const setReferralConfig = ({ enabled: _ignored, ...v }: ReferralConfig) =
 export interface ZoneConfig { id: string; label: string; postcodes: string[]; fee: number; etaMins: number }
 export const getZones = () => getJson<ZoneConfig[]>("zones", ORDERING.deliveryZones as ZoneConfig[]);
 export const setZones = (v: ZoneConfig[]) => setJson("zones", v);
+
+/* ---- Delivery money rules ---- */
+// minOrder: least food (before discounts) for a delivery order. freeDeliveryOver: food total from which
+// delivery is free; null = delivery is never free. Edited in Admin -> Settings -> Delivery.
+export interface DeliveryRules { minOrder: number; freeDeliveryOver: number | null }
+export const DEFAULT_DELIVERY_RULES: DeliveryRules = { minOrder: ORDERING.minOrder, freeDeliveryOver: ORDERING.freeDeliveryThreshold };
+export const getDeliveryRules = async (): Promise<DeliveryRules> => ({ ...DEFAULT_DELIVERY_RULES, ...(await getJson<Partial<DeliveryRules>>("deliveryRules", {})) });
+export const setDeliveryRules = (v: DeliveryRules) => setJson("deliveryRules", v);
+
+/* ---- Floor plan tables ---- */
+// Edited in Admin -> Floor plan; the booking engine and the live plan use this list.
+export const getFloorTables = () => getJson<Table[]>("floorTables", TABLES);
+/** Save, tidying "joins with" so it's always two-way (if A joins B, B joins A) and uses the exact names. */
+export async function setFloorTables(v: Table[]) {
+  const byKey = new Map(v.map((t) => [t.id.toLowerCase(), t.id]));
+  const joins = new Map<string, Set<string>>(v.map((t) => [t.id, new Set<string>()]));
+  for (const t of v) for (const o of t.combinesWith ?? []) {
+    const other = byKey.get(o.toLowerCase());
+    if (other && other !== t.id) { joins.get(t.id)!.add(other); joins.get(other)!.add(t.id); }
+  }
+  const tidy = v.map((t) => ({ ...t, x: Math.round((t.x ?? 50) * 10) / 10, y: Math.round((t.y ?? 50) * 10) / 10, combinesWith: [...joins.get(t.id)!].sort() }));
+  await setJson("floorTables", tidy);
+  return tidy;
+}
 
 /* ---- Offers ---- */
 // Offers saved before codes had their own settings get the original values for SAKURA10 / FAMILY52 / FREEGYOZA,

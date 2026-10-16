@@ -12,6 +12,8 @@ const WRITE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 // Exempt: WeChat's payment notifications (verified by signature) and email apps' one-click
 // unsubscribe (form-encoded POST, verified by the signed link).
 const EXEMPT = ["/api/pay/wechat/notify", "/api/marketing/unsubscribe"];
+// File uploads (multipart/form-data): admin photos and files, and CVs from the Careers page.
+const UPLOADS = ["/api/admin/upload", "/api/careers/apply"];
 
 export function proxy(req: NextRequest) {
   if (WRITE.has(req.method) && !EXEMPT.includes(req.nextUrl.pathname)) {
@@ -28,7 +30,7 @@ export function proxy(req: NextRequest) {
     }
     // JSON APIs only accept JSON (blocks text/plain form tricks); uploads use multipart.
     const type = req.headers.get("content-type") ?? "";
-    const isUpload = req.nextUrl.pathname === "/api/admin/upload";
+    const isUpload = UPLOADS.includes(req.nextUrl.pathname);
     const hasBody = req.headers.get("content-length") !== "0" && (req.headers.has("content-length") || req.headers.has("transfer-encoding"));
     if (hasBody && !isUpload && !type.startsWith("application/json")) {
       return NextResponse.json({ error: "Unsupported content type." }, { status: 415 });

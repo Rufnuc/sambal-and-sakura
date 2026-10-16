@@ -289,6 +289,9 @@ model Campaign {
   body       String
   audience   String   // all | selected
   translations String @default("{}") // JSON {zh|vi|ja: {subject, body}}; customers in that language get it
+  imageUrl   String?  // picture shown inside the email (Cloudinary URL)
+  fileUrl    String?  // a file (e.g. PDF menu) recipients open with a button
+  fileName   String?  // button label / file name for fileUrl
   status     String   @default("queued") // queued | sending | sent | cancelled
   total      Int      @default(0)
   sent       Int      @default(0)

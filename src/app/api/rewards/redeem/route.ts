@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { currentUser, publicUser } from "@/server/auth";
-import { spendPoints } from "@/server/points";
+import { spendPoints, REDEEM_STEP, REDEEM_VALUE, REDEEM_DAYS } from "@/server/points";
 import { rewardCode, withFreshIds } from "@/server/ids";
 import { limitOr429 } from "@/server/rate-limit";
 import { log } from "@/server/log";
 
-const REDEEM_STEP = 100;
-const REDEEM_VALUE = 5;
 
 class NotEnough extends Error {}
 
@@ -28,7 +26,7 @@ export async function POST() {
           label: `£${REDEEM_VALUE.toFixed(2)} off`,
           code: rewardCode("PTS"),
           kind: "voucher", amount: REDEEM_VALUE, source: "loyalty",
-          expiresAt: new Date(Date.now() + 60 * 86400000),
+          expiresAt: new Date(Date.now() + REDEEM_DAYS * 86400000),
         },
       });
       const updated = await tx.user.findUniqueOrThrow({ where: { id: user.id } });

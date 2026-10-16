@@ -66,14 +66,14 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
   signature: { dishIds: [] },
   valueStrip: [
-    { icon: "banknote", title: "Cash only", text: "Pay on delivery or collection - simple and secure." },
-    { icon: "bike", title: `Free delivery over £${ORDERING.freeDeliveryThreshold}`, text: `From £${ORDERING.deliveryZones[0].fee.toFixed(2)} across Middlesbrough.` },
+    { icon: "banknote", title: "Pay your way", text: "Cash on delivery or collection, or WeChat Pay online where available." },
+    { icon: "bike", title: `Free delivery on £${ORDERING.freeDeliveryThreshold}+`, text: `Within our delivery area. Otherwise from £${ORDERING.deliveryZones[0].fee.toFixed(2)}; £${ORDERING.minOrder} minimum.` },
     { icon: "chef", title: "Sushi by a Japan-trained chef", text: "Authentic Japanese technique, prepared to order." },
     { icon: "sparkles", title: "Freshly made to order", text: "Authentic Chinese & Japanese, cooked when you order." },
   ],
   cta: {
     heading: "Hungry yet? Order direct and taste the difference.",
-    subtext: "Rewards on every order, and food made to be remembered.",
+    subtext: "Earn rewards on every order when you sign in, and food made to be remembered.",
   },
   // Off and empty until the owner adds GENUINE reviews (with permission). The demo testimonials
   // are fictional: publishing them would be a fake-review offence under the DMCC Act 2024.

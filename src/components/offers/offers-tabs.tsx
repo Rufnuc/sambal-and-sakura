@@ -95,6 +95,9 @@ export function OffersTabs({
                 </div>
               );
             })}
+            <p className="text-xs text-muted-foreground md:col-span-2 lg:col-span-3">
+              One discount per order unless stated. <Link href="/legal/promotions" className="font-medium text-gold-ink hover:underline">Full promotion terms</Link>
+            </p>
           </div>
         )}
 
@@ -116,6 +119,8 @@ export function OffersTabs({
                   <li>One spin per account, per week.</li>
                   <li>Rewards apply to direct website orders and expire after 7 days.</li>
                   <li>Can&apos;t be combined with first-order offers. No cash alternative.</li>
+                  <li>Spins unlock after your first order. Prizes are chosen at random and some spins don&apos;t win. Spinning is free, and your order price is the same whether or not you play.</li>
+                  <li>Promoter: Sambal &amp; Sakura Ltd. <Link href="/legal/promotions#wheel" className="font-medium text-gold-ink hover:underline">Full terms</Link></li>
                 </ul>
               </div>
             </div>
@@ -140,7 +145,7 @@ export function OffersTabs({
             </ol>
             <div>
               <ReferralWidget />
-              <p className="mt-4 text-xs text-muted-foreground">For new customers only: one referral per person and phone number. Your friend&apos;s reward is a first-order offer, so it can&apos;t be combined with other first-order offers. Orders from your own phone number or delivered to your address don&apos;t count, and self-referrals or duplicate accounts are void. Both rewards are for website orders, expire 90 days after they&apos;re issued and have no cash value. We may withdraw rewards that break these terms.</p>
+              <p className="mt-4 text-xs text-muted-foreground">For new customers only: one referral per person and phone number. Your friend&apos;s reward is a first-order offer, so it can&apos;t be combined with other first-order offers. Orders from your own phone number or delivered to your address don&apos;t count, and self-referrals or duplicate accounts are void. Both rewards are for website orders, expire 90 days after they&apos;re issued and have no cash value. Your friend has 90 days to complete their first order. We may withdraw rewards that break these terms. <Link href="/legal/promotions#referral" className="font-medium text-gold-ink hover:underline">Full terms</Link></p>
             </div>
           </div>
         )}

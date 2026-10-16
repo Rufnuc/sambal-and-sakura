@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const routes = ["", "/menu", "/order", "/book", "/offers", "/careers", "/contact", "/legal/privacy", "/legal/terms", "/legal/accessibility"];
+  const routes = ["", "/menu", "/order", "/book", "/offers", "/careers", "/contact", "/legal/privacy", "/legal/terms", "/legal/cookies", "/legal/promotions", "/legal/accessibility"];
   return routes.map((r) => ({
     url: BASE + r,
     lastModified: now,

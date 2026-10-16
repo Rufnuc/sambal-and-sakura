@@ -5,6 +5,16 @@
 export interface HoursSession { open: string; close: string }
 export interface DayHours { day: string; sessions: HoursSession[] }
 
+// The legal entity behind the site (Companies House). A limited company's website must show its
+// registered name, number, place of registration and registered office (Companies (Trading
+// Disclosures) Regulations 2008) - shown in the footer and on the legal pages.
+export const COMPANY = {
+  name: "SAMBAL & SAKURA LIMITED",
+  number: "17437275",
+  registeredIn: "England and Wales",
+  registeredOffice: "236-238 Linthorpe Road, Middlesbrough, England, TS1 3QP",
+};
+
 export const RESTAURANT = {
   name: "Sambal & Sakura",
   tagline: "Where chili meets cherry blossom.",
@@ -86,12 +96,12 @@ export const OFFERS: Offer[] = [
     code: "SAKURA10", badge: "First order", kind: "first-order", terms: "Min spend £12. One use per customer. Website orders only.",
     pctOff: 10, minSpend: 12, firstOrderOnly: true },
   { id: "family", title: "Happy Family Feast for 4 - £52", description: "Soup, mixed platter, black bean house special, sweet & sour prawn, beef & mushroom, veg and special rice.",
-    code: "FAMILY52", badge: "Best value", kind: "bundle", terms: "Collection & delivery. Cannot be combined with other offers.",
+    code: "FAMILY52", badge: "Feeds 4", kind: "bundle", terms: "Collection & delivery. Cannot be combined with other offers.",
     amountOff: 8, minSpend: 52 },
   { id: "lunch", title: "Express Lunch £8.95", description: "Weekday lunch service: main + drink. Dine-in & collection.",
     badge: "Weekdays", kind: "bundle", terms: "Lunch service only (11:30–14:00). Selected dishes. While stocks last." },
-  { id: "freegyoza", title: "Free Chicken Gyoza over £25", description: "Spend £25+ direct and we'll add our signature gyoza.",
-    code: "FREEGYOZA", badge: "Freebie", kind: "freebie", terms: "Auto-applied at checkout over £25. One per order.",
+  { id: "freegyoza", title: "Free Chicken Gyoza on £25+", description: "Spend £25+ direct and we'll add our signature gyoza.",
+    code: "FREEGYOZA", badge: "Freebie", kind: "freebie", terms: "Auto-applied at checkout on £25 or more of food. One per order.",
     freeItemId: "chicken-gyoza", minSpend: 25 },
   { id: "welcome10", title: "10% off for first-time customers", description: "For flyers, emails and staff to hand out.",
     code: "WELCOME10", kind: "first-order", terms: "Min spend £12. First order only.",
@@ -129,7 +139,7 @@ export const FAQS: Faq[] = [
   { group: "allergens", q: "Do you cater for allergies and diets?",
     a: "Every dish lists allergens and diet tags (vegetarian, vegan, spicy). Our kitchen handles nuts, shellfish and gluten - if you have any allergy, please tell us before ordering and we'll do our best, but we can't guarantee zero cross-contact." },
   { group: "policies", q: "What's your cancellation policy?",
-    a: "Cancel a booking free up to 2 hours before. For orders, you can cancel before the kitchen starts preparing - after that we may not be able to refund as it's cash on the day." },
+    a: "Bookings are free to cancel from your account or by phone - please let us know at least 2 hours before if you can. Orders can be cancelled online for a few minutes after ordering (see your tracking page); after that the kitchen may already be cooking, so please call us." },
 ];
 
 // amount: % off for "percent", £ off for "voucher" (must match the label customers see).

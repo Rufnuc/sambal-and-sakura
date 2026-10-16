@@ -130,7 +130,7 @@ Restrict every key to what it's for: in Google Cloud, restrict the translation k
 
 ### Custom domain
 Render → your service → **Settings → Custom Domains**, add `sambalandsakura.co.uk`, then create the DNS records Render shows. SSL is automatic and free. Then, in Render's environment:
-- set `SITE_URL=https://sambalandsakura.co.uk` (the sitemap, canonical links, social previews and Google data all use it; until the domain is connected, set it to the onrender.com address instead),
+- set `SITE_URL=https://www.sambalandsakura.co.uk` (the www address is the main one; the plain domain redirects to it) (the sitemap, canonical links, social previews and Google data all use it; until the domain is connected, set it to the onrender.com address instead),
 - set `WECHAT_NOTIFY_URL` to use the final domain.
 
 In Render → Settings → Custom Domains, also tick **redirect** for the onrender.com address once the domain works, so Google only sees one copy of the site.

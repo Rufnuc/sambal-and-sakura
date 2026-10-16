@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -143,6 +144,7 @@ export function AuthDialog({
             {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
           </Button>
           {mode === "signup" && <p className="text-center text-xs text-muted-foreground">Includes 50 bonus points, added when your first order is completed.</p>}
+          {mode === "signup" && <p className="text-center text-xs text-muted-foreground">By creating an account you agree to our <Link href="/legal/terms" className="underline hover:text-gold-ink">Terms</Link> and <Link href="/legal/promotions" className="underline hover:text-gold-ink">Promotion Terms</Link>. See our <Link href="/legal/privacy" className="underline hover:text-gold-ink">Privacy Policy</Link>.</p>}
         </form>
       </DialogContent>
     </Dialog>

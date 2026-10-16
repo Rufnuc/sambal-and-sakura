@@ -283,7 +283,7 @@ function BookingFlow({ onConfirmed }: { onConfirmed: (b: ApiBooking) => void }) 
           <Button className="mt-5 h-13 w-full text-base font-semibold" disabled={!canConfirm} onClick={confirm}>
             {selectedSlot?.state === "waitlist" ? "Join the waitlist" : "Confirm booking"}
           </Button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">Free to cancel up to 2 hours before.</p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">Free to cancel - please tell us at least 2 hours before if you can. By booking you agree to our <Link href="/legal/terms#bookings" className="underline hover:text-gold-ink">Terms</Link>; see our <Link href="/legal/privacy" className="underline hover:text-gold-ink">Privacy Policy</Link>.</p>
         </div>
       </div>
     </div>

@@ -487,6 +487,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
             {submitting ? "Placing…" : paused ? "Online ordering paused" : `Place order · ${gbp(total)}`}
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">Guest checkout · no account needed</p>
+          <p className="mt-1 text-center text-xs text-muted-foreground">By placing your order you agree to our <Link href="/legal/terms" className="underline hover:text-gold-ink">Terms</Link>. See how we use your details in our <Link href="/legal/privacy" className="underline hover:text-gold-ink">Privacy Policy</Link>.</p>
         </div>
       </div>
     </div>

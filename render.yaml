@@ -4,9 +4,9 @@ services:
   - type: web
     name: sambalandsakura
     runtime: node
-    # FREE while building and demoing (sleeps after ~15 min idle: first visit then takes 30-60 s).
-    # AT GO-LIVE change to `plan: starter` ($7/mo, always on) - see DEPLOY.md "Going live".
-    plan: free
+    # LIVE: always on, no sleeping, zero-downtime deploys ($7/mo). `free` sleeps after ~15 min idle
+    # (first visit then takes 30-60 s) and has monthly limits - only use it for a test copy.
+    plan: starter
     region: frankfurt        # closest Render region to the UK
     autoDeploy: true
     healthCheckPath: /api/health
@@ -32,7 +32,7 @@ services:
       # Keep it equal to your real address: change it to https://yourdomain.co.uk once that domain
       # is connected, and fix it if Render added a suffix to the name below.
       - key: SITE_URL
-        value: https://sambalandsakura.onrender.com
+        value: https://www.sambalandsakura.co.uk
       - key: GOOGLE_SITE_VERIFICATION   # from Google Search Console (HTML tag method) - see DEPLOY.md
         sync: false
       - key: BING_SITE_VERIFICATION     # from Bing Webmaster Tools (HTML meta tag) - Bing feeds ChatGPT search and Copilot
@@ -97,5 +97,5 @@ services:
         sync: false
       - key: WECHAT_PLATFORM_PUBLIC_KEY
         sync: false
-      - key: WECHAT_NOTIFY_URL       # https://YOUR-DOMAIN/api/pay/wechat/notify
+      - key: WECHAT_NOTIFY_URL       # https://www.sambalandsakura.co.uk/api/pay/wechat/notify
         sync: false

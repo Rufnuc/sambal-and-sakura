@@ -2,7 +2,7 @@
 
 import { realPhoto } from "@/lib/photo";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Check, Flame, Leaf, Star, ChefHat, Sparkles } from "lucide-react";
+import { Plus, Minus, Check, Flame, Leaf, Star, ChefHat, Sparkles } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -15,7 +15,7 @@ import { DishGallery } from "@/components/brand/dish-gallery";
 import { DishAssistant } from "@/components/menu/dish-assistant";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
-import { useCart, type CartLine } from "@/lib/store/cart";
+import { useCart, MAX_QTY, type CartLine } from "@/lib/store/cart";
 import type { MenuItem } from "@/lib/data/menu";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,25 @@ const TAG_META: Record<string, { label: string; icon: React.ElementType; classNa
   new: { label: "New", icon: Sparkles, className: "bg-sakura/20 text-sambal dark:text-sakura border-sakura/40" },
 };
 
+
+// − 1 + picker. `small` is the compact size used on the dish card.
+function QtyStepper({ qty, onChange, disabled = false, small = false, label }: {
+  qty: number; onChange: (q: number) => void; disabled?: boolean; small?: boolean; label: string;
+}) {
+  const btn = cn("flex items-center justify-center rounded-full hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent",
+    small ? "size-7 sm:size-8" : "size-10");
+  return (
+    <div role="group" aria-label={`Quantity of ${label}`} className="inline-flex shrink-0 items-center rounded-full border border-border">
+      <button type="button" aria-label="Decrease quantity" className={btn} disabled={disabled || qty <= 1} onClick={() => onChange(Math.max(1, qty - 1))}>
+        <Minus className={small ? "size-3.5" : "size-4"} />
+      </button>
+      <span className={cn("text-center tabular-nums", small ? "w-5 text-sm sm:w-6" : "w-8")} aria-live="polite">{qty}</span>
+      <button type="button" aria-label="Increase quantity" className={btn} disabled={disabled || qty >= MAX_QTY} onClick={() => onChange(Math.min(MAX_QTY, qty + 1))}>
+        <Plus className={small ? "size-3.5" : "size-4"} />
+      </button>
+    </div>
+  );
+}
 
 function SpiceDots({ level }: { level?: number }) {
   if (!level) return null;
@@ -56,10 +75,13 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
   }
   useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
 
+  // How many to add (picked on the card, then reset to 1 after adding).
+  const [qty, setQty] = useState(1);
   function quickAdd() {
-    addLine(item, item.price, []);
-    track("add_to_cart", { id: item.id, source: "quick" });
+    addLine(item, item.price, [], qty);
+    track("add_to_cart", { id: item.id, source: "quick", qty });
     flash();
+    setQty(1);
   }
 
   const tags = item.tags.filter((t) => TAG_META[t]).slice(0, 2);
@@ -110,16 +132,20 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
           <DishAssistant item={item} compact={dense} />
         </div>
 
-        <div className={cn("mt-auto flex items-center justify-between gap-2", dense ? "pt-3 sm:pt-4" : "pt-4")}>
-          <div className="flex items-baseline gap-2">
+        {/* Phones (dense): price on its own line, then quantity + Add, so both fit in a half-width card. */}
+        <div className={cn("mt-auto flex flex-wrap items-center justify-between gap-2", dense ? "pt-3 sm:pt-4" : "pt-4")}>
+          <div className={cn("flex items-baseline gap-2", dense && "w-full sm:w-auto")}>
             <span className={cn("font-display font-bold", dense ? "text-base sm:text-xl" : "text-xl")}>{gbp(item.price)}</span>
           </div>
           {item.modifiers && item.modifiers.length > 0 ? (
             <CustomiseDialog item={item} dense={dense} onAdded={flash} />
           ) : (
-            <Button size="sm" className={cn("gap-1", dense ? "h-8 px-2.5 sm:h-9 sm:px-3" : "h-9")} disabled={item.soldOut} onClick={quickAdd}>
-              {justAdded ? <Check className="size-4" /> : <Plus className="size-4" />} {justAdded ? "Added" : "Add"}
-            </Button>
+            <div className={cn("flex items-center gap-1.5", dense && "w-full justify-between sm:w-auto sm:justify-start")}>
+              <QtyStepper qty={qty} onChange={setQty} disabled={item.soldOut} small label={item.name} />
+              <Button size="sm" className={cn("gap-1", dense ? "h-8 px-2.5 sm:h-9 sm:px-3" : "h-9")} disabled={item.soldOut} onClick={quickAdd}>
+                {justAdded ? <Check className="size-4" /> : <Plus className="size-4" />} {justAdded ? "Added" : "Add"}
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -236,11 +262,7 @@ function CustomiseDialog({ item, dense = false, onAdded }: { item: MenuItem; den
         </div>
 
         <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex items-center rounded-full border border-border">
-            <button aria-label="Decrease quantity" className="flex size-10 items-center justify-center rounded-full hover:bg-muted" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
-            <span className="w-8 text-center tabular-nums">{qty}</span>
-            <button aria-label="Increase quantity" className="flex size-10 items-center justify-center rounded-full hover:bg-muted" onClick={() => setQty((q) => q + 1)}>+</button>
-          </div>
+          <QtyStepper qty={qty} onChange={setQty} label={item.name} />
           <Button className="h-12 flex-1 text-base font-semibold" onClick={confirm}>
             Add to order · {gbp(unitPrice * qty)}
           </Button>

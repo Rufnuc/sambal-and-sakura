@@ -31,6 +31,9 @@ interface CartState {
   clear: () => void;
 }
 
+// Most of one dish per order line (the checkout rejects more: src/server/validation.ts).
+export const MAX_QTY = 50;
+
 function lineKey(itemId: string, modifiers: CartLine["modifiers"]) {
   return itemId + "::" + modifiers.map((m) => m.optionId).sort().join(",");
 }
@@ -52,7 +55,7 @@ export const useCart = create<CartState>()(
           if (existing) {
             return {
               lines: s.lines.map((l) =>
-                l.lineId === existing.lineId ? { ...l, qty: l.qty + qty } : l,
+                l.lineId === existing.lineId ? { ...l, qty: Math.min(MAX_QTY, l.qty + qty) } : l,
               ),
             };
           }
@@ -64,7 +67,7 @@ export const useCart = create<CartState>()(
                 itemId: item.id,
                 name: item.name,
                 unitPrice,
-                qty,
+                qty: Math.min(MAX_QTY, qty),
                 modifiers,
                 image: item.image,
               },
@@ -76,7 +79,7 @@ export const useCart = create<CartState>()(
           lines:
             qty <= 0
               ? s.lines.filter((l) => l.lineId !== lineId)
-              : s.lines.map((l) => (l.lineId === lineId ? { ...l, qty } : l)),
+              : s.lines.map((l) => (l.lineId === lineId ? { ...l, qty: Math.min(MAX_QTY, qty) } : l)),
         })),
       removeLine: (lineId) => set((s) => ({ lines: s.lines.filter((l) => l.lineId !== lineId) })),
       clear: () => set({ lines: [], voucher: null }),

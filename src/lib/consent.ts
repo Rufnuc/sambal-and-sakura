@@ -14,3 +14,12 @@ export function setConsent(v: Exclude<Consent, null>) {
     window.dispatchEvent(new CustomEvent("ss:consent", { detail: v }));
   } catch { /* ignore */ }
 }
+
+/** "Cookie settings": forget the choice and show the banner again (withdrawing is as easy as giving). */
+export function reopenConsent() {
+  try {
+    window.localStorage.removeItem(KEY);
+    window.dispatchEvent(new CustomEvent("ss:consent", { detail: null }));
+    window.dispatchEvent(new Event("ss:consent-open"));
+  } catch { /* ignore */ }
+}

@@ -10,8 +10,8 @@ import { canAccess, parsePermissions } from "@/lib/admin/sections";
 const PROD = process.env.NODE_ENV === "production";
 const COOKIE = PROD ? "__Host-ss_session" : "ss_session";
 
-const CUSTOMER_SESSION_DAYS = 30;
-const STAFF_SESSION_HOURS = 12;   // staff/admin must sign in again every shift
+export const CUSTOMER_SESSION_DAYS = 30;
+export const STAFF_SESSION_HOURS = 12;   // staff/admin must sign in again every shift
 const STAFF_IDLE_HOURS = 4;       // ...or after 4 hours without using the admin
 const TOUCH_EVERY_MS = 5 * 60 * 1000;
 

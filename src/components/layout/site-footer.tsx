@@ -3,7 +3,8 @@ import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { OpenStatus } from "@/components/brand/open-status";
 import { FOOTER_NAV } from "@/lib/nav";
-import { RESTAURANT } from "@/lib/data/site";
+import { RESTAURANT, COMPANY } from "@/lib/data/site";
+import { CookieSettingsButton } from "@/components/cookie-settings-button";
 import { formatHours } from "@/lib/hours";
 import { telHref } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
@@ -92,11 +93,21 @@ export async function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col items-center justify-between gap-3 text-xs text-sidebar-foreground/50 sm:flex-row">
-          <p>© {new Date().getFullYear()} {RESTAURANT.name}. <span className="text-[10px]">All food halal.</span></p>
-          <div className="flex gap-4">
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 text-xs text-sidebar-foreground/50 sm:flex-row sm:items-start">
+          <div className="text-center sm:text-left">
+            <p>© {new Date().getFullYear()} {RESTAURANT.name}. <span className="text-[10px]">All food halal.</span></p>
+            {/* Trading disclosures: a limited company's website must show these. */}
+            <p className="mt-1 text-[10px] leading-relaxed">
+              {RESTAURANT.name} is the trading name of {COMPANY.name}, registered in {COMPANY.registeredIn}, company no. {COMPANY.number}.
+              Registered office: {COMPANY.registeredOffice}.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 sm:justify-end">
             <Link href="/legal/privacy" className="hover:text-gold-ink">Privacy</Link>
             <Link href="/legal/terms" className="hover:text-gold-ink">Terms</Link>
+            <Link href="/legal/promotions" className="hover:text-gold-ink">Promotions</Link>
+            <Link href="/legal/cookies" className="hover:text-gold-ink">Cookies</Link>
+            <CookieSettingsButton className="hover:text-gold-ink" />
             <Link href="/legal/accessibility" className="hover:text-gold-ink">Accessibility</Link>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { processCampaigns } from "@/server/campaigns";
 import { notifyBooking } from "@/server/notify";
 import { ukParts, addDays } from "@/server/order-time";
 import { emailConfigured } from "@/server/email";
+import { ORDER_PII_DAYS, BOOKING_PII_DAYS, EVENT_DAYS } from "@/server/retention";
 
 // Background jobs, run inside the web server process (one instance on Render, so no queue needed).
 //  - every minute, but only within 3 hours of order activity (so a quiet site never wakes the
@@ -19,9 +20,6 @@ import { emailConfigured } from "@/server/email";
 
 const MINUTE = 60_000;
 const MAX_PRINT_ATTEMPTS = 5;
-const ORDER_PII_DAYS = Number(process.env.ORDER_PII_RETENTION_DAYS) || 730;   // 2 years
-const BOOKING_PII_DAYS = Number(process.env.BOOKING_PII_RETENTION_DAYS) || 365;
-const EVENT_DAYS = 90;
 
 async function retryPrints() {
   const now = Date.now();

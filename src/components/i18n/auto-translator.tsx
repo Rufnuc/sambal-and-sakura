@@ -20,6 +20,12 @@ const ATTRS = ["placeholder", "aria-label", "title", "alt"] as const;
 const HAS_LETTER = /\p{L}/u;
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "CODE", "PRE"]);
 
+// Staff pages show customers' names, phones, addresses, notes and allergies. There we only use the
+// built-in phrase list and translations already saved - nothing on the page is sent to the
+// translation provider (or its shared cache), so customer details never leave the site that way.
+const STAFF_PAGES = /^\/(admin|print|staff)(\/|$)/;
+const onStaffPage = () => STAFF_PAGES.test(window.location.pathname);
+
 function translatable(s: string): boolean {
   const t = s.trim();
   return t.length > 0 && t.length <= 2000 && HAS_LETTER.test(t);
@@ -154,6 +160,7 @@ export function AutoTranslator() {
       if (disposed || locale === "en" || pending.size === 0) return;
       const batch = Array.from(pending);
       pending.clear();
+      if (onStaffPage()) return; // see STAFF_PAGES: never send staff-page text out
       try {
         const res = await fetch("/api/translate", {
           method: "POST", headers: { "Content-Type": "application/json" },

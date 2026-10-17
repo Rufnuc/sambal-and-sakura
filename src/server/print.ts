@@ -139,9 +139,13 @@ export async function printNewOrder(id: string): Promise<PrintResult> {
   const ticket = await loadTicket(id);
   if (!ticket) return { ok: false, provider: printerProvider(), message: "Order not found" };
   if (!printerProvider()) {
-    await prisma.order.update({ where: { id }, data: { printStatus: "not-needed", printError: "No kitchen printer set up" } }).catch(() => {});
+    // Only if nothing printed it in the meantime (a tablet printer may already have claimed it).
+    await prisma.order.updateMany({ where: { id, printStatus: "pending" }, data: { printStatus: "not-needed", printError: "No cloud printer set up" } }).catch(() => {});
     return { ok: false, provider: null, message: "No kitchen printer is set up yet" };
   }
+  // Take the ticket first ("printing"), so the tablet printer (or a second retry) can't print it too.
+  const lock = await prisma.order.updateMany({ where: { id, printStatus: { in: ["pending", "failed"] } }, data: { printStatus: "printing" } });
+  if (lock.count !== 1) return { ok: true, provider: printerProvider(), message: "Already printed" };
   const result = await printOrder(ticket);
   const updated = await prisma.order.update({
     where: { id },
@@ -183,6 +187,7 @@ export async function printCancellation(id: string): Promise<PrintResult> {
   } catch (e) {
     result = { ok: false, provider, message: `Print failed: ${(e as Error).message}` };
   }
+  if (result.ok) await prisma.order.update({ where: { id }, data: { cancelPrintedAt: new Date() } }).catch(() => {});
   if (!result.ok) {
     log.warn("cancel_print_failed", { orderId: id, message: result.message });
     void alertOwner(`cancel-print:${id}`, `Order ${id} was CANCELLED but the STOP ticket didn't print (${result.message}). Tell the kitchen to stop preparing it.`);
@@ -204,4 +209,87 @@ export async function printTest(): Promise<PrintResult & { online?: { ok: boolea
   const result = await printOrder(sampleTicketOrder(), { unique: true });
   if (result.provider === "sunmi") return { ...result, online: await sunmiOnline() };
   return result;
+}
+
+/* ------------------------------------------------------------------ tablet (USB) printing */
+// A printer plugged into the kitchen tablet (e.g. the Sunmi NT311 over USB) prints from the admin
+// Orders screen in Chrome. The tablet asks for work every few seconds; each ticket is handed out
+// ONCE (an atomic status change), so two tablets - or the tablet plus the cloud printer - never
+// print the same ticket twice. If the cloud printer is set up and working, the tablet only picks up
+// what the cloud failed to print (a backup).
+
+const RECENT_MS = 3 * 3600_000;        // only tickets for orders from the last 3 hours
+const CLOUD_GRACE_MS = 2 * 60_000;     // with a cloud printer, give it 2 minutes before the tablet steps in
+
+export interface TabletJob { orderId: string; kind: "order" | "cancel"; bytes: string /* base64 ESC/POS */ }
+
+async function ctx() {
+  const { business } = await getSiteContent();
+  return { businessName: RESTAURANT.name, phone: business.phone };
+}
+
+/** ESC/POS bytes for an order's kitchen ticket or its "CANCELLED - STOP" ticket (no claiming). */
+export async function ticketBytes(id: string, kind: "order" | "cancel", opts: { reprint?: boolean } = {}): Promise<Buffer | null> {
+  const o = await prisma.order.findUnique({ where: { id }, select: { cancelReason: true, cancelledAt: true } });
+  const t = o ? await loadTicket(id) : null;
+  if (!o || !t) return null;
+  const c = await ctx();
+  return kind === "cancel"
+    ? renderCancelTicket({ ...t, cancelReason: o.cancelReason, cancelledAt: o.cancelledAt }, c).toBuffer()
+    : renderKitchenTicket(t, c, opts).toBuffer();
+}
+
+export async function sampleTicketBytes(): Promise<Buffer> {
+  return renderKitchenTicket(sampleTicketOrder(), await ctx()).toBuffer();
+}
+
+/** Hand the tablet every ticket that still needs printing, claiming each one so nobody else prints it. */
+export async function claimTabletJobs(): Promise<TabletJob[]> {
+  const since = new Date(Date.now() - RECENT_MS);
+  const cloud = printerProvider() !== null;
+  const waitFor = new Date(Date.now() - CLOUD_GRACE_MS);
+  const paid = { OR: [{ paymentMethod: { not: "wechat" } }, { paymentStatus: "paid" }] }; // WeChat: only once paid
+  const orderStatuses = cloud ? ["failed"] : ["not-needed", "pending", "failed"];
+  const candidates = await prisma.order.findMany({
+    where: {
+      createdAt: { gte: since }, status: { notIn: ["cancelled", "completed"] }, ...paid,
+      OR: [{ printStatus: { in: orderStatuses } }, ...(cloud ? [{ printStatus: "pending", createdAt: { lte: waitFor } }] : [])],
+    },
+    select: { id: true, printStatus: true }, orderBy: { createdAt: "asc" }, take: 20,
+  });
+  // Customer cancelled an order the kitchen already has a ticket for: print the STOP ticket.
+  const stops = await prisma.order.findMany({
+    where: { status: "cancelled", cancelKind: "customer", cancelledAt: { gte: since }, printedAt: { not: null }, cancelPrintedAt: null,
+      ...(cloud ? { cancelledAt: { gte: since, lte: waitFor } } : {}) },
+    select: { id: true }, take: 20,
+  });
+  const jobs: TabletJob[] = [];
+  for (const o of candidates) {
+    const claimed = await prisma.order.updateMany({
+      where: { id: o.id, printStatus: o.printStatus },
+      data: { printStatus: "printed", printedAt: new Date(), printError: null, printAttempts: { increment: 1 } },
+    });
+    if (claimed.count !== 1) continue; // someone else got it
+    const bytes = await ticketBytes(o.id, "order");
+    if (bytes) jobs.push({ orderId: o.id, kind: "order", bytes: bytes.toString("base64") });
+  }
+  for (const o of stops) {
+    const claimed = await prisma.order.updateMany({ where: { id: o.id, cancelPrintedAt: null }, data: { cancelPrintedAt: new Date() } });
+    if (claimed.count !== 1) continue;
+    const bytes = await ticketBytes(o.id, "cancel");
+    if (bytes) jobs.push({ orderId: o.id, kind: "cancel", bytes: bytes.toString("base64") });
+  }
+  return jobs;
+}
+
+/** The tablet couldn't print a ticket it claimed (printer unplugged, out of paper): put it back. */
+export async function releaseTabletJob(orderId: string, kind: "order" | "cancel", error: string) {
+  if (kind === "cancel") {
+    await prisma.order.updateMany({ where: { id: orderId }, data: { cancelPrintedAt: null } });
+    void alertOwner(`cancel-print:${orderId}`, `Order ${orderId} was CANCELLED but the tablet printer couldn't print the STOP ticket (${error}). Tell the kitchen to stop preparing it.`);
+  } else {
+    await prisma.order.updateMany({ where: { id: orderId, printStatus: "printed" }, data: { printStatus: "failed", printError: `Tablet printer: ${error}`.slice(0, 300), printedAt: null } });
+    void alertOwner("print_failed", `Kitchen printer (tablet) failed for order ${orderId} (${error}). Check the printer and the Orders screen.`, { orderId });
+  }
+  log.warn("tablet_print_failed", { orderId, kind, error: error.slice(0, 200) });
 }

@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
-import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, type CancelKind } from "@/lib/admin/api";
+import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, claimPrintJobs, reportPrintFailure, fetchTicketBytes, type CancelKind } from "@/lib/admin/api";
+import { useUsbPrinter, base64ToBytes } from "@/lib/usb-printer";
 import { type PlacedOrder } from "@/lib/order";
 import { type OrderStatus } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
@@ -114,6 +115,10 @@ export function OrdersView() {
   const [awake, setAwake] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem("ss_admin_awake") !== "0"; } catch { return true; } });
   const wake = useWakeLock(awake);
   const [audioReady, setAudioReady] = useState(false); // a tap has unlocked sound on this page
+  // Kitchen printer plugged into THIS tablet by USB: prints new orders (and STOP tickets) automatically.
+  const printer = useUsbPrinter();
+  const [autoPrint, setAutoPrint] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem("ss_tablet_print") !== "0"; } catch { return true; } });
+  const printing = useRef(false);
   const known = useRef<Set<string> | null>(null);
   const alarmed = useRef<Set<string>>(new Set());
 
@@ -161,6 +166,27 @@ export function OrdersView() {
     window.addEventListener("focus", now);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", now); window.removeEventListener("online", now); window.removeEventListener("focus", now); };
   }, [load]);
+
+  // After every refresh: if this tablet has the printer, take any tickets waiting and print them.
+  const { state: printerState, print: printBytes } = printer;
+  useEffect(() => {
+    if (printerState !== "connected" || !autoPrint || printing.current) return;
+    printing.current = true;
+    (async () => {
+      try {
+        for (const job of await claimPrintJobs()) {
+          try {
+            await printBytes(base64ToBytes(job.bytes));
+            if (job.kind === "cancel") toast.error(`Printed STOP ticket for ${job.orderId}`);
+          } catch (e) {
+            await reportPrintFailure(job.orderId, job.kind, (e as Error).message);
+            toast.error(`Couldn't print ${job.orderId}: ${(e as Error).message}`, { duration: 15_000 });
+            break; // printer problem: don't burn through the rest; they'll be retried
+          }
+        }
+      } finally { printing.current = false; }
+    })();
+  }, [now, printerState, printBytes, autoPrint]);
 
   // Sound needs one tap after the page loads (browser rule). Ask for it, and unlock on the first tap.
   const soundLocked = sound && !audioReady;
@@ -239,6 +265,17 @@ export function OrdersView() {
     setPaused(r);
     toast(r ? "Online orders paused" : "Online orders are back on");
   }
+  function toggleAutoPrint() {
+    const next = !autoPrint;
+    setAutoPrint(next);
+    try { localStorage.setItem("ss_tablet_print", next ? "1" : "0"); } catch { /* ignore */ }
+  }
+  async function testPrint() {
+    const b64 = await fetchTicketBytes({ test: true });
+    if (!b64) { toast.error("Couldn't get the test ticket."); return; }
+    try { await printer.print(base64ToBytes(b64)); toast.success("Test ticket sent to the printer"); }
+    catch (e) { toast.error((e as Error).message); }
+  }
   function toggleAwake() {
     const next = !awake;
     setAwake(next);
@@ -282,6 +319,8 @@ export function OrdersView() {
         </div>
       ))}
       {paused && <Banner tone="sambal">Online ordering is PAUSED. Customers see a message asking them to phone.</Banner>}
+      <TabletPrinterBar printer={printer} autoPrint={autoPrint} onToggleAuto={toggleAutoPrint} onTest={testPrint} />
+
       {sound && soundLocked && <Banner tone="sambal">Tap anywhere on this page to switch the order alarm on (the browser needs one tap after the page opens).</Banner>}
       {newWaiting && <Banner tone="sambal">New order waiting: the alarm repeats every 15 seconds until it&apos;s accepted (moved to Preparing).</Banner>}
       {offline && <Banner tone="sambal">Can&apos;t reach the server - check the internet connection. Showing the last orders loaded.</Banner>}
@@ -419,6 +458,13 @@ export function OrdersView() {
                   variant="outline"
                   className="h-9 w-fit gap-1.5"
                   onClick={async () => {
+                    if (printer.state === "connected") {
+                      // Tablet printer: reprint here.
+                      const b64 = await fetchTicketBytes({ orderId: detail.id, kind: detail.status === "cancelled" ? "cancel" : "order" });
+                      if (!b64) { toast.error("Couldn't get the ticket."); return; }
+                      try { await printer.print(base64ToBytes(b64)); toast.success("Printed on this tablet's printer"); } catch (e) { toast.error((e as Error).message); }
+                      return;
+                    }
                     const r = await reprintOrder(detail.id);
                     if (r.ok) { toast.success("Sent to the kitchen printer"); void load(); } else toast.error(r.message);
                   }}
@@ -471,6 +517,36 @@ function Banner({ tone, children }: { tone: "sambal" | "gold"; children: React.R
   return (
     <div className={cn("flex items-start gap-2 rounded-xl border px-4 py-3 text-sm font-medium", tone === "sambal" ? "border-sambal/30 bg-sambal/10 text-sambal" : "border-gold/40 bg-gold/10 text-gold-ink")}>
       <AlertTriangle className="mt-0.5 size-4 shrink-0" /> <span>{children}</span>
+    </div>
+  );
+}
+
+/** Status + controls for a printer plugged into this tablet by USB. */
+function TabletPrinterBar({ printer, autoPrint, onToggleAuto, onTest }: {
+  printer: ReturnType<typeof useUsbPrinter>; autoPrint: boolean; onToggleAuto: () => void; onTest: () => void;
+}) {
+  if (printer.state === "unsupported") {
+    return <p className="-mt-2 text-xs text-muted-foreground">USB kitchen printer: not available on this device. Use Chrome on the Android tablet the printer is plugged into.</p>;
+  }
+  const connected = printer.state === "connected";
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm", connected ? "border-jade/40 bg-jade/5" : "border-border bg-muted/30")}>
+      <Printer className={cn("size-4 shrink-0", connected ? "text-jade" : "text-muted-foreground")} />
+      <span className="mr-auto min-w-0">
+        {connected
+          ? <><span className="font-medium">{printer.name}</span> connected{autoPrint ? " - new orders print here automatically" : " - automatic printing is off"}</>
+          : <>No printer connected to this tablet{printer.error ? ` (${printer.error})` : ""}. Plug the printer in by USB, then tap Connect printer.</>}
+      </span>
+      {connected ? (
+        <>
+          <button onClick={onToggleAuto} role="switch" aria-checked={autoPrint} aria-label="Print new orders automatically on this tablet" className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition", autoPrint ? "bg-jade" : "bg-muted")}>
+            <span className={cn("inline-block size-4 rounded-full bg-white shadow transition", autoPrint ? "translate-x-6" : "translate-x-1")} />
+          </button>
+          <Button size="sm" variant="outline" className="h-8" onClick={onTest}>Test print</Button>
+        </>
+      ) : (
+        <Button size="sm" className="h-8 gap-1.5" onClick={() => void printer.connect()}><Printer className="size-4" /> Connect printer</Button>
+      )}
     </div>
   );
 }

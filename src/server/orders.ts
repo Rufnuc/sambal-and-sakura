@@ -161,6 +161,15 @@ export interface CreateOrderInput extends QuoteInput {
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 export const payTokenHash = sha256;
 
+/** The earlier order for a retried checkout, if this request comes from the same customer. */
+function replayFor<O extends { userId: string | null; customerPhone: string; customerEmail: string | null }>(existing: O, input: CreateOrderInput, user: User | null) {
+  const same = existing.userId
+    ? user?.id === existing.userId
+    : canonicalPhone(input.phone) === existing.customerPhone && (input.email ?? "").toLowerCase() === (existing.customerEmail ?? "").toLowerCase();
+  if (!same) throw new OrderError("This order has already been sent. Please refresh the page and check your basket.", 409);
+  return { order: existing, payToken: null as string | null, replay: true };
+}
+
 /**
  * Validate and save an order. Throws OrderError (with a customer-friendly message) on any problem.
  * Returns the saved order and, for WeChat, the one-time payment token for this browser.
@@ -168,10 +177,11 @@ export const payTokenHash = sha256;
 export async function createOrder(input: CreateOrderInput, user: User | null) {
   if (PAYMENT_WORDS.test(input.name)) throw new OrderError("Please enter just your name.");
 
-  // Retried checkout (double tap, flaky signal): return the order we already made.
+  // Retried checkout (double tap, flaky signal): return the order we already made - but only to the
+  // same customer. The key comes from the browser, so anyone else re-using it gets no details back.
   if (input.idempotencyKey) {
     const existing = await prisma.order.findUnique({ where: { idempotencyKey: input.idempotencyKey }, include: { lines: true } });
-    if (existing) return { order: existing, payToken: null as string | null, replay: true };
+    if (existing) return replayFor(existing, input, user);
   }
 
   const { quote, voucher, ownedRewardId } = await buildQuote(input, user);
@@ -284,7 +294,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
     if (isUniqueViolation(e, "group")) throw new OrderError("That offer has already been used with this phone number.", 409);
     if (isUniqueViolation(e, "idempotencyKey") && input.idempotencyKey) {
       const existing = await prisma.order.findUnique({ where: { idempotencyKey: input.idempotencyKey }, include: { lines: true } });
-      if (existing) return { order: existing, payToken: null, replay: true };
+      if (existing) return replayFor(existing, input, user);
     }
     throw e;
   }

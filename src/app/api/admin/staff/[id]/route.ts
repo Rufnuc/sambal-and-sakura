@@ -11,7 +11,7 @@ const VALID_KEYS = new Set(GRANTABLE_SECTIONS.map((s) => s.key));
 const patchSchema = z.object({
   role: z.enum(["staff", "admin"]).optional(),
   permissions: z.array(z.string().max(30)).max(20).optional(),
-  confirmPassword: z.string().max(100).optional(), // the owner's own password, required to change roles or passwords
+  confirmPassword: z.string().max(100).optional(), // the owner's own password: required to change roles or passwords, or grant sections
   newPassword: z.string().min(10).max(100).optional(), // owner resets a staff member's password
 });
 
@@ -29,7 +29,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (!target || (target.role !== "staff" && target.role !== "admin")) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const data: { role?: string; permissions?: string; passwordHash?: string } = {};
-  const sensitive = (parsed.data.role && parsed.data.role !== target.role) || parsed.data.newPassword;
+  // Giving MORE access (a role change, a new section) or resetting a password needs the owner's own password.
+  // Taking access away doesn't, so it's quick to lock someone out.
+  const current = new Set(parsePermissions(target.permissions));
+  const grants = (parsed.data.permissions ?? []).some((p) => VALID_KEYS.has(p) && !current.has(p));
+  const sensitive = (parsed.data.role && parsed.data.role !== target.role) || parsed.data.newPassword || grants;
   if (sensitive && (!parsed.data.confirmPassword || !(await verifyPassword(parsed.data.confirmPassword, me.passwordHash)))) {
     return NextResponse.json({ error: "Enter your own password to confirm this change.", needsPassword: true }, { status: 400 });
   }

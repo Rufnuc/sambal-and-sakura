@@ -91,6 +91,7 @@ model Order {
   cancelReason  String?
   cancelKind    String?                        // customer | no-show | staff (customer + no-show count towards limits)
   cancelledAt   DateTime?
+  cancelPrintedAt DateTime?                    // the kitchen's "CANCELLED - STOP" ticket was printed (cloud or tablet)
   cancelCounted Boolean     @default(true)     // false once the owner resets this customer's cancellations
   createdAt     DateTime    @default(now())
 

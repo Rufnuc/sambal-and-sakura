@@ -69,7 +69,7 @@ function companyLine(f: Facts) {
 function cancelRule(f: Facts): string[] {
   const c = f.cancel;
   const lines = [
-    `We count cancelled orders (including orders not collected or not accepted on delivery) over the last ${c.windowDays} days. Orders are matched by your account, phone number or email address.`,
+    `We count cancelled orders (including orders not collected or not accepted on delivery) over the last ${c.windowDays} days. Cancellations you make yourself count if they're on your account, or on an order with both your phone number and your email address; orders not collected count by phone number or email address.`,
     `At ${plural(c.flagAt, "cancelled order")}, we may phone you to confirm new orders before we cook them.`,
   ];
   if (c.restrictAction === "block-cash-delivery") {

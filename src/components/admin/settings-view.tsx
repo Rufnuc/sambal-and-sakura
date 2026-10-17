@@ -204,7 +204,7 @@ export function SettingsView() {
           </p>
         ) : (
           <p className="mb-3 text-sm text-muted-foreground">
-            No kitchen printer is connected yet, so tickets are only printable by hand from each order. Add the Sunmi details on the server (see DEPLOY.md, &quot;Sunmi kitchen printer&quot;).
+            No cloud printer is set up on the server. If the printer is plugged into the kitchen tablet by USB, that&apos;s fine: open Orders on that tablet (Chrome or the installed app), tap <strong className="text-foreground">Connect printer</strong> once, and new orders print there automatically. For printing over Wi-Fi/LAN without the tablet, add the Sunmi details on the server (DEPLOY.md, &quot;Sunmi kitchen printer&quot;).
           </p>
         )}
         <Button variant="outline" className="h-10 gap-1.5" onClick={runTestPrint} disabled={testing || !printer?.provider}>

@@ -161,6 +161,16 @@ Set **all** of `WECHAT_APPID`, `WECHAT_MCHID`, `WECHAT_SERIAL_NO`, `WECHAT_PRIVA
 
 The payment-confirmation code is tested (signature verification, replay protection, amount check) against simulated WeChat messages, **but it has not been run against live WeChat**. Do one real small test payment before announcing it. Until all the keys are set, WeChat is hidden from customers and cash still works.
 
+### Kitchen printer plugged into the tablet (USB)
+The simplest setup: the Sunmi NT311 (or any 80mm ESC/POS receipt printer) plugged into the **Android** kitchen tablet with a USB cable (USB-C to USB-B, or an "OTG" adapter). No Sunmi account or server keys needed.
+1. On the tablet, open **Chrome** at `https://www.sambalandsakura.co.uk/admin/orders` and sign in (or open the installed **S&S Orders** app).
+2. Plug the printer in and switch it on. Tap **Connect printer** on the Orders screen and pick the printer in the list (Android may also ask "Allow access to the USB device?" - tap OK and tick "Always").
+3. Tap **Test print**. A sample ticket (including Chinese text) should come out.
+4. Leave the Orders screen open. Every new order prints by itself within about 10 seconds, and a **CANCELLED - STOP** ticket prints when a customer cancels an order the kitchen already has. Tickets are handed out once, so a second tablet (or the cloud printer below) never prints the same ticket twice.
+5. From then on the tablet reconnects by itself when the page opens or the printer is plugged back in. You only tap Connect printer again on a new tablet or after clearing Chrome's data.
+
+Keep the tablet on charge with the Orders screen in front (the "Screen stays on" button keeps it awake). If the tablet is off or the screen is closed, orders still arrive but don't print until it's open again, and the owner alert for orders nobody has started still fires. iPads can't use USB printers from a website: use the cloud setup below instead. Check the first real ticket: if Chinese characters come out garbled, the printer's text encoding needs setting to UTF-8 (Sunmi printer settings).
+
 ### Sunmi kitchen printer (automatic tickets)
 
 Your **Sunmi 80mm cloud printer** can print every new order by itself. The website sends the ticket to Sunmi's cloud

@@ -29,7 +29,7 @@ async function retryPrints() {
       createdAt: { gt: new Date(now - 3 * 60 * MINUTE) },
       status: { notIn: ["cancelled", "completed"] },
       OR: [{ paymentMethod: "cash" }, { paymentStatus: "paid" }],
-      AND: [{ OR: [{ printStatus: "failed" }, { printStatus: "pending", createdAt: { lt: new Date(now - 90_000) } }] }],
+      AND: [{ OR: [{ printStatus: "failed" }, { printStatus: "pending", createdAt: { lt: new Date(now - 90_000) } }] }], // ("printing" = in progress)
     },
     select: { id: true },
     take: 20,

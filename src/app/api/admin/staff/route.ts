@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { zText, zEmail } from "@/server/sanitize";
 import { prisma } from "@/server/db";
-import { adminUser, hashPassword } from "@/server/auth";
+import { adminUser, hashPassword, verifyPassword } from "@/server/auth";
 import { parsePermissions, GRANTABLE_SECTIONS } from "@/lib/admin/sections";
 import { referralCode, withFreshIds } from "@/server/ids";
 import { audit } from "@/server/audit";
@@ -16,6 +16,7 @@ const createSchema = z.object({
   password: z.string().min(10).max(100),
   role: z.enum(["staff", "admin"]).default("staff"),
   permissions: z.array(z.string().max(30)).max(20).default([]),
+  confirmPassword: z.string().max(100).optional(), // the owner's own password (required)
 });
 
 export async function GET() {
@@ -34,6 +35,11 @@ export async function POST(req: Request) {
   const parsed = createSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Check the staff details (password at least 10 characters)." }, { status: 400 });
 
+  // Step-up: a new staff or owner account is lasting access, so (like role changes) it needs the
+  // current owner's own password - a borrowed or stolen signed-in session alone isn't enough.
+  if (!parsed.data.confirmPassword || !(await verifyPassword(parsed.data.confirmPassword, me.passwordHash))) {
+    return NextResponse.json({ error: "Enter your own password to add a staff member.", needsPassword: true }, { status: 400 });
+  }
   const { name, email, password, role, permissions } = parsed.data;
   if (await prisma.user.findUnique({ where: { email } })) {
     return NextResponse.json({ error: "A user with that email already exists." }, { status: 409 });

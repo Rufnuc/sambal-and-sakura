@@ -18,6 +18,7 @@ export function StaffView() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [myPassword, setMyPassword] = useState(""); // the owner's own password, to confirm
   const [role, setRole] = useState<"staff" | "admin">("staff");
   const [perms, setPerms] = useState<Set<string>>(new Set(["orders", "bookings"]));
   const [busy, setBusy] = useState(false);
@@ -27,8 +28,9 @@ export function StaffView() {
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const res = await createStaff({ name, email, password, role, permissions: role === "admin" ? [] : [...perms] });
+    const res = await createStaff({ name, email, password, role, permissions: role === "admin" ? [] : [...perms], confirmPassword: myPassword });
     setBusy(false);
+    setMyPassword("");
     if (res.ok) {
       toast.success(`${name} added`);
       setName(""); setEmail(""); setPassword(""); setRole("staff"); setPerms(new Set(["orders", "bookings"]));
@@ -38,8 +40,12 @@ export function StaffView() {
 
   async function togglePerm(member: StaffMember, key: string) {
     if (member.role === "admin") return;
-    const next = member.permissions.includes(key) ? member.permissions.filter((p) => p !== key) : [...member.permissions, key];
-    const r = await updateStaff(member.id, { permissions: next });
+    const adding = !member.permissions.includes(key);
+    const next = adding ? [...member.permissions, key] : member.permissions.filter((p) => p !== key);
+    // Giving access needs the owner's password; taking it away doesn't.
+    const confirmPassword = adding ? window.prompt(`Enter YOUR password to give ${member.name} access:`) : undefined;
+    if (adding && !confirmPassword) return;
+    const r = await updateStaff(member.id, { permissions: next, ...(confirmPassword ? { confirmPassword } : {}) });
     if (r.ok) setStaff(await fetchStaff()); else toast.error(r.error ?? "Could not update.");
   }
   async function remove(member: StaffMember) {
@@ -99,6 +105,11 @@ export function StaffView() {
               </div>
             </div>
           )}
+          <div className="max-w-xs">
+            <Label htmlFor="st-mypass">Your password</Label>
+            <Input id="st-mypass" type="password" autoComplete="current-password" value={myPassword} onChange={(e) => setMyPassword(e.target.value)} className="mt-1.5 h-11" required />
+            <p className="mt-1 text-xs text-muted-foreground">To confirm it&apos;s really you before giving someone access.</p>
+          </div>
           <Button type="submit" className="h-11 w-fit gap-1.5 font-semibold" disabled={busy}><UserPlus className="size-4" /> {busy ? "Adding…" : "Add staff member"}</Button>
         </form>
       </SectionCard>

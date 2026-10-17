@@ -29,14 +29,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Please complete the security check and try again." }, { status: 400 });
   }
 
-  // Closed accounts' emails can't be reused (stops re-creating accounts to collect rewards again).
-  if (await isEmailBlocked(email)) {
-    return NextResponse.json({ error: "This email can't be used for a new account. Please contact the restaurant if you think this is a mistake." }, { status: 409 });
-  }
-  if (await prisma.user.findUnique({ where: { email } })) {
-    return NextResponse.json({ error: "An account with that email already exists - sign in instead." }, { status: 409 });
-  }
-
   // A friend's referral code: checked before the account exists, so a bad code can be fixed or removed.
   const refCfg = await getReferralConfig();
   let referral: ReturnType<typeof referralSignupData> | null = null;
@@ -48,6 +40,14 @@ export async function POST(req: Request) {
       if (e instanceof ReferralError) return NextResponse.json({ error: e.message, field: "referralCode" }, { status: 400 });
       throw e;
     }
+  }
+
+  // Closed accounts' emails can't be reused (stops re-creating accounts to collect rewards again).
+  // One answer for "already registered" and "closed", and only AFTER every check that doesn't depend
+  // on the email, so a made-up request (e.g. with a bad referral code) can't reveal whether an email
+  // has an account here.
+  if ((await isEmailBlocked(email)) || (await prisma.user.findUnique({ where: { email }, select: { id: true } }))) {
+    return NextResponse.json({ error: "We couldn't create an account with that email. If you've ordered with us before, sign in instead, or contact the restaurant." }, { status: 409 });
   }
 
   const expiresAt = new Date(Date.now() + 30 * 86400000);

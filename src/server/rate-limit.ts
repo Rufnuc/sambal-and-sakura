@@ -20,6 +20,10 @@ export function clientIp(req: Request): string {
     const v = h.get(configured)?.split(",")[0]?.trim();
     if (v) return v;
   }
+  // Render's own edge (Cloudflare) sets cf-connecting-ip and refuses requests where a visitor tries to
+  // fake it (checked live 17 Oct 2026: 403 on both the custom domain and *.onrender.com). If the site
+  // ever moves to a host that does NOT do this, set CLIENT_IP_HEADER to that host's real-IP header,
+  // or this line would let anyone choose their own IP and reset every per-IP limit.
   const cf = h.get("cf-connecting-ip")?.trim();
   if (cf) return cf;
   const xff = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);

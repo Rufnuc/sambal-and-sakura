@@ -303,7 +303,7 @@ export async function fetchStaff(): Promise<StaffMember[]> {
   if (!res.ok) return [];
   return (await res.json()).staff;
 }
-export async function createStaff(data: { name: string; email: string; password: string; role: string; permissions: string[] }): Promise<{ ok: boolean; error?: string }> {
+export async function createStaff(data: { name: string; email: string; password: string; role: string; permissions: string[]; confirmPassword: string }): Promise<{ ok: boolean; error?: string }> {
   const res = await fetch("/api/admin/staff", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
   });
@@ -369,6 +369,23 @@ export async function unblockEmail(email: string) {
 
 /* ---- Cancellations ---- */
 export interface CancelPolicy { customerCancelMinutes: number; scheduledCutoffMinutes: number; windowDays: number; flagAt: number; restrictAt: number; restrictAction: "block-cash-delivery" | "flag-only" }
+/* ---- Tablet (USB) printer queue ---- */
+export interface TabletJob { orderId: string; kind: "order" | "cancel"; bytes: string }
+export async function claimPrintJobs(): Promise<TabletJob[]> {
+  const res = await fetch("/api/admin/print-queue", { method: "POST" }).catch(() => null);
+  if (!res?.ok) return [];
+  return (await res.json()).jobs ?? [];
+}
+export async function reportPrintFailure(orderId: string, kind: "order" | "cancel", error: string) {
+  await fetch("/api/admin/print-queue/failed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, kind, error: error.slice(0, 200) }) }).catch(() => {});
+}
+/** ESC/POS bytes (base64) for a test ticket, or for reprinting an order / its STOP ticket on the tablet. */
+export async function fetchTicketBytes(q: { test: true } | { orderId: string; kind: "order" | "cancel" }): Promise<string | null> {
+  const qs = "test" in q ? "test=1" : `orderId=${encodeURIComponent(q.orderId)}&kind=${q.kind}`;
+  const res = await fetch(`/api/admin/print-queue/ticket?${qs}`, { cache: "no-store" }).catch(() => null);
+  return res?.ok ? (await res.json()).bytes ?? null : null;
+}
+
 export async function fetchCancelCount(orderId: string): Promise<{ count: number; policy: CancelPolicy } | null> {
   const res = await fetch(`/api/admin/cancellations?orderId=${encodeURIComponent(orderId)}`, { cache: "no-store" });
   return res.ok ? res.json() : null;

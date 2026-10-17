@@ -42,9 +42,22 @@ function idFilter(ids: CustomerIds) {
   return or;
 }
 
-/** Cancellations that count against this customer (by phone, email or account) in the policy window. */
+/**
+ * Cancellations that count against this customer in the policy window:
+ *  - anything on their own account;
+ *  - self-service cancels (tracking link) only when BOTH the phone and the email match - neither is
+ *    verified, so one of them alone would let a stranger place and cancel orders under someone else's
+ *    email (or phone) and get that person blocked from cash delivery;
+ *  - no-shows recorded by staff (a real order that wasn't collected) by phone OR email.
+ */
 export async function countCancellations(ids: CustomerIds, policy: CancelPolicy): Promise<number> {
-  const or = idFilter(ids);
+  const phone = ids.phone ? canonicalPhone(ids.phone) : null;
+  const email = ids.email ? ids.email.trim().toLowerCase() : null;
+  const or: object[] = [];
+  if (ids.userId) or.push({ userId: ids.userId });
+  if (phone && email) or.push({ cancelKind: "customer", customerPhone: phone, customerEmail: email });
+  const noShow = [...(phone ? [{ customerPhone: phone }] : []), ...(email ? [{ customerEmail: email }] : [])];
+  if (noShow.length) or.push({ cancelKind: "no-show", OR: noShow });
   if (!or.length) return 0;
   return prisma.order.count({
     where: {

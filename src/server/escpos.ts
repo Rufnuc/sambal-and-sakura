@@ -101,6 +101,25 @@ export class Esc {
   line(text = "") { this.bytes.push(...encodeText(clean(text)), 0x0a); return this; }
   feed(n: number) { return this.raw(0x1b, 0x64, Math.min(255, n)); }
   rule(ch = "-") { return this.line(ch.repeat(COLS)); }
+  /** GS v 0: a 1-bit picture (1 = black dot, rows top to bottom, each row padded to whole bytes). */
+  image(bits: Uint8Array, width: number, height: number) {
+    const w = Math.ceil(width / 8);
+    this.raw(0x1d, 0x76, 0x30, 0x00, w & 0xff, w >> 8, height & 0xff, height >> 8);
+    this.bytes.push(...bits);
+    return this.raw(0x0a);
+  }
+  /** GS ( k: a QR code (model 2, error correction M). `dot` is the module size in dots (1-16). */
+  qr(text: string, dot = 6) {
+    const data = [...Buffer.from(text, "utf8")].slice(0, 700);
+    const len = data.length + 3;
+    this.raw(0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00);          // model 2
+    this.raw(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, Math.max(1, Math.min(16, dot))); // size
+    this.raw(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31);                // error correction M
+    this.raw(0x1d, 0x28, 0x6b, len & 0xff, len >> 8, 0x31, 0x50, 0x30, ...data); // store
+    return this.raw(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30, 0x0a);    // print
+  }
+  /** Append another ticket (e.g. the customer receipt after the kitchen ticket) as one print job. */
+  append(other: Esc) { this.bytes.push(...other.toBuffer()); return this; }
   /** GS V 66 0: feed to the cutter position then partial cut. */
   cut() { return this.raw(0x1d, 0x56, 0x42, 0x00); }
 

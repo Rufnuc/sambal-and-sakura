@@ -1,4 +1,5 @@
 import { Esc, COLS, padLine, wrap } from "@/server/escpos";
+import { RECEIPT_LOGO } from "@/server/receipt-logo";
 
 export interface TicketLine { name: string; unitPrice: number; qty: number; modifiers: string }
 export interface TicketOrder {
@@ -10,8 +11,13 @@ export interface TicketOrder {
   lines: TicketLine[];
   flags?: string[];
   createdAt?: Date;
+  pointsEarned?: number;
 }
-export interface TicketContext { businessName: string; phone: string }
+export interface TicketContext {
+  businessName: string; phone: string;
+  // for the customer receipt
+  tagline?: string; address?: string; website?: string; qrUrl?: string; qrLabel?: string; company?: string;
+}
 
 const money = (n: number) => `£${n.toFixed(2)}`;
 function mods(s: string): string[] { try { return (JSON.parse(s) as { label: string }[]).map((m) => m.label); } catch { return []; } }
@@ -110,6 +116,68 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
   }
 
   e.align("center").line(`Prep approx ${o.etaMins} min`).line(`Allergy query? ${ctx.phone}`).line("All food halal").line(ctx.businessName);
+  e.feed(4).cut();
+  return e;
+}
+
+/**
+ * The customer's copy, printed after the kitchen ticket and packed with the food: the restaurant's
+ * logo and details, what they ordered and paid, and a QR code (leave a review / order direct again).
+ */
+export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
+  const e = new Esc().init();
+  const delivery = o.fulfilment === "delivery";
+
+  // --- brand header
+  e.align("center").image(Buffer.from(RECEIPT_LOGO.bits, "base64"), RECEIPT_LOGO.width, RECEIPT_LOGO.height);
+  e.bold(true).size(2, 2).line(ctx.businessName.toUpperCase()).size(1, 1);
+  if (ctx.tagline) e.bold(false).line(ctx.tagline);
+  e.bold(false);
+  if (ctx.address) for (const l of wrap(ctx.address, COLS)) e.line(l);
+  e.line(`Tel ${ctx.phone}`);
+  if (ctx.website) e.bold(true).size(1, 2).line(ctx.website).size(1, 1).bold(false);
+  e.rule("=");
+
+  // --- the order
+  e.bold(true).reverse(true).size(1, 2).line(delivery ? "  DELIVERY  " : "  COLLECTION  ").size(1, 1).reverse(false);
+  e.size(2, 2).line(`#${o.id}`).size(1, 1).bold(false);
+  e.line(ukDateTime(o.createdAt ?? new Date()));
+  e.line(o.whenType === "scheduled" && o.scheduledTime ? `For ${o.scheduledTime}` : delivery ? `Delivery in about ${o.etaMins} min` : `Ready in about ${o.etaMins} min`);
+  e.line(`Thank you, ${o.customerName.split(" ")[0]}!`);
+  e.rule();
+
+  // --- items
+  e.align("left");
+  for (const l of o.lines) {
+    const price = l.unitPrice === 0 ? "FREE" : money(l.unitPrice * l.qty);
+    const wrapped = wrap(`${l.qty} x ${l.name}`, COLS - price.length - 1);
+    e.bold(true).line(padLine(wrapped[0], price)).bold(false);
+    for (const extra of wrapped.slice(1)) e.line("    " + extra);
+    const m = mods(l.modifiers);
+    if (m.length) for (const x of wrap(`+ ${m.join(", ")}`, COLS - 4)) e.line("    " + x);
+  }
+  e.rule();
+
+  // --- totals and payment
+  e.line(padLine("Subtotal", money(o.subtotal)));
+  if (delivery) e.line(padLine("Delivery", o.deliveryFee > 0 ? money(o.deliveryFee) : "FREE"));
+  if (o.discount > 0) e.line(padLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
+  e.bold(true).size(2, 2).line(padLine("TOTAL", money(o.total), COLS / 2)).size(1, 1).bold(false);
+  e.line(o.paymentMethod === "wechat" && o.paymentStatus === "paid" ? "Paid online - WeChat Pay"
+    : o.paymentMethod === "wechat" ? "WeChat Pay - awaiting payment"
+    : delivery ? "Cash - paid to the driver" : "Cash - paid on collection");
+  if (o.pointsEarned && o.pointsEarned > 0) e.line(`You earned ${o.pointsEarned} reward points with this order`);
+  e.rule("=");
+
+  // --- QR and sign-off
+  e.align("center");
+  if (ctx.qrUrl) {
+    e.bold(true).line(ctx.qrLabel ?? "Scan me").bold(false).feed(1).qr(ctx.qrUrl, 7);
+  }
+  e.feed(1).bold(true).size(1, 2).line("THANK YOU FOR ORDERING DIRECT").size(1, 1).bold(false);
+  if (ctx.website) e.bold(true).line(`Order again at ${ctx.website}`).bold(false);
+  e.line(`Allergies or a problem? Call ${ctx.phone}`);
+  if (ctx.company) for (const l of wrap(ctx.company, COLS)) e.line(l);
   e.feed(4).cut();
   return e;
 }

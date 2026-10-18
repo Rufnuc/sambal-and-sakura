@@ -15,6 +15,8 @@ type Station = {
   printer: ReturnType<typeof useUsbPrinter>;
   autoPrint: boolean;
   toggleAutoPrint: () => void;
+  receipt: boolean;               // also print the customer's copy after each kitchen ticket
+  toggleReceipt: () => void;
   testPrint: () => Promise<void>;
 };
 const Ctx = createContext<Station | null>(null);
@@ -23,10 +25,12 @@ export const usePrintStation = () => useContext(Ctx);
 const POLL_MS = 10_000;
 const AUTO_KEY = "ss_tablet_print";   // "0" = automatic printing switched off on this tablet
 const STATION_KEY = "ss_print_station"; // "1" = this tablet has had the printer connected before
+const RECEIPT_KEY = "ss_tablet_receipt"; // "0" = don't print the customer receipt on this tablet
 
 export function PrintStation({ canPrint, children }: { canPrint: boolean; children: React.ReactNode }) {
   const printer = useUsbPrinter();
   const [autoPrint, setAutoPrint] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem(AUTO_KEY) !== "0"; } catch { return true; } });
+  const [receipt, setReceipt] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem(RECEIPT_KEY) !== "0"; } catch { return true; } });
   const [wasStation, setWasStation] = useState(() => { try { return typeof window !== "undefined" && localStorage.getItem(STATION_KEY) === "1"; } catch { return false; } });
   const printing = useRef(false);
   const { state, print } = printer;
@@ -45,7 +49,7 @@ export function PrintStation({ canPrint, children }: { canPrint: boolean; childr
     if (printing.current) return;
     printing.current = true;
     try {
-      const jobs = await claimPrintJobs();
+      const jobs = await claimPrintJobs(receipt);
       for (let i = 0; i < jobs.length; i++) {
         const job = jobs[i];
         try {
@@ -61,7 +65,7 @@ export function PrintStation({ canPrint, children }: { canPrint: boolean; childr
         }
       }
     } finally { printing.current = false; }
-  }, [print]);
+  }, [print, receipt]);
 
   // While the printer is connected: print straight away, then check every 10 s, when the screen comes
   // back on and when the internet returns.
@@ -83,15 +87,22 @@ export function PrintStation({ canPrint, children }: { canPrint: boolean; childr
     });
   }, []);
 
+  const toggleReceipt = useCallback(() => {
+    setReceipt((v) => {
+      try { localStorage.setItem(RECEIPT_KEY, v ? "0" : "1"); } catch { /* ignore */ }
+      return !v;
+    });
+  }, []);
+
   const testPrint = useCallback(async () => {
-    const b64 = await fetchTicketBytes({ test: true });
+    const b64 = await fetchTicketBytes({ test: true, receipt });
     if (!b64) { toast.error("Couldn't get the test ticket."); return; }
     try { await print(base64ToBytes(b64)); toast.success("Test ticket sent to the printer"); }
     catch (e) { toast.error((e as Error).message); }
-  }, [print]);
+  }, [print, receipt]);
 
   return (
-    <Ctx.Provider value={{ printer, autoPrint, toggleAutoPrint, testPrint }}>
+    <Ctx.Provider value={{ printer, autoPrint, toggleAutoPrint, receipt, toggleReceipt, testPrint }}>
       {canPrint && wasStation && !connected && state !== "unsupported" && (
         <div role="alert" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sambal/40 bg-sambal/10 px-3 py-2 text-sm text-sambal">
           <Printer className="size-4 shrink-0" />

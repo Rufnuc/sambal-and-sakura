@@ -382,8 +382,8 @@ export async function unblockEmail(email: string) {
 export interface CancelPolicy { customerCancelMinutes: number; scheduledCutoffMinutes: number; windowDays: number; flagAt: number; restrictAt: number; restrictAction: "block-cash-delivery" | "flag-only" }
 /* ---- Tablet (USB) printer queue ---- */
 export interface TabletJob { orderId: string; kind: "order" | "cancel"; bytes: string }
-export async function claimPrintJobs(): Promise<TabletJob[]> {
-  const res = await fetch("/api/admin/print-queue", { method: "POST" }).catch(() => null);
+export async function claimPrintJobs(receipt = true): Promise<TabletJob[]> {
+  const res = await fetch("/api/admin/print-queue", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receipt }) }).catch(() => null);
   if (!res?.ok) return [];
   return (await res.json()).jobs ?? [];
 }
@@ -391,8 +391,8 @@ export async function reportPrintFailure(orderId: string, kind: "order" | "cance
   await fetch("/api/admin/print-queue/failed", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, kind, error: error.slice(0, 200) }) }).catch(() => {});
 }
 /** ESC/POS bytes (base64) for a test ticket, or for reprinting an order / its STOP ticket on the tablet. */
-export async function fetchTicketBytes(q: { test: true } | { orderId: string; kind: "order" | "cancel" }): Promise<string | null> {
-  const qs = "test" in q ? "test=1" : `orderId=${encodeURIComponent(q.orderId)}&kind=${q.kind}`;
+export async function fetchTicketBytes(q: { test: true; receipt?: boolean } | { orderId: string; kind: "order" | "cancel" | "receipt" }): Promise<string | null> {
+  const qs = "test" in q ? `test=1${q.receipt === false ? "&receipt=0" : ""}` : `orderId=${encodeURIComponent(q.orderId)}&kind=${q.kind}`;
   const res = await fetch(`/api/admin/print-queue/ticket?${qs}`, { cache: "no-store" }).catch(() => null);
   return res?.ok ? (await res.json()).bytes ?? null : null;
 }

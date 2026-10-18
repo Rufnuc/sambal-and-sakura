@@ -314,7 +314,7 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
         </div>
       ))}
       {paused && <Banner tone="sambal">Online ordering is PAUSED. Customers see a message asking them to phone.</Banner>}
-      {station && <TabletPrinterBar printer={station.printer} autoPrint={station.autoPrint} onToggleAuto={station.toggleAutoPrint} onTest={() => void station.testPrint()} />}
+      {station && <TabletPrinterBar printer={station.printer} autoPrint={station.autoPrint} onToggleAuto={station.toggleAutoPrint} receipt={station.receipt} onToggleReceipt={station.toggleReceipt} onTest={() => void station.testPrint()} />}
 
       {sound && soundLocked && <Banner tone="sambal">Tap anywhere on this page to switch the order alarm on (the browser needs one tap after the page opens).</Banner>}
       {newWaiting && <Banner tone="sambal">New order waiting: the alarm repeats every 15 seconds until it&apos;s accepted (moved to Preparing).</Banner>}
@@ -506,6 +506,15 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
                 >
                   <Printer className="size-4" /> Reprint to kitchen
                 </Button>
+                {station?.printer.state === "connected" && (
+                  <Button variant="outline" className="h-9 w-fit gap-1.5" onClick={async () => {
+                    const b64 = await fetchTicketBytes({ orderId: detail.id, kind: "receipt" });
+                    if (!b64) { toast.error("Couldn't get the receipt."); return; }
+                    try { await station.printer.print(base64ToBytes(b64)); toast.success("Customer receipt printed"); } catch (e) { toast.error((e as Error).message); }
+                  }}>
+                    <Printer className="size-4" /> Print customer receipt
+                  </Button>
+                )}
               </div>
               {custCancels && custCancels.count > 0 && (
                 <div className={cn("flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm", custCancels.count >= custCancels.flagAt ? "bg-sambal/10 text-sambal" : "bg-muted")}>
@@ -557,8 +566,8 @@ function Banner({ tone, children }: { tone: "sambal" | "gold"; children: React.R
 }
 
 /** Status + controls for a printer plugged into this tablet by USB. */
-function TabletPrinterBar({ printer, autoPrint, onToggleAuto, onTest }: {
-  printer: ReturnType<typeof useUsbPrinter>; autoPrint: boolean; onToggleAuto: () => void; onTest: () => void;
+function TabletPrinterBar({ printer, autoPrint, onToggleAuto, receipt, onToggleReceipt, onTest }: {
+  printer: ReturnType<typeof useUsbPrinter>; autoPrint: boolean; onToggleAuto: () => void; receipt: boolean; onToggleReceipt: () => void; onTest: () => void;
 }) {
   if (printer.state === "unsupported") {
     return <p className="-mt-2 text-xs text-muted-foreground">USB kitchen printer: not available on this device. Use Chrome on the Android tablet the printer is plugged into.</p>;
@@ -577,6 +586,9 @@ function TabletPrinterBar({ printer, autoPrint, onToggleAuto, onTest }: {
           <button onClick={onToggleAuto} role="switch" aria-checked={autoPrint} aria-label="Print new orders automatically on this tablet" className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition", autoPrint ? "bg-jade" : "bg-muted")}>
             <span className={cn("inline-block size-4 rounded-full bg-white shadow transition", autoPrint ? "translate-x-6" : "translate-x-1")} />
           </button>
+          <label className="flex items-center gap-1.5 text-xs" title="Print the branded customer copy after each kitchen ticket">
+            <input type="checkbox" className="size-4" checked={receipt} onChange={onToggleReceipt} /> Customer receipt
+          </label>
           <Button size="sm" variant="outline" className="h-8" onClick={onTest}>Test print</Button>
         </>
       ) : (

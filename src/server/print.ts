@@ -5,9 +5,11 @@
 // Printing must NEVER block or fail an order: every function here returns a result instead of throwing.
 
 import { prisma } from "@/server/db";
-import { RESTAURANT } from "@/lib/data/site";
+import { RESTAURANT, COMPANY } from "@/lib/data/site";
+import { formatAddress } from "@/lib/site-content";
+import { SITE_URL } from "@/lib/site-url";
 import { getSiteContent } from "@/server/site-content";
-import { renderKitchenTicket, renderCancelTicket, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
+import { renderKitchenTicket, renderCancelTicket, renderCustomerReceipt, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
 import { log, alertOwner } from "@/server/log";
 
 export type { TicketOrder };
@@ -116,7 +118,7 @@ async function loadTicket(id: string): Promise<TicketOrder | null> {
     whenType: o.whenType, scheduledTime: o.scheduledTime, etaMins: o.etaMins,
     subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
     voucherCode: o.voucherCode, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
-    flags, createdAt: o.createdAt,
+    flags, createdAt: o.createdAt, pointsEarned: o.pointsEarned,
   };
 }
 
@@ -206,26 +208,44 @@ export interface TabletJob { orderId: string; kind: "order" | "cancel"; bytes: s
 
 async function ctx() {
   const { business } = await getSiteContent();
-  return { businessName: RESTAURANT.name, phone: business.phone };
+  const website = SITE_URL.replace(/^https?:\/\//, "");
+  return {
+    businessName: RESTAURANT.name, phone: business.phone,
+    tagline: "Chinese & Japanese Kitchen", address: formatAddress(business.address), website,
+    // With a Google review link set (Admin -> Site content), the QR asks for a review; otherwise it opens the site.
+    qrUrl: business.googleReviewUrl ? `${SITE_URL}/review` : SITE_URL,
+    qrLabel: business.googleReviewUrl ? "Enjoyed it? Scan to leave us a review" : "Scan to order direct next time",
+    company: `${COMPANY.name} - Company no. ${COMPANY.number}`,
+  };
 }
 
 /** ESC/POS bytes for an order's kitchen ticket or its "CANCELLED - STOP" ticket (no claiming). */
-export async function ticketBytes(id: string, kind: "order" | "cancel", opts: { reprint?: boolean } = {}): Promise<Buffer | null> {
+export async function ticketBytes(id: string, kind: "order" | "cancel", opts: { reprint?: boolean; receipt?: boolean } = {}): Promise<Buffer | null> {
   const o = await prisma.order.findUnique({ where: { id }, select: { cancelReason: true, cancelledAt: true } });
   const t = o ? await loadTicket(id) : null;
   if (!o || !t) return null;
   const c = await ctx();
   return kind === "cancel"
     ? renderCancelTicket({ ...t, cancelReason: o.cancelReason, cancelledAt: o.cancelledAt }, c).toBuffer()
-    : renderKitchenTicket(t, c, opts).toBuffer();
+    : opts.receipt
+      ? renderKitchenTicket(t, c, opts).append(renderCustomerReceipt(t, c)).toBuffer() // kitchen ticket, cut, then the customer's copy
+      : renderKitchenTicket(t, c, opts).toBuffer();
 }
 
-export async function sampleTicketBytes(): Promise<Buffer> {
-  return renderKitchenTicket(sampleTicketOrder(), await ctx()).toBuffer();
+/** Test print: the sample kitchen ticket, then (unless switched off on the tablet) the customer receipt. */
+export async function sampleTicketBytes(receipt = true): Promise<Buffer> {
+  const c = await ctx(), o = sampleTicketOrder();
+  return (receipt ? renderKitchenTicket(o, c).append(renderCustomerReceipt(o, c)) : renderKitchenTicket(o, c)).toBuffer();
+}
+
+/** Just the customer receipt (reprint it on its own from the order screen). */
+export async function receiptBytes(id: string): Promise<Buffer | null> {
+  const t = await loadTicket(id);
+  return t ? renderCustomerReceipt(t, await ctx()).toBuffer() : null;
 }
 
 /** Hand the tablet every ticket that still needs printing, claiming each one so nobody else prints it. */
-export async function claimTabletJobs(): Promise<TabletJob[]> {
+export async function claimTabletJobs(opts: { receipt?: boolean } = {}): Promise<TabletJob[]> {
   const since = new Date(Date.now() - RECENT_MS);
   const cloud = printerProvider() !== null;
   const waitFor = new Date(Date.now() - CLOUD_GRACE_MS);
@@ -251,7 +271,7 @@ export async function claimTabletJobs(): Promise<TabletJob[]> {
       data: { printStatus: "printed", printedAt: new Date(), printError: null, printAttempts: { increment: 1 } },
     });
     if (claimed.count !== 1) continue; // someone else got it
-    const bytes = await ticketBytes(o.id, "order");
+    const bytes = await ticketBytes(o.id, "order", { receipt: opts.receipt });
     if (bytes) jobs.push({ orderId: o.id, kind: "order", bytes: bytes.toString("base64") });
   }
   for (const o of stops) {

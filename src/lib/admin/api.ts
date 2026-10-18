@@ -89,6 +89,13 @@ export async function patchOrderStatus(id: string, status: OrderStatus, reason?:
   if (!res.ok) return { order: null, error: data.error ?? "Could not update the order." };
   return { order: data.order ? normOrder(data.order) : null };
 }
+/** Owner: remove test orders for good (needs the owner's password). */
+export async function deleteTestOrders(ids: string[], confirmPassword: string): Promise<{ deleted: string[]; refused: { id: string; error: string }[]; referrerRewardKept?: boolean } | { error: string }> {
+  const res = await fetch("/api/admin/orders/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, confirmPassword }) }).catch(() => null);
+  const data = await res?.json().catch(() => ({})) ?? {};
+  if (!res?.ok) return { error: data.error ?? "Could not delete. Check your connection." };
+  return data;
+}
 export async function setOrdersPaused(paused: boolean): Promise<boolean | null> {
   const res = await fetch("/api/admin/orders/pause", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paused }) });
   if (!res.ok) return null;

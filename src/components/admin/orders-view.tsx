@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Check, X, Clock, Printer, Volume2, VolumeX, PauseCircle, PlayCircle, AlertTriangle, Search, MonitorSmartphone } from "lucide-react";
+import { ChevronRight, Check, X, Clock, Printer, Volume2, VolumeX, PauseCircle, PlayCircle, AlertTriangle, Search, MonitorSmartphone, Trash2 } from "lucide-react";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
-import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, fetchTicketBytes, type CancelKind } from "@/lib/admin/api";
+import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, fetchTicketBytes, deleteTestOrders, type CancelKind } from "@/lib/admin/api";
 import { base64ToBytes, type useUsbPrinter } from "@/lib/usb-printer";
 import { usePrintStation } from "@/components/admin/print-station";
 import { type PlacedOrder } from "@/lib/order";
@@ -95,8 +95,14 @@ const printProblem = (o: PlacedOrder, now: number) =>
   isActive(o) && (o.paymentMethod !== "wechat" || o.paymentStatus === "paid") &&
   (o.printStatus === "failed" || (o.printStatus === "pending" && now - o.createdAt > 2 * 60_000));
 
-export function OrdersView() {
+export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
   const [orders, setOrders] = useState<PlacedOrder[]>([]);
+  // Owner clean-up: pick test orders, then delete them together (one password).
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletePw, setDeletePw] = useState("");
+  const [deletingNow, setDeletingNow] = useState(false);
   const [paused, setPaused] = useState(false);
   const [ready, setReady] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -236,6 +242,22 @@ export function OrdersView() {
     else toast.error(r.error ?? "Could not cancel.");
     setCancelling(null); setReason("");
   }
+  function togglePicked(id: string) {
+    setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  async function runDelete() {
+    setDeletingNow(true);
+    const r = await deleteTestOrders([...picked], deletePw);
+    setDeletingNow(false);
+    if ("error" in r) { toast.error(r.error); return; }
+    setConfirmDelete(false); setDeletePw("");
+    if (r.deleted.length) toast.success(`Deleted ${r.deleted.length} test order${r.deleted.length === 1 ? "" : "s"}`);
+    for (const f of r.refused) toast.error(`${f.id}: ${f.error}`, { duration: 12_000 });
+    if (r.referrerRewardKept) toast("A referrer had already used the reward from one of these orders, so that reward was kept.", { duration: 12_000 });
+    setPicked(new Set(r.refused.map((f) => f.id)));
+    if (!r.refused.length) setSelecting(false);
+    void load();
+  }
   async function togglePause() {
     const next = !paused;
     if (next && !window.confirm("Pause ALL new online orders? Customers will be asked to phone instead.")) return;
@@ -272,6 +294,11 @@ export function OrdersView() {
           {wake !== "unsupported" && (
             <Button variant="outline" className="h-9 gap-1.5" onClick={toggleAwake} aria-pressed={awake} title="Stops this screen going to sleep while the Orders page is open">
               <MonitorSmartphone className="size-4" /> {awake ? (wake === "on" ? "Screen stays on" : "Screen on: tap the page") : "Keep screen on"}
+            </Button>
+          )}
+          {isOwner && (
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => { setSelecting((v) => !v); setPicked(new Set()); }}>
+              <Trash2 className="size-4" /> {selecting ? "Stop deleting" : "Delete test orders"}
             </Button>
           )}
           <Button variant={paused ? "default" : "outline"} className={cn("h-9 gap-1.5", !paused && "border-sambal/40 text-sambal")} onClick={togglePause}>
@@ -312,11 +339,24 @@ export function OrdersView() {
         </div>
       </div>
 
+      {selecting && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border-2 border-sambal/50 bg-sambal/5 px-3 py-2 text-sm">
+          <span className="mr-auto">
+            Tap each <strong>test</strong> order to select it. Tip: choose &quot;All&quot; and &quot;Last 31 days&quot;, or search your own phone number or email to find them.
+            Orders paid online can&apos;t be deleted.
+          </span>
+          <Button size="sm" variant="destructive" className="h-8 gap-1.5" disabled={!picked.size} onClick={() => { setDeletePw(""); setConfirmDelete(true); }}>
+            <Trash2 className="size-4" /> Delete {picked.size || ""} order{picked.size === 1 ? "" : "s"}
+          </Button>
+        </div>
+      )}
+
       <SectionCard>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
+                {selecting && <TableHead className="w-8"><span className="sr-only">Select</span></TableHead>}
                 <TableHead>Order</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead className="hidden sm:table-cell">Type</TableHead>
@@ -331,7 +371,13 @@ export function OrdersView() {
                 const ns = nextStatus(o);
                 const late = isLate(o, now);
                 return (
-                  <TableRow key={o.id} className={cn("cursor-pointer", late && "bg-sambal/5")} onClick={() => setDetail(o)}>
+                  <TableRow key={o.id} className={cn("cursor-pointer", late && "bg-sambal/5", selecting && picked.has(o.id) && "bg-sambal/10")}
+                    onClick={() => (selecting ? togglePicked(o.id) : setDetail(o))}>
+                    {selecting && (
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" className="size-4" aria-label={`Select ${o.id} to delete`} checked={picked.has(o.id)} disabled={o.paymentStatus === "paid"} onChange={() => togglePicked(o.id)} />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">
                       {o.id}
                       <span className={cn("block text-xs", late ? "font-semibold text-sambal" : "text-muted-foreground")}>
@@ -380,6 +426,26 @@ export function OrdersView() {
           {rows.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No orders in this view.</p>}
         </div>
       </SectionCard>
+
+      <Dialog open={confirmDelete} onOpenChange={(o) => !o && !deletingNow && setConfirmDelete(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-display">Delete {picked.size} test order{picked.size === 1 ? "" : "s"} for good?</DialogTitle>
+            <DialogDescription>
+              They disappear from Orders, stats and reports, and their tracking links stop working. Points they earned are taken back, vouchers they used are returned,
+              and a referral they completed goes back to waiting. This can&apos;t be undone, so only delete orders that were tests.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm font-medium">{[...picked].join(", ")}</p>
+          <form onSubmit={(e) => { e.preventDefault(); void runDelete(); }} className="flex flex-col gap-3">
+            <Input type="password" value={deletePw} onChange={(e) => setDeletePw(e.target.value)} placeholder="Your password" aria-label="Your password" autoComplete="current-password" required />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={deletingNow} onClick={() => setConfirmDelete(false)}>Keep them</Button>
+              <Button type="submit" variant="destructive" disabled={deletingNow || !deletePw}>{deletingNow ? "Deleting…" : "Delete for good"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!cancelling} onOpenChange={(o) => !o && setCancelling(null)}>
         <DialogContent>

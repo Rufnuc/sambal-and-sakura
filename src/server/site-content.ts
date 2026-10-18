@@ -97,7 +97,21 @@ function resolve(raw: unknown): SiteContent {
     const parsed = schemas[key].safeParse(obj[key]);
     if (parsed.success) out[key] = parsed.data;
   }
-  return out as unknown as SiteContent;
+  return upgradeDeliveryWording(out as unknown as SiteContent);
+}
+
+// Older saves copied the delivery prices into the text ("Free delivery over £25 / From £1.99 across
+// Middlesbrough."), so they never followed Delivery prices. Untouched copies of those old defaults
+// become the live placeholders; anything the owner rewrote is left exactly as they wrote it.
+const OLD_DELIVERY_TITLE = /^Free delivery (over|on) £\d+(\.\d\d)?\+?$/;
+const OLD_DELIVERY_TEXT = /^(From £\d+\.\d\d across Middlesbrough\.|Within our delivery area\. Otherwise from £\d+\.\d\d; £\d+ minimum\.)$/;
+const OLD_DELIVERY_FAQ = /^We deliver across Middlesbrough and the surrounding TS postcodes in three zones \(£[\d.]+–£[\d.]+\)\. Spend £\d+\+ and delivery is free\. Enter your postcode at checkout to confirm\.$/;
+function upgradeDeliveryWording(c: SiteContent): SiteContent {
+  const strip = c.valueStrip.map((v) =>
+    v.icon === "bike" && OLD_DELIVERY_TITLE.test(v.title) && OLD_DELIVERY_TEXT.test(v.text) ? { ...v, title: "{deliveryTitle}", text: "{deliveryLine}" } : v);
+  const newFaq = DEFAULT_SITE_CONTENT.faqs.find((f) => f.group === "delivery" && f.a.includes("{deliveryLine}"))?.a;
+  const faqs = c.faqs.map((f) => (newFaq && OLD_DELIVERY_FAQ.test(f.a) ? { ...f, a: newFaq } : f));
+  return { ...c, valueStrip: strip, faqs };
 }
 
 export const getSiteContent = cache(async (): Promise<SiteContent> => {

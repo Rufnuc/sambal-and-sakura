@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
-import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, claimPrintJobs, reportPrintFailure, fetchTicketBytes, type CancelKind } from "@/lib/admin/api";
-import { useUsbPrinter, base64ToBytes } from "@/lib/usb-printer";
+import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, fetchTicketBytes, type CancelKind } from "@/lib/admin/api";
+import { base64ToBytes, type useUsbPrinter } from "@/lib/usb-printer";
+import { usePrintStation } from "@/components/admin/print-station";
 import { type PlacedOrder } from "@/lib/order";
 import { type OrderStatus } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
@@ -116,9 +117,8 @@ export function OrdersView() {
   const wake = useWakeLock(awake);
   const [audioReady, setAudioReady] = useState(false); // a tap has unlocked sound on this page
   // Kitchen printer plugged into THIS tablet by USB: prints new orders (and STOP tickets) automatically.
-  const printer = useUsbPrinter();
-  const [autoPrint, setAutoPrint] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem("ss_tablet_print") !== "0"; } catch { return true; } });
-  const printing = useRef(false);
+  // (printing itself runs in PrintStation around every admin page, see print-station.tsx)
+  const station = usePrintStation();
   const known = useRef<Set<string> | null>(null);
   const alarmed = useRef<Set<string>>(new Set());
 
@@ -166,32 +166,6 @@ export function OrdersView() {
     window.addEventListener("focus", now);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", now); window.removeEventListener("online", now); window.removeEventListener("focus", now); };
   }, [load]);
-
-  // After every refresh: if this tablet has the printer, take any tickets waiting and print them.
-  const { state: printerState, print: printBytes } = printer;
-  useEffect(() => {
-    if (printerState !== "connected" || !autoPrint || printing.current) return;
-    printing.current = true;
-    (async () => {
-      try {
-        const jobs = await claimPrintJobs();
-        for (let i = 0; i < jobs.length; i++) {
-          const job = jobs[i];
-          try {
-            await printBytes(base64ToBytes(job.bytes));
-            if (job.kind === "cancel") toast.error(`Printed STOP ticket for ${job.orderId}`);
-          } catch (e) {
-            await reportPrintFailure(job.orderId, job.kind, (e as Error).message);
-            toast.error(`Couldn't print ${job.orderId}: ${(e as Error).message}`, { duration: 15_000 });
-            // Printer problem: stop here, and hand back every ticket this tablet took but didn't print,
-            // so none is lost (they show as failed on this screen and are offered again).
-            for (const rest of jobs.slice(i + 1)) await reportPrintFailure(rest.orderId, rest.kind, "not printed: the printer stopped on an earlier ticket");
-            break;
-          }
-        }
-      } finally { printing.current = false; }
-    })();
-  }, [now, printerState, printBytes, autoPrint]);
 
   // Sound needs one tap after the page loads (browser rule). Ask for it, and unlock on the first tap.
   const soundLocked = sound && !audioReady;
@@ -270,17 +244,6 @@ export function OrdersView() {
     setPaused(r);
     toast(r ? "Online orders paused" : "Online orders are back on");
   }
-  function toggleAutoPrint() {
-    const next = !autoPrint;
-    setAutoPrint(next);
-    try { localStorage.setItem("ss_tablet_print", next ? "1" : "0"); } catch { /* ignore */ }
-  }
-  async function testPrint() {
-    const b64 = await fetchTicketBytes({ test: true });
-    if (!b64) { toast.error("Couldn't get the test ticket."); return; }
-    try { await printer.print(base64ToBytes(b64)); toast.success("Test ticket sent to the printer"); }
-    catch (e) { toast.error((e as Error).message); }
-  }
   function toggleAwake() {
     const next = !awake;
     setAwake(next);
@@ -324,7 +287,7 @@ export function OrdersView() {
         </div>
       ))}
       {paused && <Banner tone="sambal">Online ordering is PAUSED. Customers see a message asking them to phone.</Banner>}
-      <TabletPrinterBar printer={printer} autoPrint={autoPrint} onToggleAuto={toggleAutoPrint} onTest={testPrint} />
+      {station && <TabletPrinterBar printer={station.printer} autoPrint={station.autoPrint} onToggleAuto={station.toggleAutoPrint} onTest={() => void station.testPrint()} />}
 
       {sound && soundLocked && <Banner tone="sambal">Tap anywhere on this page to switch the order alarm on (the browser needs one tap after the page opens).</Banner>}
       {newWaiting && <Banner tone="sambal">New order waiting: the alarm repeats every 15 seconds until it&apos;s accepted (moved to Preparing).</Banner>}
@@ -463,7 +426,8 @@ export function OrdersView() {
                   variant="outline"
                   className="h-9 w-fit gap-1.5"
                   onClick={async () => {
-                    if (printer.state === "connected") {
+                    const printer = station?.printer;
+                    if (printer?.state === "connected") {
                       // Tablet printer: reprint here.
                       const b64 = await fetchTicketBytes({ orderId: detail.id, kind: detail.status === "cancelled" ? "cancel" : "order" });
                       if (!b64) { toast.error("Couldn't get the ticket."); return; }
@@ -540,7 +504,7 @@ function TabletPrinterBar({ printer, autoPrint, onToggleAuto, onTest }: {
       <span className="mr-auto min-w-0">
         {connected
           ? <><span className="font-medium">{printer.name}</span> connected{autoPrint ? " - new orders print here automatically" : " - automatic printing is off"}</>
-          : <>No printer connected to this tablet{printer.error ? ` (${printer.error})` : ""}. Plug the printer in by USB, then tap Connect printer.</>}
+          : <>No printer connected to this tablet{printer.error ? ` (${printer.error})` : ""}. Plug the printer in by USB, then tap Connect printer (only needed the first time: after that it reconnects by itself).</>}
       </span>
       {connected ? (
         <>

@@ -129,7 +129,7 @@ export const FAQS: Faq[] = [
   { group: "payment", q: "What payment methods do you accept?",
     a: "Website orders are cash only - pay the driver on delivery or on collection. We show this clearly throughout checkout so there are no surprises." },
   { group: "delivery", q: "Where do you deliver and how much is it?",
-    a: "We deliver across Middlesbrough and the surrounding TS postcodes in three zones (£1.99–£3.99). Spend £25+ and delivery is free. Enter your postcode at checkout to confirm." },
+    a: "We deliver across Middlesbrough and the surrounding TS postcodes. {deliveryLine} Enter your postcode at checkout to see the price for your address." },
   { group: "delivery", q: "How long will my order take?",
     a: "Typical prep is ~25 minutes. Delivery ETAs run 30–55 minutes by zone. You can also schedule an order for later." },
   { group: "booking", q: "Can I book a table online?",

@@ -294,7 +294,8 @@ function SecurityCard({ onSignOutEverywhere }: { onSignOutEverywhere: () => void
       </form>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button asChild variant="outline" className="h-9 gap-1.5"><a href="/api/account?export=1"><Download className="size-4" /> Download my data</a></Button>
+        <Button asChild variant="outline" className="h-9 gap-1.5"><a href="/api/account?export=1&format=pdf"><Download className="size-4" /> Download my data (PDF)</a></Button>
+        <a href="/api/account?export=1" className="self-center text-xs text-muted-foreground underline" title="The same information as a data file, for moving it to another service">or as a data file</a>
         <Button variant="outline" className="h-9 gap-1.5" onClick={onSignOutEverywhere}><LogOut className="size-4" /> Sign out everywhere</Button>
         <Button variant="ghost" className="h-9" onClick={() => { setPanel(panel === "deactivate" ? "none" : "deactivate"); setConfirmPw(""); }}>Deactivate account</Button>
         <Button variant="ghost" className="h-9 text-sambal hover:text-sambal" onClick={() => { setPanel(panel === "close" ? "none" : "close"); setConfirmPw(""); setTyped(""); }}>Close account</Button>

@@ -1,7 +1,7 @@
 // Admin-editable website content: shared by server pages, client components and the admin editor.
 // This module has NO server-only imports. Static defaults come from lib/data/site.ts; whatever the
 // restaurant saves in Admin -> Site content is stored in the database and layered on top.
-import { RESTAURANT, FAQS, ORDERING, type DayHours, type Testimonial, type Faq } from "@/lib/data/site";
+import { RESTAURANT, FAQS, type DayHours, type Testimonial, type Faq } from "@/lib/data/site";
 
 export const VALUE_ICONS = ["banknote", "bike", "sparkles", "chef", "leaf", "clock", "star", "gift", "shield", "heart"] as const;
 export type ValueIcon = (typeof VALUE_ICONS)[number];
@@ -67,7 +67,8 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   signature: { dishIds: [] },
   valueStrip: [
     { icon: "banknote", title: "Pay your way", text: "Cash on delivery or collection, or WeChat Pay online where available." },
-    { icon: "bike", title: `Free delivery on £${ORDERING.freeDeliveryThreshold}+`, text: `Within our delivery area. Otherwise from £${ORDERING.deliveryZones[0].fee.toFixed(2)}; £${ORDERING.minOrder} minimum.` },
+    // {deliveryTitle} / {deliveryLine}: filled in from Admin -> Settings -> Delivery prices (src/server/live-content.ts).
+    { icon: "bike", title: "{deliveryTitle}", text: "{deliveryLine}" },
     { icon: "chef", title: "Sushi by a Japan-trained chef", text: "Authentic Japanese technique, prepared to order." },
     { icon: "sparkles", title: "Freshly made to order", text: "Authentic Chinese & Japanese, cooked when you order." },
   ],

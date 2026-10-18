@@ -273,6 +273,7 @@ function HomeTab({ c, set, menuPhotos }: { c: SiteContent; set: (p: Partial<Site
         action={<Button variant="outline" size="sm" className="h-9 gap-1" disabled={c.valueStrip.length >= 6} onClick={() => set({ valueStrip: [...c.valueStrip, { icon: "sparkles", title: "New highlight", text: "" }] })}><Plus className="size-4" /> Add</Button>}
       >
         <p className="mb-3 text-sm text-muted-foreground">The row of short selling points under the banner. Up to 6; 4 looks best.</p>
+        <DeliveryTokensHint />
         <div className="flex flex-col gap-3">
           {c.valueStrip.map((v, i) => (
             <div key={i} className="grid grid-cols-1 gap-2 rounded-xl border border-border p-3 sm:grid-cols-[8rem_1fr_2fr_auto] sm:items-end">
@@ -364,6 +365,7 @@ function FaqTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) => 
       action={<Button variant="outline" size="sm" className="h-9 gap-1" disabled={c.faqs.length >= 60} onClick={() => set({ faqs: [...c.faqs, { q: "", a: "", group: "ordering" }] })}><Plus className="size-4" /> Add question</Button>}
     >
       <p className="mb-3 text-sm text-muted-foreground">Shown at the bottom of the Contact page, grouped by topic, and offered to Google as rich answers.</p>
+      <DeliveryTokensHint />
       <div className="flex flex-col gap-3">
         {c.faqs.map((f, i) => (
           <div key={i} className="rounded-xl border border-border p-3">
@@ -393,5 +395,16 @@ function RowActions({ onUp, onDown, onDelete }: { onUp: () => void; onDown: () =
       <button aria-label="Move down" onClick={onDown} className={btn}><ArrowDown className="size-4" /></button>
       <button aria-label="Remove" onClick={onDelete} className={cn(btn, "hover:text-sambal")}><Trash2 className="size-4" /></button>
     </div>
+  );
+}
+
+/** Placeholders the site fills in from Settings -> Delivery prices (see src/server/live-content.ts). */
+function DeliveryTokensHint() {
+  return (
+    <p className="mb-3 rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground">
+      Prices stay up to date if you type these instead of amounts: <code>{"{deliveryTitle}"}</code> (e.g. &quot;Free delivery on £25+&quot;),{" "}
+      <code>{"{deliveryLine}"}</code> (e.g. &quot;Delivery from £1.99, free on £25 or more. £12 minimum.&quot;), <code>{"{freeOver}"}</code>,{" "}
+      <code>{"{deliveryFrom}"}</code>, <code>{"{deliveryRange}"}</code> and <code>{"{minOrder}"}</code>. They follow Settings → Delivery prices.
+    </p>
   );
 }

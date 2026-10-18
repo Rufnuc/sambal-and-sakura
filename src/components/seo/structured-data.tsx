@@ -1,4 +1,5 @@
 import { RESTAURANT } from "@/lib/data/site";
+import { getLiveSiteContent } from "@/server/live-content";
 import { getSiteContent } from "@/server/site-content";
 import { getMaxMiles } from "@/server/config";
 import { averageRating } from "@/lib/site-content";
@@ -17,7 +18,7 @@ const LAT = 54.5705, LON = -1.2355; // 236-238 Linthorpe Road, Middlesbrough
 
 /** FAQPage schema - helps answer engines (Google AI, ChatGPT search, Perplexity...) quote the answers. */
 export async function FaqJsonLd() {
-  const { faqs } = await getSiteContent();
+  const { faqs } = await getLiveSiteContent();
   if (!faqs.length) return null;
   const data = {
     "@context": "https://schema.org",

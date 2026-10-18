@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { dataExportPdf } from "@/server/data-export-pdf";
 import { prisma } from "@/server/db";
 import { currentUser, publicUser, verifyPassword, hashPassword, destroyOtherSessions, destroySession, isStaffRole } from "@/server/auth";
 import { updateAccountSchema, changePasswordSchema } from "@/server/validation";
@@ -48,9 +49,16 @@ export async function GET(req: Request) {
     prisma.reward.findMany({ where: { userId: user.id } }),
     prisma.pointsEntry.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
   ]);
+  // ?export=1&format=pdf: the same, as a readable PDF (the account page's main "Download my data" button).
+  if (new URL(req.url).searchParams.get("format") === "pdf") {
+    const pdf = await dataExportPdf({ account: user, orders, bookings, rewards, points });
+    return new NextResponse(Buffer.from(pdf), {
+      headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="sambal-sakura-my-data.pdf"`, "Cache-Control": "no-store" },
+    });
+  }
   const strip = <T extends Record<string, unknown>>(o: T) => { const { payToken: _a, idempotencyKey: _b, flags: _c, printError: _d, ...r } = o; return r; };
   return new NextResponse(JSON.stringify({ exportedAt: new Date().toISOString(), account: publicUser(user), orders: orders.map(strip), bookings, rewards, points }, null, 2), {
-    headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="sambal-sakura-my-data.json"` },
+    headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="sambal-sakura-my-data.json"`, "Cache-Control": "no-store" },
   });
 }
 

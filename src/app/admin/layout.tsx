@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { PrintStation } from "@/components/admin/print-station";
 import { currentUser, isStaff } from "@/server/auth";
 import { ADMIN_SECTIONS, canAccess, parsePermissions } from "@/lib/admin/sections";
 
@@ -23,7 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <AdminShell userName={user.name} role={user.role} sections={sections}>
-      {children}
+      <PrintStation canPrint={canAccess("orders", user.role, perms)}>{children}</PrintStation>
     </AdminShell>
   );
 }

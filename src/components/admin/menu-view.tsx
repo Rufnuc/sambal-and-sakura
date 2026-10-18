@@ -206,7 +206,7 @@ export function MenuView() {
       <SectionCard>
         <ul className="divide-y divide-border">
           {items.map((m) => (
-            <li key={m.id} className={cn("flex items-center gap-3 py-3", offMenu(m) && "opacity-60")}>
+            <li key={m.id} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 py-3", offMenu(m) && "opacity-60")}>
               <DishImage name={m.name} category={m.category} className="size-14 shrink-0" rounded="rounded-lg" src={realPhoto(m.image)} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -223,7 +223,9 @@ export function MenuView() {
                   {label(m.category)}{m.modifiers?.length ? ` · ${m.modifiers.length} choice group${m.modifiers.length === 1 ? "" : "s"}` : ""}
                 </p>
               </div>
-              <span className="w-16 text-right font-semibold">{m.modifiers?.length ? <span className="text-xs font-normal text-muted-foreground">from </span> : null}{gbp(m.price)}</span>
+              {/* Price and controls: beside the dish on wide screens, on their own row on a phone */}
+              <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
+              <span className="mr-auto pl-[4.25rem] text-left font-semibold sm:mr-0 sm:w-20 sm:pl-0 sm:text-right">{m.modifiers?.length ? <span className="text-xs font-normal text-muted-foreground">from </span> : null}{gbp(m.price)}</span>
               {canEdit && (
                 <>
                   <Button size="icon-sm" variant="ghost" aria-label={m.hidden ? `Show ${m.name} on the menu` : `Hide ${m.name} from the menu`} title={m.hidden ? "Show on the menu" : "Hide from the menu"} onClick={() => toggleHidden(m)}>
@@ -236,6 +238,7 @@ export function MenuView() {
               <button onClick={() => toggleSoldOut(m)} role="switch" aria-checked={!m.soldOut} aria-label={`${m.name} availability`} className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", m.soldOut ? "bg-muted" : "bg-jade")}>
                 <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", m.soldOut ? "translate-x-1" : "translate-x-6")} />
               </button>
+              </div>
             </li>
           ))}
         </ul>

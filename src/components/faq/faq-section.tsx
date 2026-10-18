@@ -1,6 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { getLiveSiteContent } from "@/server/live-content";
 import { FaqJsonLd } from "@/components/seo/structured-data";
-import { getSiteContent } from "@/server/site-content";
 
 const GROUPS: { id: string; label: string }[] = [
   { id: "ordering", label: "Ordering" },
@@ -13,7 +13,7 @@ const GROUPS: { id: string; label: string }[] = [
 
 /** The restaurant's FAQ (edited in Admin -> Site content), grouped by topic. Lives on the Contact page. */
 export async function FaqSection() {
-  const { faqs } = await getSiteContent();
+  const { faqs } = await getLiveSiteContent();
   if (faqs.length === 0) return null;
 
   return (

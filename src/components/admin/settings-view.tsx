@@ -27,7 +27,7 @@ export function SettingsView() {
   const [freeAmount, setFreeAmount] = useState(25); // remembered while free delivery is switched off
   const [ready, setReady] = useState(false);
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
-  const [printer, setPrinter] = useState<{ provider: "sunmi" | "printnode" | null; printerSn: string | null } | null>(null);
+  const [printer, setPrinter] = useState<{ provider: "printnode" | null; printerSn: string | null } | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<PrintResult | null>(null);
 
@@ -197,28 +197,24 @@ export function SettingsView() {
 
       {/* Kitchen printer */}
       <SectionCard title="Kitchen printer" action={<Printer className="size-5 text-gold-ink" />}>
-        {printer?.provider ? (
-          <p className="mb-3 text-sm text-muted-foreground">
-            Connected to your <strong className="text-foreground">{printer.provider === "sunmi" ? "Sunmi cloud printer" : "PrintNode printer"}</strong>
-            {printer.printerSn ? ` (serial ${printer.printerSn})` : ""}. New cash orders print automatically, and WeChat orders print once they are paid.
-          </p>
-        ) : (
-          <p className="mb-3 text-sm text-muted-foreground">
-            No cloud printer is set up on the server. If the printer is plugged into the kitchen tablet by USB, that&apos;s fine: open Orders on that tablet (Chrome or the installed app), tap <strong className="text-foreground">Connect printer</strong> once, and new orders print there automatically. For printing over Wi-Fi/LAN without the tablet, add the Sunmi details on the server (DEPLOY.md, &quot;Sunmi kitchen printer&quot;).
-          </p>
-        )}
-        <Button variant="outline" className="h-10 gap-1.5" onClick={runTestPrint} disabled={testing || !printer?.provider}>
-          {testing ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />} Send test print
-        </Button>
-        {testResult && (
-          <div className={cn("mt-3 rounded-lg border p-3 text-sm", testResult.ok ? "border-jade/30 bg-jade/10" : "border-sambal/30 bg-sambal/10")}>
-            <p className="font-semibold">{testResult.ok ? "Test ticket sent." : "That did not work."}</p>
-            <p>{testResult.message}</p>
-            {testResult.online && <p className="mt-1 text-muted-foreground">Printer online check: {testResult.online.ok ? "reached Sunmi" : testResult.online.message}</p>}
-            {(testResult.detail || testResult.online?.raw) && (
-              <p className="mt-1 break-all font-mono text-xs text-muted-foreground">Sunmi replied: {testResult.detail ?? testResult.online?.raw}</p>
+        <p className="mb-3 text-sm text-muted-foreground">
+          The kitchen printer (<strong className="text-foreground">Xprinter XP-E260M</strong>) plugs into the kitchen tablet by USB. On that tablet open
+          <strong className="text-foreground"> Orders</strong> in Chrome (or the installed S&amp;S Orders app), tap <strong className="text-foreground">Connect printer</strong> once,
+          then <strong className="text-foreground">Test print</strong>. New orders, and STOP tickets for cancelled orders, then print there automatically while Orders is open.
+        </p>
+        {printer?.provider && (
+          <>
+            <p className="mb-3 text-sm text-muted-foreground">A PrintNode printer is also set up on the server (backup route).</p>
+            <Button variant="outline" className="h-10 gap-1.5" onClick={runTestPrint} disabled={testing}>
+              {testing ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />} Send PrintNode test print
+            </Button>
+            {testResult && (
+              <div className={cn("mt-3 rounded-lg border p-3 text-sm", testResult.ok ? "border-jade/30 bg-jade/10" : "border-sambal/30 bg-sambal/10")}>
+                <p className="font-semibold">{testResult.ok ? "Test ticket sent." : "That did not work."}</p>
+                <p>{testResult.message}</p>
+              </div>
             )}
-          </div>
+          </>
         )}
       </SectionCard>
 

@@ -1,22 +1,20 @@
-// Sends kitchen tickets to a cloud-connected thermal printer. Two providers, chosen by what is configured:
-//   1. Sunmi cloud printer (preferred)  SUNMI_APP_ID, SUNMI_APP_KEY, SUNMI_PRINTER_SN        -> src/server/sunmi.ts
-//   2. PrintNode (any USB/LAN printer via a PC at the till)  PRINTNODE_API_KEY, PRINTNODE_PRINTER_ID
-// With neither set, printing is skipped and the order still succeeds (tickets can still be printed from the admin).
+// Kitchen tickets. The kitchen printer (Xprinter XP-E260M, 80mm ESC/POS) is plugged into the kitchen tablet by
+// USB and prints from the admin Orders screen through the tablet print queue at the bottom of this file.
+// Optional server-side route, only if configured: PrintNode (a printer on a PC at the till) with
+// PRINTNODE_API_KEY + PRINTNODE_PRINTER_ID. Without it, the order still succeeds and the tablet prints it.
 // Printing must NEVER block or fail an order: every function here returns a result instead of throwing.
 
 import { prisma } from "@/server/db";
 import { RESTAURANT } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
-import { getSunmiConfig, sunmiPush, sunmiOnline } from "@/server/sunmi";
 import { renderKitchenTicket, renderCancelTicket, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
 import { log, alertOwner } from "@/server/log";
 
 export type { TicketOrder };
-export type PrinterProvider = "sunmi" | "printnode";
+export type PrinterProvider = "printnode";
 export interface PrintResult { ok: boolean; provider: PrinterProvider | null; message: string; detail?: string }
 
 export function printerProvider(): PrinterProvider | null {
-  if (getSunmiConfig()) return "sunmi";
   if (process.env.PRINTNODE_API_KEY && process.env.PRINTNODE_PRINTER_ID) return "printnode";
   return null;
 }
@@ -93,22 +91,13 @@ async function printViaPrintNode(order: TicketOrder): Promise<PrintResult> {
   }
 }
 
-async function printViaSunmi(order: TicketOrder, reprint: boolean, unique: boolean): Promise<PrintResult> {
-  const { business } = await getSiteContent();
-  const hex = renderKitchenTicket(order, { businessName: RESTAURANT.name, phone: business.phone }, { reprint }).toHex();
-  // A fresh job id for reprints/tests so the cloud doesn't treat them as duplicates of the original.
-  const tradeNo = reprint || unique ? `${order.id}R${Date.now().toString(36)}` : order.id;
-  const r = await sunmiPush(tradeNo, hex, `New ${order.fulfilment === "delivery" ? "delivery" : "collection"} order`);
-  return { ok: r.ok, provider: "sunmi", message: r.message, detail: r.raw || undefined };
-}
-
 /** Print a ticket. Never throws; returns what happened so the admin screens can show it. */
-export async function printOrder(order: TicketOrder, opts: { reprint?: boolean; unique?: boolean } = {}): Promise<PrintResult> {
+export async function printOrder(order: TicketOrder): Promise<PrintResult> {
   const provider = printerProvider();
   if (!provider) return { ok: false, provider: null, message: "No kitchen printer is set up yet" };
   let result: PrintResult;
   try {
-    result = provider === "sunmi" ? await printViaSunmi(order, !!opts.reprint, !!opts.unique) : await printViaPrintNode(order);
+    result = await printViaPrintNode(order);
   } catch (e) {
     result = { ok: false, provider, message: `Print failed: ${(e as Error).message}` };
   }
@@ -166,15 +155,9 @@ export async function printCancellation(id: string): Promise<PrintResult> {
   if (!o) return { ok: false, provider: printerProvider(), message: "Order not found" };
   const provider = printerProvider();
   if (!provider) return { ok: false, provider: null, message: "No kitchen printer is set up yet" };
-  const ticket = { ...(await loadTicket(id))!, cancelReason: o.cancelReason, cancelledAt: o.cancelledAt };
   let result: PrintResult;
   try {
-    if (provider === "sunmi") {
-      const { business } = await getSiteContent();
-      const hex = renderCancelTicket(ticket, { businessName: RESTAURANT.name, phone: business.phone }).toHex();
-      const r = await sunmiPush(`${o.id}X${Date.now().toString(36)}`, hex, "Order cancelled");
-      result = { ok: r.ok, provider: "sunmi", message: r.message, detail: r.raw || undefined };
-    } else {
+    {
       const text = `\n*** CANCELLED - STOP PREPARING ***\n\nOrder ${o.id}\n${o.customerName}\n${o.lines.map((l) => `${l.qty} x ${l.name}`).join("\n")}\n${o.cancelReason ? "Reason: " + o.cancelReason : ""}\n\nDO NOT COOK OR SEND THIS ORDER\n\n\n`;
       const res = await fetch("https://api.printnode.com/printjobs", {
         method: "POST",
@@ -199,20 +182,18 @@ export async function printCancellation(id: string): Promise<PrintResult> {
 export async function reprintOrder(id: string): Promise<PrintResult> {
   const ticket = await loadTicket(id);
   if (!ticket) return { ok: false, provider: printerProvider(), message: "Order not found" };
-  const result = await printOrder(ticket, { reprint: true });
+  const result = await printOrder(ticket);
   if (result.ok) await prisma.order.update({ where: { id }, data: { printStatus: "printed", printedAt: new Date(), printError: null } }).catch(() => {});
   return result;
 }
 
 /** Admin "Send test print": a clearly-labelled sample ticket (includes Chinese text) + whether the printer is online. */
-export async function printTest(): Promise<PrintResult & { online?: { ok: boolean; message: string; raw: string } }> {
-  const result = await printOrder(sampleTicketOrder(), { unique: true });
-  if (result.provider === "sunmi") return { ...result, online: await sunmiOnline() };
-  return result;
+export async function printTest(): Promise<PrintResult> {
+  return printOrder(sampleTicketOrder());
 }
 
 /* ------------------------------------------------------------------ tablet (USB) printing */
-// A printer plugged into the kitchen tablet (e.g. the Sunmi NT311 over USB) prints from the admin
+// A printer plugged into the kitchen tablet (the Xprinter XP-E260M over USB) prints from the admin
 // Orders screen in Chrome. The tablet asks for work every few seconds; each ticket is handed out
 // ONCE (an atomic status change), so two tablets - or the tablet plus the cloud printer - never
 // print the same ticket twice. If the cloud printer is set up and working, the tablet only picks up

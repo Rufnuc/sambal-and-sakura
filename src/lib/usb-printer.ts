@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-// A receipt printer plugged into this device by USB (e.g. the Sunmi NT311 on the kitchen tablet),
+// A receipt printer plugged into this device by USB (the Xprinter XP-E260M on the kitchen tablet),
 // driven straight from Chrome with WebUSB. Works in Chrome/Edge on Android tablets and computers;
 // not on iPad/iPhone (Apple doesn't allow websites to use USB).
 //

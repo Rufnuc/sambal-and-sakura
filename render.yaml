@@ -77,13 +77,8 @@ services:
         sync: false
       - key: CLIENT_IP_HEADER        # only if Admin → Settings → Connection check shows the wrong IP
         sync: false
-      - key: SUNMI_APP_ID            # Sunmi cloud printer (preferred) - see DEPLOY.md "Sunmi kitchen printer"
-        sync: false
-      - key: SUNMI_APP_KEY
-        sync: false
-      - key: SUNMI_PRINTER_SN
-        sync: false
-      - key: PRINTNODE_API_KEY       # alternative to Sunmi (only used if the Sunmi keys are not set)
+      # Kitchen printer: the Xprinter is plugged into the kitchen tablet (no server settings needed).
+      - key: PRINTNODE_API_KEY       # optional backup: a printer on a PC via PrintNode
         sync: false
       - key: PRINTNODE_PRINTER_ID
         sync: false

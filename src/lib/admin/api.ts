@@ -325,8 +325,8 @@ export async function deleteStaff(id: string): Promise<{ ok: boolean; error?: st
 }
 
 /* ---- Kitchen printer ---- */
-export interface PrintResult { ok: boolean; provider: "sunmi" | "printnode" | null; message: string; detail?: string; online?: { ok: boolean; message: string; raw: string } }
-export async function fetchPrinterInfo(): Promise<{ provider: "sunmi" | "printnode" | null; printerSn: string | null }> {
+export interface PrintResult { ok: boolean; provider: "printnode" | null; message: string; detail?: string; online?: { ok: boolean; message: string; raw: string } }
+export async function fetchPrinterInfo(): Promise<{ provider: "printnode" | null; printerSn: string | null }> {
   const res = await fetch("/api/admin/print-test", { cache: "no-store" });
   if (!res.ok) return { provider: null, printerSn: null };
   return res.json();

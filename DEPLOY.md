@@ -18,8 +18,8 @@ How it works: local development uses SQLite. Production uses PostgreSQL. `script
 | Cloudinary account (free) | Menu photo uploads. Render's disk is wiped on every deploy, so uploads are refused without it | Yes, if the restaurant wants photos |
 | Google Translate key | Full-site translation | Optional |
 | Groq key | "Ask about this dish" assistant | Optional |
-| Sunmi developer / cloud-printing access | Auto-print kitchen tickets on your Sunmi printer (see below) | Optional |
-| PrintNode | Alternative to Sunmi for other printers | Optional |
+| Xprinter XP-E260M + USB cable/OTG adapter | Kitchen tickets print automatically from the tablet (see below) | Yes, for the kitchen |
+| PrintNode | Optional backup: a printer on a PC | Optional |
 | WeChat Pay merchant keys | Chinese-language payments | Optional |
 
 ## 2. Put the code on GitHub
@@ -161,54 +161,19 @@ Set **all** of `WECHAT_APPID`, `WECHAT_MCHID`, `WECHAT_SERIAL_NO`, `WECHAT_PRIVA
 
 The payment-confirmation code is tested (signature verification, replay protection, amount check) against simulated WeChat messages, **but it has not been run against live WeChat**. Do one real small test payment before announcing it. Until all the keys are set, WeChat is hidden from customers and cash still works.
 
-### Kitchen printer plugged into the tablet (USB)
-The simplest setup: the Sunmi NT311 (or any 80mm ESC/POS receipt printer) plugged into the **Android** kitchen tablet with a USB cable (USB-C to USB-B, or an "OTG" adapter). No Sunmi account or server keys needed.
+### Kitchen printer: Xprinter XP-E260M on the tablet (USB)
+The kitchen printer is an **Xprinter XP-E260M** (80mm thermal, auto-cutter) plugged into the **Android** kitchen tablet with a USB cable. The printer has a USB-B socket, so use a USB-B to USB-C cable, or the printer's cable plus a USB-C "OTG" adapter. No account or server settings are needed.
 1. On the tablet, open **Chrome** at `https://www.sambalandsakura.co.uk/admin/orders` and sign in (or open the installed **S&S Orders** app).
-2. Plug the printer in and switch it on. Tap **Connect printer** on the Orders screen and pick the printer in the list (Android may also ask "Allow access to the USB device?" - tap OK and tick "Always").
-3. Tap **Test print**. A sample ticket (including Chinese text) should come out.
-4. Leave the Orders screen open. Every new order prints by itself within about 10 seconds, and a **CANCELLED - STOP** ticket prints when a customer cancels an order the kitchen already has. Tickets are handed out once, so a second tablet (or the cloud printer below) never prints the same ticket twice.
-5. From then on the tablet reconnects by itself when the page opens or the printer is plugged back in. You only tap Connect printer again on a new tablet or after clearing Chrome's data.
+2. Plug the printer in and switch it on. Tap **Connect printer** on the Orders screen and pick the printer in the list. If Android asks "Allow access to the USB device?", tap OK and tick "Always".
+3. Tap **Test print**. A sample ticket should come out, including a line of Chinese (测试打印) and a £ sign.
+4. Leave the Orders screen open. Every new order prints by itself within about 10 seconds, and a **CANCELLED - STOP** ticket prints when a customer cancels an order the kitchen already has. Each ticket is handed out once, so a second tablet never prints the same ticket twice.
+5. From then on the tablet reconnects by itself when the page opens or the printer is plugged back in. Tap Connect printer again only on a new tablet or after clearing Chrome's data.
 
-Keep the tablet on charge with the Orders screen in front (the "Screen stays on" button keeps it awake). If the tablet is off or the screen is closed, orders still arrive but don't print until it's open again, and the owner alert for orders nobody has started still fires. iPads can't use USB printers from a website: use the cloud setup below instead. Check the first real ticket: if Chinese characters come out garbled, the printer's text encoding needs setting to UTF-8 (Sunmi printer settings).
+**What gets printed:** a big DELIVERY or COLLECTION and the order number, the time, ASAP or the scheduled time, a boxed payment block (CASH £x / COLLECT ON DELIVERY, or PAID - WECHAT PAY / DO NOT COLLECT CASH), any warnings (e.g. new customer, call to confirm), the customer's name, phone and address, every item in large type with its options, the totals and the customer's note. WeChat orders print only once they're paid.
 
-### Sunmi kitchen printer (automatic tickets)
+**Chinese and the £ sign:** the Xprinter prints Chinese in its built-in "Chinese mode" (GBK/GB18030), so the site sends text that way, and prints "£" from the printer's normal character set. If Chinese comes out as wrong symbols on the test ticket, the printer may be a model without the Chinese font: print its self-test page (hold FEED while switching on) and check the code page, or ask the seller for the Chinese/GB18030 version. Accented letters (e.g. Vietnamese names) print without accents.
 
-Your **Sunmi 80mm cloud printer** can print every new order by itself. The website sends the ticket to Sunmi's cloud
-and the printer, connected to the restaurant Wi-Fi or network cable, collects it. **No computer is needed at the restaurant.**
-
-**What gets printed:** a big "COLLECTION" or "DELIVERY" and order number, the time in UK time, the customer and address,
-every item in large type with options underneath, the totals, and a very clear payment line (**CASH £x.xx** to collect, or
-**PAID - WECHAT PAY / DO NOT COLLECT CASH**), plus notes. Chinese names and notes print correctly.
-Cash orders print the moment they are placed; WeChat orders print only once the payment has been confirmed.
-
-**Set up (one time):**
-
-1. **Put the printer on the network.** Connect it with a network cable, or use Sunmi's app to put it on the restaurant Wi-Fi.
-   Check it shows as online in Sunmi's app.
-2. **Get access to Sunmi's cloud printing for developers.** Sunmi gives each business an **App ID** and an **App Key**. Sign up
-   at developer.sunmi.com and ask for cloud printing (OpenAPI) access, or ask your Sunmi reseller to do it. This step is run by
-   Sunmi and can take a little while, and nothing below works without it.
-3. **Find the printer's serial number (SN)**, on the label under the printer and in Sunmi's app.
-4. **Add three settings in Render** (Environment tab): `SUNMI_APP_ID`, `SUNMI_APP_KEY`, `SUNMI_PRINTER_SN`. Then let it redeploy.
-5. **Press "Send test print"**: Admin -> Settings -> **Kitchen printer**. A test ticket (it includes Chinese text) should print.
-   If it does not, the screen shows Sunmi's own reply so the problem is easy to read.
-
-**If the test print fails**, run the helper on your computer to see what Sunmi says (put the three settings in `.env` first):
-
-```bash
-node --env-file=.env scripts/sunmi.mjs status
-node --env-file=.env scripts/sunmi.mjs hello
-```
-
-If Sunmi says the printer is not linked to your account, ask Sunmi for your **shop id** and run
-`node --env-file=.env scripts/sunmi.mjs bind <shopId>` once.
-
-**Day to day:** in Admin -> Orders, open an order and press **Reprint to kitchen** if a ticket is missed or the paper jammed.
-If the printer is off or out of paper, customers' orders still go through normally. Reprint from the admin when it is back.
-
-**Honest note:** this connection was built from Sunmi's published cloud-printing interface as implemented in an open-source
-library, and tested against a stand-in that re-checks every signature. It has not yet been run against your real printer
-and Sunmi account, so treat the first test print as the real confirmation.
+Keep the tablet on charge with the Orders screen in front (the "Screen stays on" button keeps it awake). If the tablet is off or the screen is closed, orders still arrive but don't print until Orders is open again; the owner alert for orders nobody has started still fires. iPads can't use USB printers from a website. **Day to day:** open an order and press **Reprint to kitchen** to print it again on the tablet's printer.
 
 ## 6. Getting found on Google
 

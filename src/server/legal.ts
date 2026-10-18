@@ -54,7 +54,6 @@ async function facts() {
       google: !!env.GOOGLE_TRANSLATE_API_KEY,
       microsoft: !!env.MICROSOFT_TRANSLATOR_KEY,
       libre: !!(env.LIBRETRANSLATE_URL || env.LIBRETRANSLATE_API_KEY || env.LIBRETRANSLATE_PUBLIC),
-      sunmi: !!env.SUNMI_APP_ID,
       printnode: !!env.PRINTNODE_API_KEY,
       alerts: !!env.ALERT_WEBHOOK_URL,
     },
@@ -88,7 +87,6 @@ function privacy(f: Facts): LegalDoc {
     ["IONOS", "Our domain name and email inbox", "Emails you send us (including CVs)", "EU / UK"],
   ];
   if (f.on.brevo) vendors.push(["Brevo", "Sends order, booking and account emails, promotional emails if you opted in, and job applications to our inbox", "Name, email address, email content (and CVs for job applications)", "EU"]);
-  if (f.on.sunmi) vendors.push(["Sunmi", "Prints orders on the kitchen printer", "Order details: name, phone, address, items, notes", "Outside the UK"]);
   if (f.on.printnode) vendors.push(["PrintNode", "Prints orders on the kitchen printer", "Order details: name, phone, address, items, notes", "UK / EU"]);
   if (f.wechat) vendors.push(["WeChat Pay (Tenpay)", "Takes payment if you choose WeChat Pay", "Order number and amount; WeChat holds your payment details", "China"]);
   if (f.on.turnstile) vendors.push(["Cloudflare Turnstile", "Checks you're not a bot on some forms", "Technical information about your browser and IP address", "Global (incl. US)"]);

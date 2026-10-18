@@ -5,15 +5,32 @@
 // as one customisable item with a protein picker that sets the price.
 
 export type Allergen =
-  | "gluten" | "soy" | "shellfish" | "fish" | "egg" | "peanut" | "treenut" | "sesame" | "dairy" | "crustaceans" | "molluscs";
+  | "gluten" | "soy" | "shellfish" | "fish" | "egg" | "peanut" | "treenut" | "sesame" | "dairy" | "crustaceans" | "molluscs"
+  | "celery" | "lupin" | "mustard" | "sulphites";
+
+/** The 14 UK allergens (plus "shellfish", used by older built-in dishes), as shown in the admin dish editor. */
+export const ALLERGEN_LABELS: Record<Allergen, string> = {
+  gluten: "Gluten (cereals)", crustaceans: "Crustaceans", egg: "Eggs", fish: "Fish", peanut: "Peanuts", soy: "Soya",
+  dairy: "Milk", treenut: "Tree nuts", celery: "Celery", mustard: "Mustard", sesame: "Sesame", sulphites: "Sulphites",
+  lupin: "Lupin", molluscs: "Molluscs", shellfish: "Shellfish",
+};
+export const ALLERGENS = Object.keys(ALLERGEN_LABELS) as Allergen[];
 
 export type DietTag = "vegetarian" | "vegan" | "popular" | "chef" | "spicy" | "new";
+export const DIET_TAGS: { id: DietTag; label: string }[] = [
+  { id: "vegetarian", label: "Vegetarian" }, { id: "vegan", label: "Vegan" }, { id: "spicy", label: "Spicy" },
+  { id: "popular", label: "Popular" }, { id: "chef", label: "Chef's pick" }, { id: "new", label: "New" },
+];
 
-export type MenuCategory =
+// Categories are data: the owner can add, rename, reorder and hide them (Admin -> Menu -> Categories,
+// Setting "menuCategories"). These are the built-in ones the original menu uses.
+export type MenuCategory = string;
+export type BuiltInCategory =
   | "starters" | "japanese" | "salt-pepper" | "soup" | "ribs" | "wrapping"
   | "mains" | "honey-chilli" | "kung-po" | "sweet-sour" | "chef-special"
   | "omelette" | "crispy-noodle" | "rice" | "chow-mein" | "udon"
   | "combo" | "sides" | "desserts" | "set-meals" | "preorder";
+export interface MenuCategoryCfg { id: string; label: string; hidden?: boolean }
 
 export interface ModifierOption { id: string; label: string; priceDelta: number }
 export interface ModifierGroup {
@@ -39,6 +56,9 @@ export interface MenuItem {
   leadTimeHours?: number;   // >0 = pre-order / advance-notice dish (e.g. 24 = order a day ahead)
   aiNotes?: string;         // admin-written extra context the dish AI assistant can draw on
   modifiers?: ModifierGroup[];
+  custom?: boolean;         // added by the owner in Admin -> Menu (not part of the built-in menu)
+  hidden?: boolean;         // hidden from customers (Admin -> Menu); only the admin list shows it
+  allergensChecked?: boolean; // owner-added dish: the owner confirmed its allergen list when saving it
 }
 
 /* ---------------------------------------------------- shared modifiers */
@@ -337,7 +357,7 @@ export const MENU: MenuItem[] = [
   { id: "set-family", name: "Happy Family - 4 People", category: "set-meals", price: 52.0, description: "Soup, mixed platter, house special black bean, sweet & sour prawn, beef with mushroom, mixed veg, special rice.", allergens: ["gluten", "soy", "egg", "crustaceans"], tags: ["chef", "popular"], spiceLevel: 1, image: "/menu/set-family.jpg" },
 ];
 
-export const CATEGORY_LABELS: Record<MenuCategory, string> = {
+export const CATEGORY_LABELS: Record<BuiltInCategory, string> = {
   starters: "Starters",
   japanese: "Japanese Special",
   "salt-pepper": "Salt & Pepper",
@@ -360,3 +380,14 @@ export const CATEGORY_LABELS: Record<MenuCategory, string> = {
   "set-meals": "Set Meals",
   preorder: "Pre-order (24h+ notice)",
 };
+
+/** The built-in categories in menu order, until the owner saves their own list. */
+/** The name to show for a category: the owner's label, else the built-in one, else the id. */
+export function categoryLabel(cats: MenuCategoryCfg[], id: string): string {
+  return cats.find((c) => c.id === id)?.label ?? (CATEGORY_LABELS as Record<string, string>)[id] ?? id;
+}
+
+/** Ids of dishes the owner adds (built-in dish ids never start with "c-"). */
+export const CUSTOM_DISH_ID = /^c-[a-z0-9-]{1,40}$/;
+
+export const DEFAULT_CATEGORIES: MenuCategoryCfg[] = (Object.keys(CATEGORY_LABELS) as BuiltInCategory[]).map((id) => ({ id, label: CATEGORY_LABELS[id] }));

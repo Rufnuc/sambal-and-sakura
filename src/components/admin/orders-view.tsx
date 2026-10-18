@@ -174,14 +174,19 @@ export function OrdersView() {
     printing.current = true;
     (async () => {
       try {
-        for (const job of await claimPrintJobs()) {
+        const jobs = await claimPrintJobs();
+        for (let i = 0; i < jobs.length; i++) {
+          const job = jobs[i];
           try {
             await printBytes(base64ToBytes(job.bytes));
             if (job.kind === "cancel") toast.error(`Printed STOP ticket for ${job.orderId}`);
           } catch (e) {
             await reportPrintFailure(job.orderId, job.kind, (e as Error).message);
             toast.error(`Couldn't print ${job.orderId}: ${(e as Error).message}`, { duration: 15_000 });
-            break; // printer problem: don't burn through the rest; they'll be retried
+            // Printer problem: stop here, and hand back every ticket this tablet took but didn't print,
+            // so none is lost (they show as failed on this screen and are offered again).
+            for (const rest of jobs.slice(i + 1)) await reportPrintFailure(rest.orderId, rest.kind, "not printed: the printer stopped on an earlier ticket");
+            break;
           }
         }
       } finally { printing.current = false; }

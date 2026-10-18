@@ -3,7 +3,7 @@ import { getSiteContent } from "@/server/site-content";
 import { getMaxMiles } from "@/server/config";
 import { averageRating } from "@/lib/site-content";
 import { SITE_URL } from "@/lib/site-url";
-import { CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/menu";
+import type { MenuCategoryCfg, MenuItem } from "@/lib/data/menu";
 
 /**
  * Serialise structured data for a <script type="application/ld+json"> tag. Escaping "<" stops text typed
@@ -120,13 +120,13 @@ const DIET: Record<string, string> = {
 };
 
 /** The full menu as structured data: every dish with its price and diet, so "does X do katsu curry / how much is it" can be answered. */
-export function MenuJsonLd({ menu }: { menu: MenuItem[] }) {
-  const sections = (Object.keys(CATEGORY_LABELS) as MenuCategory[])
+export function MenuJsonLd({ menu, categories }: { menu: MenuItem[]; categories: MenuCategoryCfg[] }) {
+  const sections = categories
     .map((cat) => ({
       "@type": "MenuSection",
-      name: CATEGORY_LABELS[cat],
+      name: cat.label,
       hasMenuItem: menu
-        .filter((m) => m.category === cat)
+        .filter((m) => m.category === cat.id)
         .map((m) => {
           const diets = m.tags.filter((t) => DIET[t]).map((t) => DIET[t]);
           return {

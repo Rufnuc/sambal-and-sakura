@@ -1,6 +1,6 @@
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
-import { MENU, type MenuItem, type MenuCategory } from "@/lib/data/menu";
+import { MENU, DEFAULT_CATEGORIES, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
 import { TABLES, type Table } from "@/lib/data/tables";
 import { getPromotions } from "@/server/promotions";
 import { LEGACY_CODE_VALUES } from "@/server/pricing";
@@ -84,6 +84,8 @@ export const setWheelPrizes = (v: WheelPrize[]) => setJson("wheelPrizes", v);
 export type MenuOverride = {
   name?: string; price?: number; soldOut?: boolean;
   image?: string; images?: string[]; category?: MenuCategory; leadTimeHours?: number; description?: string; aiNotes?: string;
+  hidden?: boolean;               // owner hid this built-in dish from the menu (can be shown again)
+  modifiers?: ModifierGroup[];    // owner replaced the dish's choices (sizes, proteins, extras)
 };
 export const MAX_DISH_PHOTOS = 6;
 export type MenuOverrides = Record<string, MenuOverride>;
@@ -113,10 +115,27 @@ export const setDeal = (v: DealOfDay) => setJson("dealOfDay", v);
 export const getMaxMiles = () => getJson<number>("maxDeliveryMiles", 6);
 export const setMaxMiles = (v: number) => setJson("maxDeliveryMiles", v);
 
+/* ---- Menu: categories and the owner's own dishes ---- */
+// Categories (order, names, hidden) and dishes the owner added are data, edited in Admin -> Menu.
+export const getCategories = () => getJson<MenuCategoryCfg[]>("menuCategories", DEFAULT_CATEGORIES);
+export const setCategories = (v: MenuCategoryCfg[]) => setJson("menuCategories", v);
+export const getCustomDishes = () => getJson<MenuItem[]>("customDishes", []);
+export const setCustomDishes = (v: MenuItem[]) => setJson("customDishes", v.map((d) => ({ ...d, custom: true })));
+
+/** Every dish, including hidden ones and those in hidden categories (for the admin). */
+export async function getAdminMenu(): Promise<MenuItem[]> {
+  const [ov, custom] = await Promise.all([getMenuOverrides(), getCustomDishes()]);
+  return [...MENU.map((m) => applyOverride(m, ov[m.id])), ...custom.map((d) => ({ ...d, custom: true }))];
+}
+
+/** What customers see, and the only dishes that can be priced and ordered. */
 export async function getEffectiveMenu(): Promise<MenuItem[]> {
-  const ov = await getMenuOverrides();
-  return MENU.map((m) => {
-    const o = ov[m.id];
+  const [all, cats] = await Promise.all([getAdminMenu(), getCategories()]);
+  const shown = new Set(cats.filter((c) => !c.hidden).map((c) => c.id));
+  return all.filter((m) => !m.hidden && shown.has(m.category)).map(({ hidden: _h, ...m }) => m);
+}
+
+function applyOverride(m: MenuItem, o: MenuOverride | undefined): MenuItem {
     if (!o) return m;
     return {
       ...m,
@@ -131,6 +150,7 @@ export async function getEffectiveMenu(): Promise<MenuItem[]> {
       category: o.category ?? m.category,
       leadTimeHours: typeof o.leadTimeHours === "number" ? o.leadTimeHours : m.leadTimeHours,
       aiNotes: o.aiNotes ?? m.aiNotes,
+      modifiers: o.modifiers ?? m.modifiers,
+      ...(o.hidden ? { hidden: true } : {}),
     };
-  });
 }

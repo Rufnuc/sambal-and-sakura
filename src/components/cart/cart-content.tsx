@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DishImage } from "@/components/brand/dish-image";
 import { useCart, cartSubtotal } from "@/lib/store/cart";
-import { MENU } from "@/lib/data/menu";
+import { useMenu } from "@/lib/use-menu";
 import { deliveryHintText, type DeliveryHint } from "@/lib/order";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
@@ -21,7 +21,8 @@ export function CartContent({ onClose }: { onClose: () => void }) {
   const subtotal = cartSubtotal(lines);
   const [added, setAdded] = useState<string | null>(null);
 
-  const upsells = MENU.filter(
+  const { menu } = useMenu();
+  const upsells = menu.filter(
     // Only dishes that need no choices: anything with a required option goes through its own dialog.
     (m) => (m.category === "desserts" || m.category === "sides") && !m.soldOut && !lines.some((l) => l.itemId === m.id) &&
       !(m.modifiers ?? []).some((g) => g.required),
@@ -61,7 +62,7 @@ export function CartContent({ onClose }: { onClose: () => void }) {
             <ul className="flex flex-col gap-4">
               {lines.map((l) => (
                 <li key={l.lineId} className="flex gap-3">
-                  <DishImage name={l.name} category={(MENU.find((m) => m.id === l.itemId)?.category) ?? "mains"} className="size-16 shrink-0" rounded="rounded-lg" />
+                  <DishImage name={l.name} category={(menu.find((m) => m.id === l.itemId)?.category) ?? "mains"} className="size-16 shrink-0" rounded="rounded-lg" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <p className="truncate font-medium">{l.name}</p>

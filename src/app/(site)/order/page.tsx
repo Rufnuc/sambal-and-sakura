@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { DishImage } from "@/components/brand/dish-image";
 import { useCart, cartSubtotal } from "@/lib/store/cart";
 import { useHydrated } from "@/lib/use-hydrated";
-import { MENU } from "@/lib/data/menu";
+import { useMenu } from "@/lib/use-menu";
 import { ORDERING, ORDER_STATUS_FLOW } from "@/lib/data/site";
 import { useSiteContent } from "@/components/site-content-provider";
 import { telHref } from "@/lib/site-content";
@@ -87,6 +87,7 @@ function newKey() {
 
 function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, payToken: string | null, trackPath: string | null) => void }) {
   const { lines, fulfilment, setFulfilment, postcode, setPostcode, setQty, removeLine, clear } = useCart();
+  const { menu } = useMenu();
   const { user, refresh } = useAuth();
   const { locale } = useLocale();
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
@@ -405,7 +406,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
           <ul className="mt-4 flex flex-col gap-3">
             {lines.map((l) => (
               <li key={l.lineId} className="flex gap-3">
-                <DishImage name={l.name} category={MENU.find((m) => m.id === l.itemId)?.category ?? "mains"} className="size-14 shrink-0" rounded="rounded-lg" />
+                <DishImage name={l.name} category={menu.find((m) => m.id === l.itemId)?.category ?? "mains"} className="size-14 shrink-0" rounded="rounded-lg" />
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between gap-2">
                     <p className="truncate text-sm font-medium">{l.name}</p>

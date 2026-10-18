@@ -5,6 +5,7 @@ import type { Booking, BookingStatus } from "@/lib/booking";
 import type { Table } from "@/lib/data/tables";
 import type { OrderStatus } from "@/lib/data/site";
 import type { SiteContent } from "@/lib/site-content";
+import type { MenuItem, MenuCategoryCfg, ModifierGroup } from "@/lib/data/menu";
 
 export interface AdminCustomer {
   id: string; name: string; email: string; phone: string;
@@ -142,13 +143,14 @@ export async function fetchAnalytics(days = 14): Promise<{ days: number; counts:
 }
 
 /* ---- Menu availability (staff with Menu access) ---- */
-export async function fetchMenuAvailability(): Promise<{ menuOverrides: Record<string, MenuOverrideCfg>; canEdit: boolean } | null> {
+export interface MenuAdminData { menuOverrides: Record<string, MenuOverrideCfg>; categories: MenuCategoryCfg[]; customDishes: MenuItem[]; canEdit: boolean }
+export async function fetchMenuAvailability(): Promise<MenuAdminData | null> {
   const res = await fetch("/api/admin/menu", { cache: "no-store" });
   return res.ok ? res.json() : null;
 }
-export async function setSoldOut(itemId: string, soldOut: boolean): Promise<Record<string, MenuOverrideCfg> | null> {
+export async function setSoldOut(itemId: string, soldOut: boolean): Promise<Pick<MenuAdminData, "menuOverrides" | "customDishes"> | null> {
   const res = await fetch("/api/admin/menu", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId, soldOut }) });
-  return res.ok ? (await res.json()).menuOverrides : null;
+  return res.ok ? res.json() : null;
 }
 
 /* ---- Owner tools ---- */
@@ -199,6 +201,7 @@ export interface AdminConfig {
   wheelPrizes: WheelPrizeCfg[]; menuOverrides: Record<string, MenuOverrideCfg>;
   careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent; siteVersion: string;
   promotions: PromotionsCfg; delivery: DeliveryCfg;
+  categories: MenuCategoryCfg[]; customDishes: MenuItem[];
 }
 export type PromoKey = "offers" | "wheel" | "referral";
 export interface PromoCfg { enabled: boolean; message: string; graceDays: number; pausedAt?: string | null }
@@ -206,6 +209,7 @@ export type PromotionsCfg = Record<PromoKey, PromoCfg>;
 export interface MenuOverrideCfg {
   name?: string; price?: number; soldOut?: boolean;
   image?: string; images?: string[]; category?: string; leadTimeHours?: number; description?: string; aiNotes?: string;
+  hidden?: boolean; modifiers?: ModifierGroup[];
 }
 
 /**

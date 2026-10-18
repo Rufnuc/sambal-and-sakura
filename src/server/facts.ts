@@ -1,10 +1,10 @@
 import { RESTAURANT, ORDERING } from "@/lib/data/site";
 import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
-import { CATEGORY_LABELS, type MenuCategory, type MenuItem } from "@/lib/data/menu";
+import type { MenuCategoryCfg, MenuItem } from "@/lib/data/menu";
 import { formatHours } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
-import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig, getDeliveryRules } from "@/server/config";
+import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig, getDeliveryRules, getCategories } from "@/server/config";
 import { getDisabledZones } from "@/server/settings";
 import { getWeChatConfig } from "@/server/wechat";
 import { gbpShort } from "@/lib/format";
@@ -20,14 +20,14 @@ const gbp = gbpShort;
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> {
-  const [{ business: b }, zones, disabled, maxMiles, menu, referral, delivery] = await Promise.all([
-    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(), getDeliveryRules(),
+  const [{ business: b }, zones, disabled, maxMiles, menu, referral, delivery, cats] = await Promise.all([
+    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(), getDeliveryRules(), getCategories(),
   ]);
 
   const liveZones = zones.filter((z) => !disabled.includes(z.id));
-  const categories = (Object.keys(CATEGORY_LABELS) as MenuCategory[])
-    .filter((c) => menu.some((m) => m.category === c))
-    .map((c) => CATEGORY_LABELS[c]);
+  const categories = cats
+    .filter((c) => menu.some((m) => m.category === c.id))
+    .map((c) => c.label);
 
   const summary =
     `${RESTAURANT.name} (also written Sambal and Sakura) is a Chinese and Japanese restaurant in ${b.address.city}, ` +
@@ -89,12 +89,12 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
 }
 
 /** Plain-text version of the whole menu, for /llms-full.txt. */
-export function menuAsText(menu: MenuItem[]): string {
+export function menuAsText(menu: MenuItem[], categories: MenuCategoryCfg[]): string {
   const lines: string[] = [];
-  for (const cat of Object.keys(CATEGORY_LABELS) as MenuCategory[]) {
-    const items = menu.filter((m) => m.category === cat);
+  for (const cat of categories) {
+    const items = menu.filter((m) => m.category === cat.id);
     if (!items.length) continue;
-    lines.push(`## ${CATEGORY_LABELS[cat]}`, "");
+    lines.push(`## ${cat.label}`, "");
     for (const m of items) {
       const from = m.modifiers && m.modifiers.length > 0 ? "from " : "";
       const diet = m.tags.includes("vegan") ? " Vegan." : m.tags.includes("vegetarian") ? " Vegetarian." : "";

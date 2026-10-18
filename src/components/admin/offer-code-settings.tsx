@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MENU } from "@/lib/data/menu";
+import { useMenu } from "@/lib/use-menu";
 import type { OfferCfg } from "@/lib/admin/api";
 
 type Gives = "pct" | "amount" | "free";
@@ -11,12 +11,13 @@ const num = (v: string) => (v.trim() === "" ? undefined : Number(v));
 
 /** What an offer's code gives at checkout. Saved with the offer; checkout uses exactly these settings. */
 export function OfferCodeSettings({ offer, onChange }: { offer: OfferCfg; onChange: (o: OfferCfg) => void }) {
+  const { menu } = useMenu();
   const gives = givesOf(offer);
   const setGives = (g: Gives) => onChange({
     ...offer,
     pctOff: g === "pct" ? offer.pctOff ?? 10 : undefined,
     amountOff: g === "amount" ? offer.amountOff ?? 5 : undefined,
-    freeItemId: g === "free" ? offer.freeItemId ?? MENU[0]?.id : undefined,
+    freeItemId: g === "free" ? offer.freeItemId ?? menu[0]?.id : undefined,
   });
   const field = "mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm";
 
@@ -35,7 +36,7 @@ export function OfferCodeSettings({ offer, onChange }: { offer: OfferCfg; onChan
         {gives === "amount" && (<><Label className="text-xs">£ off</Label><Input type="number" min={0.5} step={0.5} value={offer.amountOff ?? ""} onChange={(e) => onChange({ ...offer, amountOff: num(e.target.value) })} className="mt-1 h-10" inputMode="decimal" /></>)}
         {gives === "free" && (<><Label className="text-xs">Free dish</Label>
           <select value={offer.freeItemId} onChange={(e) => onChange({ ...offer, freeItemId: e.target.value })} className={field}>
-            {MENU.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            {menu.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select></>)}
       </div>
       <div><Label className="text-xs">Min spend £</Label><Input type="number" min={0} value={offer.minSpend ?? ""} onChange={(e) => onChange({ ...offer, minSpend: num(e.target.value) })} className="mt-1 h-10" inputMode="decimal" placeholder="0" /></div>

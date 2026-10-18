@@ -77,7 +77,7 @@ export function DishImage({
       aria-label={`${name} - photo coming soon`}
       className={cn(
         "relative flex items-center justify-center overflow-hidden bg-gradient-to-br text-white",
-        CATEGORY_GRADIENT[category],
+        CATEGORY_GRADIENT[category] ?? GRADIENTS.gold, // categories the owner added use the house gold
         rounded,
         className,
       )}

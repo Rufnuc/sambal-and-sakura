@@ -3,7 +3,7 @@ import { Banknote, Leaf, Flame } from "lucide-react";
 import { MenuBrowser } from "@/components/menu/menu-browser";
 import { MenuJsonLd } from "@/components/seo/structured-data";
 import { Sparkles } from "lucide-react";
-import { getEffectiveMenu, getDeal } from "@/server/config";
+import { getEffectiveMenu, getDeal, getCategories } from "@/server/config";
 import { gbp } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
 import { telHref } from "@/lib/site-content";
@@ -18,10 +18,11 @@ export const metadata: Metadata = {
 };
 
 export default async function MenuPage() {
-  const [menu, deal, { business: b }] = await Promise.all([getEffectiveMenu(), getDeal(), getSiteContent()]);
+  const [menu, deal, { business: b }, allCats] = await Promise.all([getEffectiveMenu(), getDeal(), getSiteContent(), getCategories()]);
+  const categories = allCats.filter((c) => !c.hidden);
   return (
     <div className="px-4 sm:px-6">
-      <MenuJsonLd menu={menu} />
+      <MenuJsonLd menu={menu} categories={categories} />
       <section className="mx-auto max-w-7xl pt-10">
         <p className="font-medium uppercase tracking-widest text-gold-ink">The menu</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
@@ -55,7 +56,7 @@ export default async function MenuPage() {
         </div>
       )}
 
-      <MenuBrowser menu={menu} />
+      <MenuBrowser menu={menu} categories={categories} />
     </div>
   );
 }

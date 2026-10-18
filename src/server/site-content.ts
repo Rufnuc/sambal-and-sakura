@@ -4,10 +4,11 @@ import { z } from "zod";
 import { prisma } from "@/server/db";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
 import { cleanText } from "@/server/sanitize";
-import { MENU } from "@/lib/data/menu";
+import { MENU, CUSTOM_DISH_ID } from "@/lib/data/menu";
 
 const MENU_IDS = new Set(MENU.map((m) => m.id));
-const dishId = z.string().refine((id) => MENU_IDS.has(id), "Pick a dish from the menu");
+// Built-in dishes, or ones the owner added (a deleted one simply stops showing on the home page).
+const dishId = z.string().max(60).refine((id) => MENU_IDS.has(id) || CUSTOM_DISH_ID.test(id), "Pick a dish from the menu");
 // Our own uploaded photos or an https link (e.g. Cloudinary); never javascript:, data: etc. Empty = use the dish's menu photo.
 const photoUrl = z.string().trim().max(500).refine((s) => s === "" || (s.startsWith("/uploads/") && !s.includes("..")) || /^https:\/\/[^\s"'<>]+$/i.test(s), "Photos must be uploaded here or be an https link");
 

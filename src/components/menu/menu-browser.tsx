@@ -4,11 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Star, ChefHat, Flame, Leaf, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DishCard } from "@/components/menu/dish-card";
-import { CATEGORY_LABELS, type MenuCategory, type DietTag, type MenuItem } from "@/lib/data/menu";
+import { type MenuCategory, type MenuCategoryCfg, type DietTag, type MenuItem } from "@/lib/data/menu";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-
-const CATEGORIES = Object.keys(CATEGORY_LABELS) as MenuCategory[];
 
 const DIET_FILTERS: { id: DietTag; label: string; icon: React.ElementType }[] = [
   { id: "popular", label: "Popular", icon: Star },
@@ -18,7 +16,10 @@ const DIET_FILTERS: { id: DietTag; label: string; icon: React.ElementType }[] = 
   { id: "spicy", label: "Spicy", icon: Flame },
 ];
 
-export function MenuBrowser({ menu }: { menu: MenuItem[] }) {
+export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories: MenuCategoryCfg[] }) {
+  // The owner's categories, in their order (Admin -> Menu); empty ones are skipped below.
+  const CATEGORIES = categories.map((c) => c.id);
+  const labelOf = (id: MenuCategory) => categories.find((c) => c.id === id)?.label ?? id;
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<MenuCategory | "all">("all");
   const [diets, setDiets] = useState<Set<DietTag>>(new Set());
@@ -87,7 +88,7 @@ export function MenuBrowser({ menu }: { menu: MenuItem[] }) {
             <Chip active={active === "all"} onClick={() => setActive("all")}>All</Chip>
             {CATEGORIES.map((c) => (
               <Chip key={c} active={active === c} onClick={() => setActive(c)}>
-                {CATEGORY_LABELS[c]}
+                {labelOf(c)}
               </Chip>
             ))}
           </div>
@@ -125,7 +126,7 @@ export function MenuBrowser({ menu }: { menu: MenuItem[] }) {
       <div className="mx-auto max-w-7xl py-8">
         <p className="mb-6 text-sm text-muted-foreground">
           {filtered.length} dish{filtered.length === 1 ? "" : "es"}
-          {active !== "all" ? ` in ${CATEGORY_LABELS[active]}` : ""}
+          {active !== "all" ? ` in ${labelOf(active)}` : ""}
         </p>
 
         {filtered.length === 0 ? (
@@ -140,7 +141,7 @@ export function MenuBrowser({ menu }: { menu: MenuItem[] }) {
           <div className="flex flex-col gap-12">
             {CATEGORIES.filter((c) => grouped.has(c)).map((c) => (
               <section key={c} id={c} className="scroll-mt-44">
-                <h2 className="mb-5 font-display text-2xl font-bold tracking-tight">{CATEGORY_LABELS[c]}</h2>
+                <h2 className="mb-5 font-display text-2xl font-bold tracking-tight">{labelOf(c)}</h2>
                 <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {grouped.get(c)!.map((item) => (
                     <DishCard key={item.id} item={item} />

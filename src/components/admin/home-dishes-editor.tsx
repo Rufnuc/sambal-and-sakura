@@ -7,22 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { DishImage } from "@/components/brand/dish-image";
 import { realPhoto } from "@/lib/photo";
-import { MENU, CATEGORY_LABELS, type MenuCategory } from "@/lib/data/menu";
+import { useMenu } from "@/lib/use-menu";
 import { uploadImage } from "@/lib/admin/api";
 import type { HeroImage, SiteContent } from "@/lib/site-content";
 
 const SLOT_NAMES = ["Front-left plate", "Back-right plate", "Bottom-right plate"];
-const BY_ID = new Map(MENU.map((m) => [m.id, m]));
-const CATS = Object.keys(CATEGORY_LABELS) as MenuCategory[];
 const select = "h-10 w-full rounded-lg border border-border bg-background px-2 text-sm";
 
 /** Dish picker grouped by menu section. */
 function DishSelect({ value, onChange, exclude = [] }: { value: string; onChange: (id: string) => void; exclude?: string[] }) {
+  const { menu, categories } = useMenu();
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className={select}>
-      {CATS.map((c) => {
-        const dishes = MENU.filter((m) => m.category === c && (m.id === value || !exclude.includes(m.id)));
-        return dishes.length ? <optgroup key={c} label={CATEGORY_LABELS[c]}>{dishes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</optgroup> : null;
+      {categories.map(({ id: c, label }) => {
+        const dishes = menu.filter((m) => m.category === c && (m.id === value || !exclude.includes(m.id)));
+        return dishes.length ? <optgroup key={c} label={label}>{dishes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</optgroup> : null;
       })}
     </select>
   );
@@ -32,6 +31,7 @@ function DishSelect({ value, onChange, exclude = [] }: { value: string; onChange
 export function HeroImagesEditor({ hero, onChange, menuPhotos }: {
   hero: SiteContent["hero"]; onChange: (h: Partial<SiteContent["hero"]>) => void; menuPhotos: Record<string, string | undefined>;
 }) {
+  const { menu } = useMenu();
   const [busy, setBusy] = useState<number | null>(null);
   const files = useRef<(HTMLInputElement | null)[]>([]);
   const setSlot = (i: number, p: Partial<HeroImage>) => onChange({ images: hero.images.map((img, idx) => (idx === i ? { ...img, ...p } : img)) });
@@ -54,7 +54,7 @@ export function HeroImagesEditor({ hero, onChange, menuPhotos }: {
       </p>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {hero.images.map((img, i) => {
-          const dish = BY_ID.get(img.dishId);
+          const dish = menu.find((m) => m.id === img.dishId);
           const src = img.photo || realPhoto(menuPhotos[img.dishId]);
           return (
             <div key={i} className="flex flex-col gap-2 rounded-xl border border-border p-3">
@@ -91,8 +91,9 @@ export function HeroImagesEditor({ hero, onChange, menuPhotos }: {
 export function SignatureEditor({ ids, onChange }: { ids: string[]; onChange: (ids: string[]) => void }) {
   const auto = ids.length === 0;
   const move = (i: number, d: number) => { const n = [...ids]; const j = i + d; if (j < 0 || j >= n.length) return; [n[i], n[j]] = [n[j], n[i]]; onChange(n); };
-  const firstFree = () => MENU.find((m) => !ids.includes(m.id))?.id;
-  const suggested = MENU.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6).map((m) => m.id);
+  const { menu } = useMenu();
+  const firstFree = () => menu.find((m) => !ids.includes(m.id))?.id;
+  const suggested = menu.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6).map((m) => m.id);
 
   return (
     <div className="flex flex-col gap-3">

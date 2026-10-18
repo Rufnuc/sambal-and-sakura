@@ -3,7 +3,8 @@ import { prisma } from "@/server/db";
 import { currentUser, isStaffRole } from "@/server/auth";
 import { canAccess, parsePermissions } from "@/lib/admin/sections";
 import { ukParts, addDays } from "@/server/order-time";
-import { MENU } from "@/lib/data/menu";
+import { getEffectiveMenu } from "@/server/config";
+
 
 const DAYS = 14;
 const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -81,6 +82,6 @@ export async function GET() {
     todaysBookings: canAccess("bookings", u.role, perms)
       ? bookingsWeek.filter((b) => b.date === today).slice(0, 12).map((b) => ({ id: b.id, time: b.time, name: b.name, party: b.party, occasion: b.occasion, status: b.status }))
       : null,
-    menuCount: MENU.length,
+    menuCount: (await getEffectiveMenu()).length,
   });
 }

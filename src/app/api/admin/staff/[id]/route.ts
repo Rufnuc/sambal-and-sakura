@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db";
-import { adminUser, verifyPassword, hashPassword } from "@/server/auth";
+import { adminUser, hashPassword } from "@/server/auth";
+import { requireOwnPassword } from "@/server/step-up";
 import { parsePermissions, GRANTABLE_SECTIONS } from "@/lib/admin/sections";
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
@@ -34,8 +35,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const current = new Set(parsePermissions(target.permissions));
   const grants = (parsed.data.permissions ?? []).some((p) => VALID_KEYS.has(p) && !current.has(p));
   const sensitive = (parsed.data.role && parsed.data.role !== target.role) || parsed.data.newPassword || grants;
-  if (sensitive && (!parsed.data.confirmPassword || !(await verifyPassword(parsed.data.confirmPassword, me.passwordHash)))) {
-    return NextResponse.json({ error: "Enter your own password to confirm this change.", needsPassword: true }, { status: 400 });
+  if (sensitive) {
+    const denied = await requireOwnPassword(me, parsed.data.confirmPassword, req, "staff.update", "Enter your own password to confirm this change.");
+    if (denied) return denied;
   }
   if (parsed.data.newPassword) data.passwordHash = await hashPassword(parsed.data.newPassword);
   if (parsed.data.role && parsed.data.role !== target.role) {

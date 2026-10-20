@@ -62,7 +62,7 @@ On every deploy Render will: install, derive the Postgres schema, generate the c
 
 1. Open `https://YOUR-SERVICE.onrender.com/staff/login` and sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 2. **Change the password** in Admin → Settings.
-3. Admin → Settings → **Connection check**: run it on your phone using mobile data, then on Wi-Fi. The "Detected address" must change between the two. If it shows the same address both times (Render's own), set `CLIENT_IP_HEADER` to whichever header shows your real address. Rate limits depend on this.
+3. Admin → Settings → **Connection check**: run it on your phone using mobile data, then on Wi-Fi. The "Detected address" must change between the two. If it shows the same address both times (Render's own), set `CLIENT_IP_HEADER` to whichever header shows your real address. Then tap **Test fake address**, on the normal address and on your `.onrender.com` address: every line must say *refused* or *ignored*. Rate limits depend on this. Never set `CLIENT_IP_HEADER` to a header the visitor can send unchecked; for `x-forwarded-for` the site uses only the right-most entry (the one your host added).
 4. Check the Admin → Menu, Careers and Promotions pages. Edits appear on the public site immediately.
 5. Open **Admin → Site content** and fill in the real phone, email, address, opening hours and social links (these are placeholders until you do). Opening hours also control which times customers can book.
 6. **Reviews start switched off and empty.** Only add genuine reviews from real customers who agreed to be quoted; the site refuses to show the old demo ones.

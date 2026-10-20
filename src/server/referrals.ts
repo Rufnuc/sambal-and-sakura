@@ -45,8 +45,13 @@ function addressKey(address: string | null, postcode: string | null): string | n
 }
 
 /**
- * Check a referral code typed at sign-up. Returns the referrer, or throws ReferralError with a message
- * the customer can act on. Returns null when referrals are switched off (the code is just ignored).
+ * Check a referral code typed at sign-up. Returns the referrer, null when the referral doesn't apply, or
+ * throws ReferralError for a problem with the CODE (invalid, at its limit, over-used today).
+ *
+ * Nothing about the PHONE is ever told to the caller: an anonymous sign-up must not reveal whether a phone
+ * number has ordered before, was referred before, or belongs to the code's owner. So every check that depends
+ * only on the code runs first, on every request, and a phone that isn't eligible just gets null: the account
+ * is created normally, without the referral reward.
  */
 export async function checkReferralCode(rawCode: string, phone: string, cfg?: ReferralConfig): Promise<User | null> {
   const conf = cfg ?? (await getReferralConfig());
@@ -56,22 +61,23 @@ export async function checkReferralCode(rawCode: string, phone: string, cfg?: Re
   const referrer = await prisma.user.findUnique({ where: { referralCode: code } });
   if (!referrer || referrer.status !== "active" || referrer.role !== "customer") throw new ReferralError("That referral code isn't valid. Check it, or leave it empty.");
 
-  const key = phoneKey(phone);
-  if (key && key === phoneKey(referrer.phone)) throw new ReferralError("You can't use your own referral code.");
-
-  const [orderedBefore, referredBefore, used] = await Promise.all([
-    // New customers only: this phone hasn't ordered before (any non-cancelled order)...
-    prisma.order.count({ where: { customerPhone: canonicalPhone(phone), status: { not: "cancelled" } } }),
-    // ...and hasn't been referred before, on any account.
-    prisma.referral.count({ where: { refereePhoneKey: key, status: { not: "void" } } }),
-    conf.maxPerUser > 0 ? prisma.referral.count({ where: { referrerId: referrer.id, status: { not: "void" } } }) : Promise.resolve(0),
-  ]);
-  if (orderedBefore || referredBefore) throw new ReferralError("Referral rewards are for new customers only, so this code can't be used with that phone number.");
-  if (conf.maxPerUser > 0 && used >= conf.maxPerUser) throw new ReferralError("This referral code has reached its limit. You can still create your account without it.");
-
+  // Code-only checks, before anything about the phone.
+  if (conf.maxPerUser > 0) {
+    const used = await prisma.referral.count({ where: { referrerId: referrer.id, status: { not: "void" } } });
+    if (used >= conf.maxPerUser) throw new ReferralError("This referral code has reached its limit. You can still create your account without it.");
+  }
   // A code being sprayed across many new accounts in a day is a farm, not friends.
   const r = await hit("referral-code", referrer.id, SIGNUPS_PER_CODE_PER_DAY, 86_400);
   if (!r.ok) throw new ReferralError("This referral code has been used a lot today. Please try again tomorrow, or create your account without it.");
+
+  // New customers only, and not your own code: when the phone doesn't qualify, the referral is quietly ignored.
+  const key = phoneKey(phone);
+  if (key && key === phoneKey(referrer.phone)) return null;
+  const [orderedBefore, referredBefore] = await Promise.all([
+    prisma.order.count({ where: { customerPhone: canonicalPhone(phone), status: { not: "cancelled" } } }),
+    prisma.referral.count({ where: { refereePhoneKey: key, status: { not: "void" } } }),
+  ]);
+  if (orderedBefore || referredBefore) return null;
   return referrer;
 }
 

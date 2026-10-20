@@ -17,13 +17,16 @@ export function clientIp(req: Request): string {
   const h = req.headers;
   const configured = process.env.CLIENT_IP_HEADER?.toLowerCase();
   if (configured) {
-    const v = h.get(configured)?.split(",")[0]?.trim();
-    if (v) return v;
+    // A list header (e.g. X-Forwarded-For) is "client, proxy1, proxy2": only the RIGHT-most entry was
+    // added by a proxy we trust; anything to its left is whatever the visitor sent.
+    const list = (h.get(configured) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (list.length) return list[list.length - 1];
   }
   // Render's own edge (Cloudflare) sets cf-connecting-ip and refuses requests where a visitor tries to
   // fake it (checked live 17 Oct 2026: 403 on both the custom domain and *.onrender.com). If the site
   // ever moves to a host that does NOT do this, set CLIENT_IP_HEADER to that host's real-IP header,
   // or this line would let anyone choose their own IP and reset every per-IP limit.
+  // Admin -> Settings -> Connection check -> "Test fake address" re-checks this on the live site in one tap.
   const cf = h.get("cf-connecting-ip")?.trim();
   if (cf) return cf;
   const xff = (h.get("x-forwarded-for") ?? "").split(",").map((s) => s.trim()).filter(Boolean);

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { zText, zEmail } from "@/server/sanitize";
 import { prisma } from "@/server/db";
-import { adminUser, hashPassword, verifyPassword } from "@/server/auth";
+import { adminUser, hashPassword } from "@/server/auth";
+import { requireOwnPassword } from "@/server/step-up";
 import { parsePermissions, GRANTABLE_SECTIONS } from "@/lib/admin/sections";
 import { referralCode, withFreshIds } from "@/server/ids";
 import { audit } from "@/server/audit";
@@ -37,9 +38,9 @@ export async function POST(req: Request) {
 
   // Step-up: a new staff or owner account is lasting access, so (like role changes) it needs the
   // current owner's own password - a borrowed or stolen signed-in session alone isn't enough.
-  if (!parsed.data.confirmPassword || !(await verifyPassword(parsed.data.confirmPassword, me.passwordHash))) {
-    return NextResponse.json({ error: "Enter your own password to add a staff member.", needsPassword: true }, { status: 400 });
-  }
+  // The check is rate-limited and audited (src/server/step-up.ts), so it can't be used to guess the password.
+  const denied = await requireOwnPassword(me, parsed.data.confirmPassword, req, "staff.create", "Enter your own password to add a staff member.");
+  if (denied) return denied;
   const { name, email, password, role, permissions } = parsed.data;
   if (await prisma.user.findUnique({ where: { email } })) {
     return NextResponse.json({ error: "A user with that email already exists." }, { status: 409 });

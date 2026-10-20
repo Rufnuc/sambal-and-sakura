@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Activity, Wifi, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/admin/ui";
-import { fetchDiagnostics, fetchAudit, type Diagnostics, type AuditEntry } from "@/lib/admin/api";
+import { fetchDiagnostics, fetchAudit, testFakeAddress, type Diagnostics, type AuditEntry } from "@/lib/admin/api";
 
 const ACTION_LABEL: Record<string, string> = {
   "order.status": "Order status changed",
@@ -34,7 +34,8 @@ const ACTION_LABEL: Record<string, string> = {
 export function OwnerTools() {
   const [diag, setDiag] = useState<Diagnostics | null>(null);
   const [logs, setLogs] = useState<AuditEntry[] | null>(null);
-  const [busy, setBusy] = useState<"diag" | "logs" | null>(null);
+  const [busy, setBusy] = useState<"diag" | "logs" | "fake" | null>(null);
+  const [fake, setFake] = useState<Awaited<ReturnType<typeof testFakeAddress>> | null>(null);
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -46,6 +47,16 @@ export function OwnerTools() {
         <Button variant="outline" className="mt-3 h-9 gap-1.5" disabled={busy === "diag"} onClick={async () => { setBusy("diag"); setDiag(await fetchDiagnostics()); setBusy(null); }}>
           {busy === "diag" && <Loader2 className="size-4 animate-spin" />} Run check
         </Button>
+        <Button variant="outline" className="ml-2 mt-3 h-9 gap-1.5" disabled={busy === "fake"} onClick={async () => { setBusy("fake"); setFake(await testFakeAddress()); setBusy(null); }}>
+          {busy === "fake" && <Loader2 className="size-4 animate-spin" />} Test fake address
+        </Button>
+        {fake && (
+          <div className="mt-3 rounded-lg border border-border p-2.5 text-xs">
+            <p className="mb-1 font-medium">{fake.some((f) => f.result === "TRUSTED") ? "Problem: a visitor can choose their own address, so per-visitor limits can be bypassed. Set CLIENT_IP_HEADER on Render (see DEPLOY.md) and test again." : fake.every((f) => f.result === "protected") ? "Good: made-up addresses are refused or ignored." : "Couldn't finish the test - try again."}</p>
+            {fake.map((f) => <div key={f.header} className="flex justify-between gap-3"><span className="font-mono text-muted-foreground">{f.header}</span><span className={f.result === "TRUSTED" ? "text-sambal" : f.result === "protected" ? "text-jade" : ""}>{f.detail}</span></div>)}
+            <p className="mt-1 text-muted-foreground">Run it on the normal address and on your .onrender.com address.</p>
+          </div>
+        )}
         {diag && (
           <dl className="mt-3 space-y-1 text-xs">
             <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Detected address</dt><dd className="font-mono">{diag.detectedIp}</dd></div>

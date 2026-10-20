@@ -167,6 +167,23 @@ export interface Diagnostics {
   integrations: Record<string, string | boolean | null>;
   database?: { rowLevelSecurityOff: string[] | string };
 }
+/**
+ * Can a visitor choose their own IP? Sends the check again with made-up address headers. Safe: it only
+ * reads the owner's own diagnostics. "protected" = refused (403) or the made-up address was ignored.
+ */
+export async function testFakeAddress(): Promise<{ header: string; result: "protected" | "TRUSTED" | "error"; detail: string }[]> {
+  const FAKE = "198.51.100.7"; // documentation-only address, never a real visitor
+  const out: { header: string; result: "protected" | "TRUSTED" | "error"; detail: string }[] = [];
+  for (const header of ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"]) {
+    const res = await fetch("/api/admin/diagnostics", { cache: "no-store", headers: { [header]: FAKE } }).catch(() => null);
+    if (!res) { out.push({ header, result: "error", detail: "no answer" }); continue; }
+    if (res.status === 403 || res.status === 400) { out.push({ header, result: "protected", detail: `refused (${res.status})` }); continue; }
+    const d = await res.json().catch(() => null) as Diagnostics | null;
+    if (!d) { out.push({ header, result: "error", detail: `status ${res.status}` }); continue; }
+    out.push(d.detectedIp === FAKE ? { header, result: "TRUSTED", detail: "the made-up address was used" } : { header, result: "protected", detail: `ignored, saw ${d.detectedIp}` });
+  }
+  return out;
+}
 export async function fetchDiagnostics(): Promise<Diagnostics | null> {
   const res = await fetch("/api/admin/diagnostics", { cache: "no-store" });
   return res.ok ? res.json() : null;

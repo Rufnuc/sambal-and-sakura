@@ -32,6 +32,16 @@ const fields = z.object({
   turnstileToken: z.string().max(2048).optional(),
 });
 
+const CV_PER_DAY = Number(process.env.CAREERS_DAILY_LIMIT) || 30; // applications per day, whole site
+
+/** One key per real inbox: lower-case, "+tag" removed, and dots ignored for Gmail. */
+function mailboxKey(email: string): string {
+  const [local, domain = ""] = email.toLowerCase().split("@");
+  const base = local.split("+")[0];
+  const gmail = domain === "gmail.com" || domain === "googlemail.com";
+  return `${gmail ? base.replace(/\./g, "") : base}@${gmail ? "gmail.com" : domain}`;
+}
+
 export async function POST(req: Request) {
   const ip = clientIp(req);
   const limited = await limitOr429([
@@ -57,10 +67,6 @@ export async function POST(req: Request) {
   if (form.get("consent") !== "yes") return NextResponse.json({ error: "Please confirm you've read how we use your application." }, { status: 400 });
   if (!(await verifyHuman(d.turnstileToken, ip))) return NextResponse.json({ error: "Please complete the check and try again." }, { status: 400 });
 
-  const emailLimited = await limitOr429([{ name: "cv-email-day", id: d.email, limit: 3, windowSec: 86400 }],
-    "You've already sent a few applications today. We'll be in touch.");
-  if (emailLimited) return emailLimited;
-
   const file = form.get("cv");
   if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "Please attach your CV (PDF or Word)." }, { status: 400 });
   if (file.size > MAX_CV_BYTES) return NextResponse.json({ error: "That file is too big. Please send a CV under 4 MB (PDF works best)." }, { status: 400 });
@@ -71,6 +77,15 @@ export async function POST(req: Request) {
   if (!kind || kind.ext !== ext) {
     return NextResponse.json({ error: "Please attach your CV as a PDF or Word document (.pdf, .doc or .docx)." }, { status: 400 });
   }
+
+  // Counted only once the application is otherwise valid (a broken request can't use up someone's
+  // allowance), and per MAILBOX: "name+anything@" and Gmail's dotted spellings are the same inbox.
+  // Plus a site-wide daily cap, so a flood of applications can't swamp the restaurant's inbox and email budget.
+  const limitedAfterChecks = await limitOr429([
+    { name: "cv-email-day", id: mailboxKey(d.email), limit: 3, windowSec: 86400 },
+    { name: "cv-all-day", id: "all", limit: CV_PER_DAY, windowSec: 86400 },
+  ], "We've received a lot of applications today. Please try again tomorrow, or email us your CV.");
+  if (limitedAfterChecks) return limitedAfterChecks;
 
   const job = d.jobId ? (await getCareers()).find((j) => j.id === d.jobId && j.active) : undefined;
   const role = job?.title ?? "General application";
@@ -93,12 +108,13 @@ It was sent through the Careers page and is not stored on the website. Please de
   });
   if (!ok) return NextResponse.json({ error: `Sorry, we couldn't send that just now. Please email your CV to ${b.email}.` }, { status: 502 });
 
-  // Short receipt for the applicant (no attachment).
+  // Short receipt for the applicant (no attachment). The address is typed, not verified, so the receipt carries
+  // nothing the sender chose (no name, no message): it can't be used to send someone else words from our domain.
   void sendTransactional("careers-receipt", `careers-receipt:${randomUUID()}`, {
-    to: { email: d.email, name: d.name },
+    to: { email: d.email },
     subject: "We've received your application - Sambal & Sakura",
-    html: `<div style="font-family:Arial,sans-serif;font-size:15px;color:#1b1812"><p>Hi ${esc(d.name)},</p><p>Thanks for applying${job ? ` for <strong>${esc(role)}</strong>` : ""}. We've received your CV and will get back to you if your application is a good fit.</p><p>Sambal &amp; Sakura</p></div>`,
-    text: `Hi ${d.name},\n\nThanks for applying${job ? ` for ${role}` : ""}. We've received your CV and will get back to you if your application is a good fit.\n\nSambal & Sakura`,
+    html: `<div style="font-family:Arial,sans-serif;font-size:15px;color:#1b1812"><p>Hello,</p><p>Thanks for applying${job ? ` for <strong>${esc(role)}</strong>` : ""}. We've received your CV and will get back to you if your application is a good fit.</p><p>If you didn't apply, you can ignore this email: nothing else will be sent to you.</p><p>Sambal &amp; Sakura</p></div>`,
+    text: `Hello,\n\nThanks for applying${job ? ` for ${role}` : ""}. We've received your CV and will get back to you if your application is a good fit.\n\nIf you didn't apply, you can ignore this email: nothing else will be sent to you.\n\nSambal & Sakura`,
   });
 
   log.info("careers_application", { role, bytes: file.size, type: kind.ext });

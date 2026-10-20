@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/i18n/context";
 import { CURATED } from "@/lib/i18n/dictionaries";
 import type { Locale } from "@/lib/i18n/config";
@@ -46,6 +47,9 @@ function isSkipped(node: Node): boolean {
 
 export function AutoTranslator() {
   const { locale } = useLocale();
+  // The page path is part of the effect's identity: moving to another page throws away anything still
+  // queued, so text collected on a staff page can never be sent after leaving it (see STAFF_PAGES).
+  const pathname = usePathname();
 
   // Persistent across locale changes:
   const textEn = useRef(new WeakMap<Text, string>());                  // text node -> English source
@@ -74,6 +78,7 @@ export function AutoTranslator() {
 
     const cache = cacheFor(locale);
     const pending = new Set<string>();
+    const staffPage = onStaffPage(); // nothing from a staff page is ever queued for the provider
     let observer: MutationObserver | null = null;
     let fetchTimer: ReturnType<typeof setTimeout> | null = null;
     const reapplyTimers: ReturnType<typeof setTimeout>[] = [];
@@ -111,7 +116,7 @@ export function AutoTranslator() {
           const replaced = en.replace(key, hit);              // keep surrounding whitespace
           if (node.nodeValue !== replaced) node.nodeValue = replaced;
         } else if (hit === undefined) {
-          pending.add(key);
+          if (!staffPage) pending.add(key);
         }
       }
 
@@ -133,7 +138,7 @@ export function AutoTranslator() {
             if (!translatable(en)) continue;
             const hit = cache.get(en.trim());
             if (hit !== undefined && hit !== en.trim()) { if (cur !== hit) el.setAttribute(attr, hit); }
-            else if (hit === undefined) pending.add(en.trim());
+            else if (hit === undefined && !staffPage) pending.add(en.trim());
           }
         }
       }
@@ -160,7 +165,7 @@ export function AutoTranslator() {
       if (disposed || locale === "en" || pending.size === 0) return;
       const batch = Array.from(pending);
       pending.clear();
-      if (onStaffPage()) return; // see STAFF_PAGES: never send staff-page text out
+      if (staffPage || onStaffPage()) return; // see STAFF_PAGES: never send staff-page text out
       try {
         const res = await fetch("/api/translate", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -207,7 +212,7 @@ export function AutoTranslator() {
       reapplyTimers.forEach(clearTimeout);
       observer?.disconnect();
     };
-  }, [locale]);
+  }, [locale, pathname]);
 
   return null;
 }

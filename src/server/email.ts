@@ -15,6 +15,9 @@ export const emailConfigured = () => Boolean(process.env.BREVO_API_KEY && proces
 
 export const DAILY_LIMIT = Number(process.env.EMAIL_DAILY_LIMIT) || 300;
 const TRANSACTIONAL_RESERVE = Math.round(DAILY_LIMIT * 0.4); // kept free for order/booking emails
+// Only these may use the reserve. Everything else (careers applications and receipts, referral rewards,
+// test sends) stops at the same point as promotions, so no amount of form traffic can stop order emails.
+const PRIORITY_TEMPLATE = /^(order|booking|account)-/;
 
 export interface EmailMessage {
   to: { email: string; name?: string };
@@ -77,7 +80,9 @@ export async function sendTransactional(template: string, key: string, m: EmailM
     return false;
   }
   try {
-    if ((await sentToday()) > DAILY_LIMIT) throw new Error("daily email limit reached");
+    const sent = await sentToday();
+    if (sent > DAILY_LIMIT) throw new Error("daily email limit reached");
+    if (!PRIORITY_TEMPLATE.test(template) && sent > DAILY_LIMIT - TRANSACTIONAL_RESERVE) throw new Error("daily email limit reached (order and booking emails are kept a reserve)");
     await brevoSend(m);
     log.info("email_sent", { template, key });
     return true;

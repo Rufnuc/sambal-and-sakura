@@ -31,7 +31,6 @@ const FILTERS: { id: OrderStatus | "all" | "active"; label: string }[] = [
 ];
 
 const FLAG_LABEL: Record<string, string> = {
-  "new-customer": "New customer - call to confirm",
   "address-unverified": "Postcode not verified",
   "large-order": "Large order - call to confirm",
   "paid-after-cancel": "Paid after cancel - refund",

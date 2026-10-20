@@ -211,10 +211,9 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
   }
 
   // The remaining checks don't depend on each other, so they run together (one round of waiting, not five).
-  const [dist, maxMiles, ordered, [policy, cancels]] = await Promise.all([
+  const [dist, maxMiles, [policy, cancels]] = await Promise.all([
     delivery ? postcodeDistance(input.postcode!) : null,
     delivery ? getMaxMiles() : 0,
-    input.payMethod === "cash" ? hasOrderedBefore(input.phone, null) : true,
     getCancelPolicy().then(async (p) => [p, await countCancellations({ userId: user?.id, phone: input.phone, email: input.email }, p)] as const),
   ]);
 
@@ -226,10 +225,8 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
     }
   }
 
-  if (input.payMethod === "cash") {
-    if (!ordered) flags.push("new-customer");
-    if (quote.total >= LARGE_ORDER_GBP) flags.push("large-order");
-  }
+  // (No "new customer - call to confirm" flag: the owner chose not to phone first-time customers.)
+  if (input.payMethod === "cash" && quote.total >= LARGE_ORDER_GBP) flags.push("large-order");
 
   // People who often cancel or don't collect: flag the ticket, and (if the owner chose it) no cash delivery.
   if (cancels >= policy.flagAt) flags.push("frequent-canceller");

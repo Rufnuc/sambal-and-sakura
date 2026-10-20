@@ -24,7 +24,6 @@ function mods(s: string): string[] { try { return (JSON.parse(s) as { label: str
 
 // Warnings printed on the ticket so staff act on them (set when the order is created).
 export const FLAG_TEXT: Record<string, string> = {
-  "new-customer": "NEW CUSTOMER - CALL TO CONFIRM",
   "address-unverified": "POSTCODE NOT VERIFIED - CHECK ADDRESS",
   "large-order": "LARGE ORDER - CALL TO CONFIRM",
   "paid-after-cancel": "PAID AFTER CANCEL - REFUND NEEDED",
@@ -207,7 +206,7 @@ export function sampleTicketOrder(): TicketOrder {
     id: "TEST-PRINT", fulfilment: "delivery", customerName: "Test Customer", customerPhone: "07700 900123",
     address: "1 Example Street", postcode: "TS1 1AA", notes: "TEST PRINT - 测试打印 (no onions please). If you can read this, the printer works.",
     whenType: "asap", scheduledTime: null, etaMins: 30, subtotal: 17.7, deliveryFee: 1.99, discount: 0, total: 19.69, voucherCode: null,
-    paymentMethod: "cash", paymentStatus: "unpaid", flags: ["new-customer"],
+    paymentMethod: "cash", paymentStatus: "unpaid", flags: [],
     lines: [
       { name: "Chicken Katsu Curry Don", unitPrice: 10.8, qty: 1, modifiers: JSON.stringify([{ label: "Extra sauce" }]) },
       { name: "Salt & Pepper Chips", unitPrice: 3.5, qty: 2, modifiers: "[]" },

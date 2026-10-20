@@ -64,6 +64,44 @@ export function padLine(left: string, right: string, width = COLS): string {
   return l + " ".repeat(Math.max(0, width - displayWidth(l) - displayWidth(r))) + r;
 }
 
+/** `left` .......... `right`: a dotted leader joins a name and its price (left is truncated if too long). */
+export function leaderLine(left: string, right: string, width = COLS, fill = "."): string {
+  const r = clean(right);
+  let l = clean(left);
+  const room = width - displayWidth(r) - 3; // at least " . " between them
+  while (displayWidth(l) > room) l = Array.from(l).slice(0, -1).join("");
+  const gap = width - displayWidth(l) - displayWidth(r);
+  return gap >= 3 ? `${l} ${fill.repeat(gap - 2)} ${r}` : padLine(l, r, width);
+}
+
+/** Centre text in `width` columns, padding both sides with spaces (for full-width reverse bands). */
+export function centreLine(text: string, width = COLS): string {
+  let t = clean(text);
+  while (displayWidth(t) > width) t = Array.from(t).slice(0, -1).join("");
+  const room = width - displayWidth(t);
+  const left = Math.floor(room / 2);
+  return " ".repeat(left) + t + " ".repeat(room - left);
+}
+
+export const DOTS = 576; // printable width of the 80mm head (72 mm at 8 dots/mm)
+export type RuleStyle = "solid" | "thick" | "double" | "dotted" | "dashed";
+
+/** A full-width line as a 1-bit picture, so it prints solid and joined up on any firmware. */
+export function ruleBits(style: RuleStyle): { bits: Uint8Array; width: number; height: number } {
+  const w = DOTS / 8;
+  const on = (byte: number) => new Uint8Array(w).fill(byte);
+  const off = () => new Uint8Array(w);
+  const rows: Uint8Array[] =
+    style === "thick" ? [on(0xff), on(0xff), on(0xff), on(0xff)]
+    : style === "double" ? [on(0xff), on(0xff), off(), off(), off(), on(0xff), on(0xff)]
+    : style === "dotted" ? [on(0xcc), on(0xcc)]
+    : style === "dashed" ? [on(0xf0), on(0xf0)]
+    : [on(0xff), on(0xff)];
+  const bits = new Uint8Array(w * rows.length);
+  rows.forEach((r, i) => bits.set(r, i * w));
+  return { bits, width: DOTS, height: rows.length };
+}
+
 /** Printer bytes for one already-cleaned line of text (see the encoding note at the top). */
 export function encodeText(s: string): number[] {
   const out: number[] = [];
@@ -100,6 +138,25 @@ export class Esc {
   /** Text then a line feed (encoded for the printer, see encodeText). */
   line(text = "") { this.bytes.push(...encodeText(clean(text)), 0x0a); return this; }
   feed(n: number) { return this.raw(0x1b, 0x64, Math.min(255, n)); }
+  /** ESC J n: feed n dots (fine spacing around picture lines). */
+  feedDots(n: number) { return this.raw(0x1b, 0x4a, Math.max(0, Math.min(255, n))); }
+  /** Full-width picture line with a little space above and below. */
+  hr(style: RuleStyle = "solid", gap = 8) {
+    const { bits, width, height } = ruleBits(style);
+    const w = width / 8;
+    this.feedDots(gap).raw(0x1d, 0x76, 0x30, 0x00, w & 0xff, w >> 8, height & 0xff, height >> 8);
+    this.bytes.push(...bits);
+    return this.feedDots(gap);
+  }
+  /** Full-width white-on-black band of centred text (size w x h). Fills the whole paper width. */
+  band(text: string, w = 1, h = 1) {
+    return this.align("left").bold(true).reverse(true).size(w, h).line(centreLine(text, Math.floor(COLS / w))).size(1, 1).reverse(false).bold(false);
+  }
+  /** Full-width white-on-black band with text on the left and right (e.g. TOTAL ... £19.69). */
+  bandSplit(left: string, right: string, w = 1, h = 1) {
+    const cols = Math.floor(COLS / w);
+    return this.align("left").bold(true).reverse(true).size(w, h).line(padLine(" " + left, right + " ", cols)).size(1, 1).reverse(false).bold(false);
+  }
   rule(ch = "-") { return this.line(ch.repeat(COLS)); }
   /** GS v 0: a 1-bit picture (1 = black dot, rows top to bottom, each row padded to whole bytes). */
   image(bits: Uint8Array, width: number, height: number) {

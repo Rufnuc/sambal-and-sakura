@@ -1,4 +1,4 @@
-import { Esc, COLS, padLine, wrap } from "@/server/escpos";
+import { Esc, COLS, padLine, leaderLine, wrap } from "@/server/escpos";
 import { RECEIPT_LOGO } from "@/server/receipt-logo";
 
 export interface TicketLine { name: string; unitPrice: number; qty: number; modifiers: string }
@@ -40,9 +40,12 @@ export function ukDateTime(d: Date): string {
 }
 
 /**
- * Kitchen / rider ticket for an 80mm thermal printer, laid out to be read at a glance.
- * The payment block comes FIRST and is printed white-on-black: it is the only place the payment
- * status appears, so text a customer typed (name, notes) can never pass for it.
+ * Kitchen / rider ticket for an 80mm thermal printer, laid out to be read at a glance across the kitchen:
+ * a black header band, big order number and time, then the payment block (white on black between thick
+ * lines), warnings, customer, every item in large type, totals and the note. Lines are printed as
+ * pictures (Esc.hr), so they come out solid on any firmware.
+ * The payment block is the only place payment status appears, and customer text can never produce
+ * white-on-black or lines, so a name or note can't pass for it.
  */
 export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { reprint?: boolean } = {}): Esc {
   const e = new Esc().init();
@@ -50,33 +53,34 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
   const wechat = o.paymentMethod === "wechat";
 
   // --- header
-  e.align("center").bold(true).size(2, 2).line(delivery ? "DELIVERY" : "COLLECTION");
-  e.line(`#${o.id}`);
-  e.size(1, 1).bold(false);
-  if (opts.reprint) e.bold(true).line("*** REPRINT ***").bold(false);
-  e.line(ukDateTime(o.createdAt ?? new Date()));
-  e.bold(true).size(1, 2).line(o.whenType === "scheduled" && o.scheduledTime ? `FOR ${o.scheduledTime}` : "ASAP").size(1, 1).bold(false);
+  e.band(delivery ? "DELIVERY" : "COLLECTION", 2, 2);
+  e.feedDots(6).align("center").bold(true).size(2, 2).line(`#${o.id}`).size(1, 1).bold(false);
+  if (opts.reprint) e.band("*** REPRINT ***");
+  e.align("center").line(ukDateTime(o.createdAt ?? new Date()));
+  e.bold(true).size(2, 2).line(o.whenType === "scheduled" && o.scheduledTime ? `FOR ${o.scheduledTime}` : "ASAP").size(1, 1).bold(false);
 
-  // --- payment block (reverse video): the line a rider must not get wrong
-  e.feed(1).bold(true).reverse(true);
+  // --- payment block: the line a rider must not get wrong
+  e.hr("thick");
   if (wechat && o.paymentStatus === "paid") {
-    e.size(1, 2).line(" PAID - WECHAT PAY ").line(" DO NOT COLLECT CASH ").size(1, 1);
+    e.band("PAID - WECHAT PAY", 1, 2).band("DO NOT COLLECT CASH");
   } else if (wechat) {
-    e.size(1, 2).line(" WECHAT - NOT PAID YET ").size(1, 1).line(" Check payment before handing over ");
+    e.band("WECHAT - NOT PAID YET", 1, 2).band("Check payment before handing over");
   } else {
-    e.size(2, 2).line(` CASH ${money(o.total)} `).size(1, 1).line(delivery ? " COLLECT ON DELIVERY " : " PAY ON COLLECTION ");
+    e.band(`CASH ${money(o.total)}`, 2, 2).band(delivery ? "COLLECT ON DELIVERY" : "PAY ON COLLECTION");
   }
-  e.reverse(false).bold(false).feed(1);
+  e.hr("thick");
 
   // --- warnings
-  for (const f of o.flags ?? []) {
-    const text = FLAG_TEXT[f];
-    if (text) e.bold(true).line(`!! ${text} !!`).bold(false);
+  const warnings = (o.flags ?? []).map((f) => FLAG_TEXT[f]).filter(Boolean);
+  if (warnings.length) {
+    e.align("center");
+    for (const w of warnings) e.bold(true).line(`!! ${w} !!`).bold(false);
+    e.hr("dashed");
   }
-  e.rule();
 
   // --- customer (text typed by the customer is labelled as such)
-  e.align("left").line("Customer:").bold(true).size(1, 2);
+  e.align("left").bold(true).line("CUSTOMER").bold(false);
+  e.bold(true).size(1, 2);
   for (const l of wrap(o.customerName, COLS)) e.line(l); // long names wrap cleanly instead of overflowing the paper
   e.size(1, 1).bold(false);
   for (const l of wrap(o.customerPhone, COLS)) e.line(l);
@@ -85,9 +89,10 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
     for (const l of wrap(`${o.address ?? ""}${o.postcode ? ", " + o.postcode : ""}`, COLS)) e.line(l);
     e.bold(false);
   }
-  e.rule();
+  e.hr("double");
 
   // --- items (double-height so they can be read across the kitchen)
+  e.bold(true).line(`ITEMS (${o.lines.reduce((n, l) => n + l.qty, 0)})`).bold(false).feedDots(4);
   for (const l of o.lines) {
     const head = `${l.qty} x ${l.name}`;
     const price = l.unitPrice === 0 ? "FREE" : money(l.unitPrice * l.qty);
@@ -98,30 +103,31 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
     const m = mods(l.modifiers);
     if (m.length) for (const x of wrap(`+ ${m.join(", ")}`, COLS - 4)) e.line("    " + x);
   }
-  e.rule();
+  e.hr("solid");
 
   // --- totals
-  e.line(padLine("Subtotal", money(o.subtotal)));
-  if (o.deliveryFee > 0) e.line(padLine("Delivery", money(o.deliveryFee)));
-  if (o.discount > 0) e.line(padLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
+  e.line(leaderLine("Subtotal", money(o.subtotal)));
+  if (o.deliveryFee > 0) e.line(leaderLine("Delivery", money(o.deliveryFee)));
+  if (o.discount > 0) e.line(leaderLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
   e.bold(true).size(1, 2).line(padLine("TOTAL", money(o.total))).size(1, 1).bold(false);
-  e.rule();
 
   // --- notes
   if (o.notes) {
+    e.hr("dashed");
     e.bold(true).line("CUSTOMER NOTE (not payment info):").bold(false);
     for (const l of wrap(o.notes, COLS)) e.line(l);
-    e.rule();
   }
+  e.hr("double");
 
-  e.align("center").line(`Prep approx ${o.etaMins} min`).line(`Allergy query? ${ctx.phone}`).line("All food halal").line(ctx.businessName);
+  e.align("center").line(`Prep approx ${o.etaMins} min  |  All food halal`).line(`Allergy query? ${ctx.phone}`).bold(true).line(ctx.businessName).bold(false);
   e.feed(4).cut();
   return e;
 }
 
 /**
- * The customer's copy, printed after the kitchen ticket and packed with the food: the restaurant's
- * logo and details, what they ordered and paid, and a QR code (leave a review / order direct again).
+ * The customer's copy, printed after the kitchen ticket and packed with the food: logo and a black
+ * name band, the restaurant's details, the order in a ruled box, dish ... price with dotted leaders,
+ * a black TOTAL bar, how it was paid, and a QR code (leave a review / order direct again).
  */
 export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
   const e = new Esc().init();
@@ -129,53 +135,53 @@ export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
 
   // --- brand header
   e.align("center").image(Buffer.from(RECEIPT_LOGO.bits, "base64"), RECEIPT_LOGO.width, RECEIPT_LOGO.height);
-  e.bold(true).size(2, 2).line(ctx.businessName.toUpperCase()).size(1, 1);
-  if (ctx.tagline) e.bold(false).line(ctx.tagline);
-  e.bold(false);
+  e.band(ctx.businessName.toUpperCase(), 2, 2);
+  e.feedDots(6).align("center");
+  if (ctx.tagline) e.line(ctx.tagline);
   if (ctx.address) for (const l of wrap(ctx.address, COLS)) e.line(l);
   e.line(`Tel ${ctx.phone}`);
-  if (ctx.website) e.bold(true).size(1, 2).line(ctx.website).size(1, 1).bold(false);
-  e.rule("=");
+  if (ctx.website) e.bold(true).line(ctx.website).bold(false);
+  e.hr("double");
 
-  // --- the order
-  e.bold(true).reverse(true).size(1, 2).line(delivery ? "  DELIVERY  " : "  COLLECTION  ").size(1, 1).reverse(false);
-  e.size(2, 2).line(`#${o.id}`).size(1, 1).bold(false);
+  // --- the order, in a ruled box
+  e.align("center").bold(true).size(1, 2).line(`${delivery ? "DELIVERY" : "COLLECTION"}  -  #${o.id}`).size(1, 1).bold(false);
   e.line(ukDateTime(o.createdAt ?? new Date()));
   e.line(o.whenType === "scheduled" && o.scheduledTime ? `For ${o.scheduledTime}` : delivery ? `Delivery in about ${o.etaMins} min` : `Ready in about ${o.etaMins} min`);
-  e.line(`Thank you, ${o.customerName.split(" ")[0]}!`);
-  e.rule();
+  e.hr("solid");
+  e.bold(true).line(`Thank you, ${o.customerName.split(" ")[0]}!`).bold(false);
+  e.hr("dotted");
 
-  // --- items
+  // --- items: dish ......... price
   e.align("left");
   for (const l of o.lines) {
     const price = l.unitPrice === 0 ? "FREE" : money(l.unitPrice * l.qty);
-    const wrapped = wrap(`${l.qty} x ${l.name}`, COLS - price.length - 1);
-    e.bold(true).line(padLine(wrapped[0], price)).bold(false);
-    for (const extra of wrapped.slice(1)) e.line("    " + extra);
+    const wrapped = wrap(`${l.qty} x ${l.name}`, COLS - price.length - 4);
+    for (const extra of wrapped.slice(0, -1)) e.bold(true).line(extra).bold(false);
+    e.bold(true).line(leaderLine(wrapped[wrapped.length - 1], price)).bold(false);
     const m = mods(l.modifiers);
     if (m.length) for (const x of wrap(`+ ${m.join(", ")}`, COLS - 4)) e.line("    " + x);
   }
-  e.rule();
+  e.hr("solid");
 
   // --- totals and payment
-  e.line(padLine("Subtotal", money(o.subtotal)));
-  if (delivery) e.line(padLine("Delivery", o.deliveryFee > 0 ? money(o.deliveryFee) : "FREE"));
-  if (o.discount > 0) e.line(padLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
-  e.bold(true).size(2, 2).line(padLine("TOTAL", money(o.total), COLS / 2)).size(1, 1).bold(false);
-  e.line(o.paymentMethod === "wechat" && o.paymentStatus === "paid" ? "Paid online - WeChat Pay"
+  e.line(leaderLine("Subtotal", money(o.subtotal)));
+  if (delivery) e.line(leaderLine("Delivery", o.deliveryFee > 0 ? money(o.deliveryFee) : "FREE"));
+  if (o.discount > 0) e.line(leaderLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
+  e.feedDots(6).bandSplit("TOTAL", money(o.total), 2, 2).feedDots(6);
+  e.align("center").line(o.paymentMethod === "wechat" && o.paymentStatus === "paid" ? "Paid online - WeChat Pay"
     : o.paymentMethod === "wechat" ? "WeChat Pay - awaiting payment"
     : delivery ? "Cash - paid to the driver" : "Cash - paid on collection");
-  if (o.pointsEarned && o.pointsEarned > 0) e.line(`You earned ${o.pointsEarned} reward points with this order`);
-  e.rule("=");
+  if (o.pointsEarned && o.pointsEarned > 0) e.bold(true).line(`* You earned ${o.pointsEarned} reward points *`).bold(false);
+  e.hr("double");
 
   // --- QR and sign-off
   e.align("center");
-  if (ctx.qrUrl) {
-    e.bold(true).line(ctx.qrLabel ?? "Scan me").bold(false).feed(1).qr(ctx.qrUrl, 7);
-  }
-  e.feed(1).bold(true).size(1, 2).line("THANK YOU FOR ORDERING DIRECT").size(1, 1).bold(false);
+  if (ctx.qrUrl) e.bold(true).line(ctx.qrLabel ?? "Scan me").bold(false).feedDots(8).qr(ctx.qrUrl, 7);
+  e.feedDots(8).band("THANK YOU FOR ORDERING DIRECT", 1, 2).feedDots(6);
+  e.align("center");
   if (ctx.website) e.bold(true).line(`Order again at ${ctx.website}`).bold(false);
   e.line(`Allergies or a problem? Call ${ctx.phone}`);
+  e.hr("dotted");
   if (ctx.company) for (const l of wrap(ctx.company, COLS)) e.line(l);
   e.feed(4).cut();
   return e;
@@ -184,17 +190,17 @@ export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
 /** Printed when an order is cancelled after it went to the kitchen: impossible to miss. */
 export function renderCancelTicket(o: TicketOrder & { cancelReason?: string | null; cancelledAt?: Date | null }, ctx: TicketContext): Esc {
   const e = new Esc().init();
-  e.align("center").bold(true).reverse(true).size(2, 2).line(" CANCELLED ").size(1, 2).line(" STOP PREPARING ").size(1, 1).reverse(false);
-  e.feed(1).size(2, 2).line(`#${o.id}`).size(1, 1);
+  e.band("CANCELLED", 2, 2).band("STOP PREPARING", 1, 2);
+  e.feedDots(6).align("center").bold(true).size(2, 2).line(`#${o.id}`).size(1, 1).bold(false);
   e.line(`Cancelled ${ukDateTime(o.cancelledAt ?? new Date())}`);
   e.line(`Ordered ${ukDateTime(o.createdAt ?? new Date())}`);
-  e.bold(false).rule();
+  e.hr("thick");
   e.align("left").bold(true).line(o.fulfilment === "delivery" ? "DELIVERY - DO NOT SEND" : "COLLECTION").bold(false);
   for (const l of wrap(o.customerName, COLS)) e.line(l);
-  e.rule();
+  e.hr("dashed");
   for (const l of o.lines) for (const x of wrap(`${l.qty} x ${l.name}`, COLS)) e.line(x);
-  e.rule();
-  if (o.cancelReason) { e.line("Reason:"); for (const l of wrap(o.cancelReason, COLS)) e.line(l); e.rule(); }
+  if (o.cancelReason) { e.hr("dashed"); e.line("Reason:"); for (const l of wrap(o.cancelReason, COLS)) e.line(l); }
+  e.hr("thick");
   e.align("center").bold(true).line("Do not cook or send this order").bold(false).line(ctx.businessName);
   e.feed(4).cut();
   return e;

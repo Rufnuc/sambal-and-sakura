@@ -1,18 +1,16 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site-url";
-
-const BASE = SITE_URL;
+import { LEGAL_SLUGS } from "@/server/legal";
 
 // Built on each request (not at build time) so it always reflects the SITE_URL the site is running with.
 export const dynamic = "force-dynamic";
 
+// Every public page Google should index, at the one canonical address (SITE_URL, the www domain).
+// Private pages (admin, account, tracking, checkout internals) are left out and blocked in robots.ts.
+// No <lastmod>: Google only trusts it when it reflects real content changes, and stamping "now" on
+// every request teaches it to ignore the sitemap's dates. <changefreq>/<priority> are ignored by Google.
+const PAGES = ["", "/menu", "/order", "/book", "/offers", "/contact", "/careers"];
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-  const routes = ["", "/menu", "/order", "/book", "/offers", "/careers", "/contact", "/legal/privacy", "/legal/terms", "/legal/cookies", "/legal/promotions", "/legal/accessibility"];
-  return routes.map((r) => ({
-    url: BASE + r,
-    lastModified: now,
-    changeFrequency: r === "/menu" || r === "/offers" ? "weekly" : "monthly",
-    priority: r === "" ? 1 : r === "/menu" || r === "/order" || r === "/book" ? 0.9 : 0.6,
-  }));
+  return [...PAGES, ...LEGAL_SLUGS.map((s) => `/legal/${s}`)].map((path) => ({ url: `${SITE_URL}${path || "/"}` }));
 }

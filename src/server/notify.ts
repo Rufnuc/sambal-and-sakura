@@ -5,6 +5,8 @@ import { orderEmail, bookingEmail, type OrderEvent, type BookingEvent } from "@/
 import { log, errInfo } from "@/server/log";
 import { cachedTranslations } from "@/server/translate";
 import { trackUrl } from "@/server/cancellations";
+import { getAdminMenu } from "@/server/config";
+import { realPhoto } from "@/lib/photo";
 
 // Customer emails for order and booking events: order received (with a live tracking link),
 // on its way / ready to collect (each with "enjoy your meal"), and cancelled. Fire-and-forget: callers don't wait, and a failed
@@ -21,7 +23,11 @@ export function notifyOrder(orderId: string, event: string): void {
       const { business } = await getSiteContent();
       // Dish names in the customer's language, from the site's translation cache (English if not cached).
       const dishNames = o.locale !== "en" ? await cachedTranslations(o.lines.map((l) => l.name), o.locale) : {};
-      const m = orderEmail(event as OrderEvent, o, business, dishNames, trackUrl(o.id));
+      // Each dish's main menu photo (added and hidden dishes included), for the small pictures in the email.
+      const menu = await getAdminMenu();
+      const photos: Record<string, string> = {};
+      for (const m of menu) { const p = realPhoto(m.image); if (p) photos[m.id] = p; }
+      const m = orderEmail(event as OrderEvent, o, business, dishNames, trackUrl(o.id), photos);
       await sendTransactional(`order-${event}`, `order:${o.id}:${event}`, { to: { email: o.customerEmail, name: o.customerName }, ...m });
     } catch (e) {
       log.error("notify_order_failed", { orderId, event, ...errInfo(e) });

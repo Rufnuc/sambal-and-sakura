@@ -142,18 +142,19 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
             {CATEGORIES.filter((c) => grouped.has(c)).map((c) => (
               <section key={c} id={c} className="scroll-mt-44">
                 <h2 className="mb-5 font-display text-2xl font-bold tracking-tight">{labelOf(c)}</h2>
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Two dishes per row on phones (dense cards), as on the home page. */}
+                <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
                   {grouped.get(c)!.map((item) => (
-                    <DishCard key={item.id} item={item} />
+                    <DishCard key={item.id} item={item} dense className="h-full" />
                   ))}
                 </div>
               </section>
             ))}
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             {filtered.map((item) => (
-              <DishCard key={item.id} item={item} />
+              <DishCard key={item.id} item={item} dense className="h-full" />
             ))}
           </div>
         )}

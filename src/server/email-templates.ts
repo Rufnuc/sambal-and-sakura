@@ -39,7 +39,7 @@ function layout(l: EmailLocale, biz: Business, heading: string, paras: string[],
 <tr><td style="background:#1f1b16;color:#ecbb4e;padding:18px 24px;font-size:20px;font-weight:bold">${esc(RESTAURANT.name)}</td></tr>
 <tr><td style="padding:24px">
 <h1 style="margin:0 0 16px;font-size:22px">${heading}</h1>
-${paras.map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">${p}</p>`).join("\n")}
+${paras.map((p) => (p.startsWith("<table") ? `<div style="margin:0 0 14px">${p}</div>` : `<p style="margin:0 0 14px;font-size:15px;line-height:1.6">${p}</p>`)).join("\n")}
 </td></tr>
 <tr><td style="padding:16px 24px;background:#faf7f0;font-size:12px;color:#6b6257;line-height:1.5">
 ${esc(biz.address.line1)}, ${esc(biz.address.city)} ${esc(biz.address.postcode)} · ${esc(biz.phone)}<br>
@@ -47,7 +47,8 @@ ${t(l, "common.allergy")}${footer ? `<br>${footer}` : ""}
 </td></tr></table></td></tr></table></body></html>`;
 }
 
-const stripTags = (html: string) => html.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+// <!--notext-->...<!--/notext--> marks HTML-only decoration (e.g. dish pictures) left out of the plain-text copy.
+const stripTags = (html: string) => html.replace(/<!--notext-->[\s\S]*?<!--\/notext-->/g, "").replace(/<br\s*\/?>/g, "\n").replace(/<\/tr>/g, "\n").replace(/<\/td>/g, " ").replace(/<[^>]+>/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n+$/, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 function build(l: EmailLocale, biz: Business, subject: string, heading: string, paras: string[]): Built {
   const text = [stripTags(heading), ...paras.map(stripTags), `${RESTAURANT.name} · ${biz.address.line1}, ${biz.address.city} ${biz.address.postcode} · ${biz.phone}`].join("\n\n");
   return { subject: stripTags(subject), html: layout(l, biz, heading, paras), text };
@@ -78,7 +79,40 @@ const button = (href: string, label: string) =>
  * `dishNames`: translated dish names from the site's translation cache (English if missing).
  * `trackUrl`: the customer's private live-tracking page for this order.
  */
-export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] }, biz: Business, dishNames: Record<string, string> = {}, trackUrl?: string): Built {
+// A small square for each dish: its menu photo (shrunk by Cloudinary), or a gold tile with the dish's
+// initials when there's no photo yet. Built from table cells, so it still shows with images blocked.
+const THUMB = 48;
+function emailThumb(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const m = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+)$/.exec(url);
+  if (m) return `${m[1]}c_fill,g_auto,w_${THUMB * 2},h_${THUMB * 2},q_auto,f_jpg/${m[2]}`; // JPEG: every email app shows it
+  if (url.startsWith("/uploads/")) return absUrl(url);
+  return /^https:\/\//.test(url) ? url : undefined;
+}
+function initials(name: string): string {
+  const words = name.replace(/\(.*?\)/g, "").match(/[A-Za-z]+/g) ?? [];
+  const ini = words.filter((w) => !/^(and|with|of|the|in)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  return ini || "•";
+}
+function itemsTable(l: EmailLocale, o: Order & { lines: OrderLine[] }, dishNames: Record<string, string>, photos: Record<string, string>): string {
+  const rows = o.lines.map((ln) => {
+    const name = esc(dishNames[ln.name] ?? ln.name);
+    const src = emailThumb(photos[ln.itemId]);
+    const thumb = src
+      ? `<img src="${esc(src)}" width="${THUMB}" height="${THUMB}" alt="${name}" style="display:block;width:${THUMB}px;height:${THUMB}px;border-radius:8px;border:0;object-fit:cover">`
+      : `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="${THUMB}" height="${THUMB}" align="center" valign="middle" style="width:${THUMB}px;height:${THUMB}px;border-radius:8px;background:#C98A24;background-image:linear-gradient(135deg,#E0A83E,#211D17);color:#ffffff;font-weight:bold;font-size:16px;font-family:Arial,Helvetica,sans-serif">${esc(initials(ln.name))}</td></tr></table>`;
+    let mods = "";
+    try { mods = (JSON.parse(ln.modifiers) as { label?: string }[]).map((m) => m.label).filter(Boolean).join(", "); } catch { /* none */ }
+    const price = ln.unitPrice === 0 ? t(l, "word.free") : money(ln.unitPrice * ln.qty);
+    return `<tr><!--notext--><td width="${THUMB + 12}" style="padding:6px 12px 6px 0;vertical-align:middle">${thumb}</td><!--/notext-->`
+      + `<td style="padding:6px 0;vertical-align:middle;font-size:15px;line-height:1.4">${ln.qty} × ${name}${mods ? `<br><span style="font-size:13px;color:#6b6257">+ ${esc(mods)}</span>` : ""}</td><!--notext--> <!--/notext-->`
+      + `<td align="right" style="padding:6px 0 6px 12px;vertical-align:middle;font-size:15px;white-space:nowrap">${price}</td></tr>`;
+  }).join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-top:1px solid #eee5d6;border-bottom:1px solid #eee5d6">${rows}</table>`;
+}
+
+/** `photos`: menu photo per dish id (item.image), used for the small pictures next to each dish. */
+export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] }, biz: Business, dishNames: Record<string, string> = {}, trackUrl?: string, photos: Record<string, string> = {}): Built {
   const l = asEmailLocale(o.locale);
   const ref = b(esc(o.id));
   const plainRef = esc(o.id);
@@ -88,7 +122,7 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
     ? t(l, o.paymentStatus === "paid" ? "pay.wechatPaid" : "pay.wechatPending")
     : t(l, "pay.cash", { total: b(money(o.total)) });
   const address = o.fulfilment === "delivery" ? `${esc(o.address)}${o.postcode ? `, ${esc(o.postcode)}` : ""}` : `${esc(biz.address.line1)}, ${esc(biz.address.city)} ${esc(biz.address.postcode)}`;
-  const lines = o.lines.map((ln) => `${ln.qty} × ${esc(dishNames[ln.name] ?? ln.name)}${ln.unitPrice === 0 ? ` (${t(l, "word.free")})` : ` - ${money(ln.unitPrice * ln.qty)}`}`).join("<br>");
+  const items = itemsTable(l, o, dishNames, photos);
   const phone = esc(biz.phone);
   const track = trackUrl ? [`${t(l, "order.trackHint")}<br>${button(trackUrl, t(l, "order.trackButton"))}`] : [];
 
@@ -96,7 +130,7 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
     case "received":
       return build(l, biz, t(l, "order.received.subject", { ref: plainRef }), t(l, "order.received.heading", { name: firstName(o.customerName) }), [
         t(l, "order.received.summary", { ref, type, when }),
-        lines,
+        items,
         `${o.discount > 0 ? t(l, "order.totalDiscount", { total: b(money(o.total)), discount: money(o.discount) }) : t(l, "order.total", { total: b(money(o.total)) })} ${pay}`,
         t(l, o.fulfilment === "delivery" ? "order.deliverTo" : "order.collectFrom", { address }),
         ...track,
@@ -104,12 +138,13 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
       ]);
     // These two also say "enjoy your meal": there's no separate "completed" email.
     case "out-for-delivery":
-      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), pay, ...track, t(l, "order.enjoy")]);
+      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), items, pay, ...track, t(l, "order.enjoy")]);
     case "ready-for-collection":
-      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), pay, ...track, t(l, "order.enjoy")]);
+      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), items, pay, ...track, t(l, "order.enjoy")]);
     case "cancelled":
       return build(l, biz, t(l, "order.cancelled.subject", { ref: plainRef }), t(l, "order.cancelled.heading"), [
         o.cancelReason ? t(l, "order.cancelled.bodyReason", { ref, total: money(o.total), reason: esc(o.cancelReason) }) : t(l, "order.cancelled.body", { ref, total: money(o.total) }),
+        items,
         t(l, o.paymentStatus === "paid" ? "order.cancelled.refund" : "order.cancelled.notCharged"),
         t(l, "common.questions", { phone }),
       ]);

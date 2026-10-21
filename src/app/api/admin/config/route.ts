@@ -109,15 +109,16 @@ export async function PUT(req: Request) {
  * the owner can act on, or null.
  */
 async function checkMenuLinks(valid: { block: Block; value: unknown }[]): Promise<string | null> {
-  const keys = ["categories", "customDishes", "menuOverrides", "offers", "deal"];
+  const keys = ["categories", "customDishes", "menuOverrides", "offers", "deal", "wheelPrizes"];
   if (!valid.some((v) => keys.includes(v.block.key))) return null;
   const pick = <T,>(key: string, fallback: () => Promise<T>) => {
     const v = valid.find((x) => x.block.key === key);
     return v ? Promise.resolve(v.value as T) : fallback();
   };
-  const [cats, custom, overrides, offers, deal] = await Promise.all([
+  const [cats, custom, overrides, offers, deal, prizes] = await Promise.all([
     pick<MenuCategoryCfg[]>("categories", getCategories), pick<MenuItem[]>("customDishes", getCustomDishes),
     pick<MenuOverrides>("menuOverrides", getMenuOverrides), pick<Offer[]>("offers", getOffers), pick<DealOfDay>("deal", getDeal),
+    pick<WheelPrize[]>("wheelPrizes", getWheelPrizes),
   ]);
   const catIds = new Set(cats.map((c) => c.id));
   for (const m of MENU) {
@@ -132,5 +133,8 @@ async function checkMenuLinks(valid: { block: Block; value: unknown }[]): Promis
     if (o.freeItemId && !dishIds.has(o.freeItemId)) return `The offer "${o.title}" gives away a dish that has been deleted. Pick another free dish for it first.`;
   }
   if (deal.itemId && !dishIds.has(deal.itemId)) return "Deal of the Day points at a dish that has been deleted. Pick another dish for it first.";
+  for (const p of prizes) {
+    if (p.freeItemId && !dishIds.has(p.freeItemId)) return `The wheel prize "${p.label}" gives away a dish that has been deleted. Pick another free dish for it first.`;
+  }
   return null;
 }

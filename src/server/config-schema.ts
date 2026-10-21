@@ -173,8 +173,10 @@ export const wheelPrizesSchema = z.array(z.object({
   weight: z.number().finite().min(0).max(1000),
   color: z.enum(["gold", "red", "pink", "charcoal"]),
   amount: z.number().finite().min(0).max(50).optional(),
+  freeItemId: z.string().max(60).optional(), // freebie prizes: the dish added free (checked in the config route)
 }).strict()
   .transform((p) => {
+    if (p.kind !== "freebie") p = { ...p, freeItemId: undefined };
     if (p.kind !== "percent" && p.kind !== "voucher") return { ...p, amount: undefined };
     const fromLabel = Number(/(\d+(?:\.\d+)?)/.exec(p.label)?.[1]);
     return { ...p, amount: Number.isFinite(fromLabel) && fromLabel > 0 ? fromLabel : p.amount };

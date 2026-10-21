@@ -13,6 +13,7 @@ import { EmailCampaigns } from "@/components/admin/email-campaigns";
 import { ReferralsList } from "@/components/admin/referrals-list";
 import { CampaignsCard } from "@/components/admin/campaigns-card";
 import { OfferCodeSettings } from "@/components/admin/offer-code-settings";
+import { useMenu } from "@/lib/use-menu";
 import { cn } from "@/lib/utils";
 import { gbpShort } from "@/lib/format";
 
@@ -20,6 +21,7 @@ export function PromosView() {
   const [referral, setReferral] = useState<ReferralCfg>({ enabled: true, give: 5, get: 5, minSpend: 20, maxPerUser: 10 });
   const [offers, setOffers] = useState<OfferCfg[]>([]);
   const [prizes, setPrizes] = useState<WheelPrizeCfg[]>([]);
+  const { menu } = useMenu();
   const [deal, setDeal] = useState<DealCfg>({ active: false, title: "", description: "", badge: "Deal of the Day" });
   const [discountedOrders, setDiscountedOrders] = useState(0);
   const [spins, setSpins] = useState(0);
@@ -141,10 +143,19 @@ export function PromosView() {
               <Input value={p.label} onChange={(e) => setPrizes((ps) => ps.map((x, idx) => idx === i ? { ...x, label: e.target.value } : x))} className="h-9" />
               <div className="flex items-center gap-1"><span className="text-xs text-muted-foreground">weight</span><Input type="number" value={p.weight} onChange={(e) => setPrizes((ps) => ps.map((x, idx) => idx === i ? { ...x, weight: Number(e.target.value) } : x))} className="h-9" inputMode="numeric" /></div>
               <span className="text-right text-sm tabular-nums text-muted-foreground">{Math.round((p.weight / totalWeight) * 100)}%</span>
+              {p.kind === "freebie" && (
+                <label className="col-span-3 flex items-center gap-2 text-xs text-muted-foreground">
+                  Free dish
+                  <select value={p.freeItemId ?? ""} onChange={(e) => setPrizes((ps) => ps.map((x, idx) => idx === i ? { ...x, freeItemId: e.target.value || undefined } : x))} className="h-9 flex-1 rounded-lg border border-border bg-background px-2 text-sm text-foreground">
+                    <option value="">None - staff add it by hand</option>
+                    {menu.filter((m) => !m.phoneOrder).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                </label>
+              )}
             </div>
           ))}
         </div>
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Info className="size-3.5 text-gold-ink" /> Probability is each prize's weight ÷ total. One spin per customer per week.</p>
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Info className="size-3.5 text-gold-ink" /> Probability is each prize&apos;s weight ÷ total. One spin per customer per week. A free prize&apos;s dish is added to the order when its reward code is used.</p>
       </SectionCard>
     </div>
   );

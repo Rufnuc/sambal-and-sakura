@@ -106,7 +106,9 @@ export function offerVoucher(code: string, offers: Offer[]): Voucher | null {
   };
 }
 
-export const AUTO_FREE_ITEM = { itemId: "chicken-gyoza", minSpend: 25 };
+// A dish added free over a spend, with no code. Off with the new menu (the owner chose code offers
+// instead); set e.g. { itemId: "m6b-deep-fried-chicken-gyoza", minSpend: 30 } to bring it back.
+export const AUTO_FREE_ITEM: { itemId: string; minSpend: number } | null = null;
 
 
 export interface Totals {
@@ -154,15 +156,16 @@ export function computeTotals(opts: {
     if (v.pctOff) discount += round2((subtotal * v.pctOff) / 100);
     if (v.amountOff) discount += Math.min(v.amountOff, subtotal);
     if (v.freeItemId) {
-      const freeItem = opts.menu.find((m) => m.id === v.freeItemId && !m.soldOut);
+      const freeItem = opts.menu.find((m) => m.id === v.freeItemId && !m.soldOut && !m.phoneOrder);
       if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free - ${v.code})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
       else voucherApplied = false; // the free dish is sold out: the offer can't apply
     }
   }
-  // "Free Chicken Gyoza over £25" is auto-applied when no other offer is used ("one per order").
-  if (opts.autoFreeItem !== false && !voucherApplied && subtotal >= AUTO_FREE_ITEM.minSpend) {
-    const freeItem = opts.menu.find((m) => m.id === AUTO_FREE_ITEM.itemId && !m.soldOut);
-    if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free over £${AUTO_FREE_ITEM.minSpend})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
+  // The automatic free dish over a spend (if one is set) applies when no other offer is used ("one per order").
+  const auto = AUTO_FREE_ITEM;
+  if (auto && opts.autoFreeItem !== false && !voucherApplied && subtotal >= auto.minSpend) {
+    const freeItem = opts.menu.find((m) => m.id === auto.itemId && !m.soldOut && !m.phoneOrder);
+    if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free over £${auto.minSpend})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
   }
   discount = round2(Math.min(discount, subtotal));
 

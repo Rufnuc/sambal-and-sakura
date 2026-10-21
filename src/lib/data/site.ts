@@ -89,16 +89,14 @@ export interface Offer {
 }
 export const OFFERS: Offer[] = [
   { id: "first10", title: "10% off your first direct order", description: "New here? Order on the website and save instantly.",
-    code: "SAKURA10", badge: "First order", kind: "first-order", terms: "Min spend £12. One use per customer. Website orders only.",
-    pctOff: 10, minSpend: 12, firstOrderOnly: true },
-  { id: "family", title: "Happy Family Feast for 4 - £52", description: "Soup, mixed platter, black bean house special, sweet & sour prawn, beef & mushroom, veg and special rice.",
-    code: "FAMILY52", badge: "Feeds 4", kind: "bundle", terms: "Collection & delivery. Cannot be combined with other offers.",
-    amountOff: 8, minSpend: 52 },
-  { id: "lunch", title: "Express Lunch £8.95", description: "Weekday lunch service: main + drink. Dine-in & collection.",
-    badge: "Weekdays", kind: "bundle", terms: "Lunch service only (11:30–14:00). Selected dishes. While stocks last." },
-  { id: "freegyoza", title: "Free Chicken Gyoza on £25+", description: "Spend £25+ direct and we'll add our signature gyoza.",
-    code: "FREEGYOZA", badge: "Freebie", kind: "freebie", terms: "Auto-applied at checkout on £25 or more of food. One per order.",
-    freeItemId: "chicken-gyoza", minSpend: 25 },
+    code: "SAKURA10", badge: "First order", kind: "first-order", terms: "Min spend £15 of food. First website order only, one per customer.",
+    pctOff: 10, minSpend: 15, firstOrderOnly: true },
+  { id: "feast5", title: "£5 off orders of £40 or more", description: "Ordering for the family or a group? Take £5 off a £40+ order.",
+    code: "FEAST5", badge: "Groups", kind: "bundle", terms: "Min spend £40 of food. Website orders only. Cannot be combined with other codes.",
+    amountOff: 5, minSpend: 40 },
+  { id: "sweet35", title: "Free Bubur Cha Cha on £35+", description: "Spend £35 or more and we'll add our Nyonya-Malay coconut dessert, free.",
+    code: "SWEET35", badge: "Freebie", kind: "freebie", terms: "Min spend £35 of food. One free dessert per order. Cannot be combined with other codes.",
+    freeItemId: "m136-bubur-cha-cha", minSpend: 35 },
   { id: "welcome10", title: "10% off for first-time customers", description: "For flyers, emails and staff to hand out.",
     code: "WELCOME10", kind: "first-order", terms: "Min spend £12. First order only.",
     pctOff: 10, minSpend: 12, firstOrderOnly: true, hidden: true },
@@ -139,12 +137,13 @@ export const FAQS: Faq[] = [
 ];
 
 // amount: % off for "percent", £ off for "voucher" (must match the label customers see).
-export interface WheelPrize { id: string; label: string; kind: "percent" | "freebie" | "voucher" | "none"; weight: number; color: "gold" | "red" | "pink" | "charcoal"; amount?: number }
+// freeItemId: for "freebie" prizes, the dish added free to the order when the reward code is used.
+export interface WheelPrize { id: string; label: string; kind: "percent" | "freebie" | "voucher" | "none"; weight: number; color: "gold" | "red" | "pink" | "charcoal"; amount?: number; freeItemId?: string }
 export const WHEEL_PRIZES: WheelPrize[] = [
   { id: "p10", label: "10% off", kind: "percent", amount: 10, weight: 22, color: "gold" },
-  { id: "freedrink", label: "Free drink", kind: "freebie", weight: 18, color: "pink" },
-  { id: "freeside", label: "Free side", kind: "freebie", weight: 14, color: "red" },
-  { id: "freedessert", label: "Free dessert", kind: "freebie", weight: 10, color: "pink" },
+  { id: "freedrink", label: "Free drink", kind: "freebie", weight: 18, color: "pink", freeItemId: "soft-drink" },
+  { id: "freeside", label: "Free prawn crackers", kind: "freebie", weight: 14, color: "red", freeItemId: "prawn-crackers" },
+  { id: "freedessert", label: "Free dessert", kind: "freebie", weight: 10, color: "pink", freeItemId: "m136-bubur-cha-cha" },
   { id: "v5", label: "£5 next order", kind: "voucher", amount: 5, weight: 12, color: "gold" },
   { id: "p15", label: "15% off", kind: "percent", amount: 15, weight: 6, color: "gold" },
   { id: "again", label: "So close!", kind: "none", weight: 18, color: "charcoal" },

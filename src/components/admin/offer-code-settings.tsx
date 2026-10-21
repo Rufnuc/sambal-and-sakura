@@ -36,7 +36,7 @@ export function OfferCodeSettings({ offer, onChange }: { offer: OfferCfg; onChan
         {gives === "amount" && (<><Label className="text-xs">£ off</Label><Input type="number" min={0.5} step={0.5} value={offer.amountOff ?? ""} onChange={(e) => onChange({ ...offer, amountOff: num(e.target.value) })} className="mt-1 h-10" inputMode="decimal" /></>)}
         {gives === "free" && (<><Label className="text-xs">Free dish</Label>
           <select value={offer.freeItemId} onChange={(e) => onChange({ ...offer, freeItemId: e.target.value })} className={field}>
-            {menu.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            {menu.filter((m) => !m.phoneOrder).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select></>)}
       </div>
       <div><Label className="text-xs">Min spend £</Label><Input type="number" min={0} value={offer.minSpend ?? ""} onChange={(e) => onChange({ ...offer, minSpend: num(e.target.value) })} className="mt-1 h-10" inputMode="decimal" placeholder="0" /></div>

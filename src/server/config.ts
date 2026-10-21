@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
-import { MENU, DEFAULT_CATEGORIES, RETIRED_CATEGORIES, type Allergen, type DietTag, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
+import { MENU, DEFAULT_CATEGORIES, RETIRED_CATEGORIES, CUSTOM_DISH_ID, type Allergen, type DietTag, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
 import { TABLES, type Table } from "@/lib/data/tables";
 import { getPromotions } from "@/server/promotions";
 import { LEGACY_CODE_VALUES } from "@/server/pricing";
@@ -67,19 +67,47 @@ export async function setFloorTables(v: Table[]) {
 // again ("offersV2"), the list is exactly what they saved, so removing WELCOME10 then sticks.
 const WELCOME10 = OFFERS.find((o) => o.code === "WELCOME10")!;
 export const getOffers = async (): Promise<Offer[]> => {
-  const [saved, v2] = await Promise.all([getJson<Offer[] | null>("offers", null), getJson<boolean>("offersV2", false)]);
+  const [saved, v2, v3] = await Promise.all([getJson<Offer[] | null>("offers", null), getJson<boolean>("offersV2", false), getJson<boolean>("offersV3", false)]);
   if (!saved) return OFFERS;
-  const list = saved.map((o) => {
+  let list = saved.map((o) => {
     const legacy = o.code ? LEGACY_CODE_VALUES[o.code.toUpperCase()] : undefined;
     return legacy && !(o.pctOff || o.amountOff || o.freeItemId) ? { ...o, ...legacy } : o;
   });
-  return !v2 && !list.some((o) => o.code?.toUpperCase() === "WELCOME10") ? [...list, WELCOME10] : list;
+  if (!v2 && !list.some((o) => o.code?.toUpperCase() === "WELCOME10")) list = [...list, WELCOME10];
+  return v3 ? list : upgradeOffersForNewMenu(list);
 };
-export const setOffers = async (v: Offer[]) => { await setJson("offers", v); await setJson("offersV2", true); };
+export const setOffers = async (v: Offer[]) => { await setJson("offers", v); await setJson("offersV2", true); await setJson("offersV3", true); };
+
+// Offers saved for the previous menu ("offersV3" not set yet) move to the new menu's offers once:
+// the old-menu ones go (Family Feast, Express Lunch, free gyoza), an untouched SAKURA10 moves to a
+// £15 minimum, and FEAST5 / SWEET35 are added after the first-order offer. The owner's own offers stay.
+const OLD_MENU_OFFERS = new Set(["family", "lunch", "freegyoza"]);
+const OLD_FIRST10_TERMS = "Min spend £12. One use per customer. Website orders only.";
+function upgradeOffersForNewMenu(list: Offer[]): Offer[] {
+  const first10 = OFFERS.find((o) => o.id === "first10")!;
+  const kept = list
+    .filter((o) => !OLD_MENU_OFFERS.has(o.id))
+    .map((o) => (o.id === "first10" && o.minSpend === 12 && o.terms === OLD_FIRST10_TERMS ? { ...o, minSpend: first10.minSpend, terms: first10.terms } : o));
+  const added = OFFERS.filter((o) => (o.id === "feast5" || o.id === "sweet35") && !kept.some((k) => k.id === o.id || k.code?.toUpperCase() === o.code));
+  const at = kept.findIndex((o) => o.id === "first10") + 1;
+  return [...kept.slice(0, at), ...added, ...kept.slice(at)];
+}
 
 /* ---- Wheel prizes ---- */
-export const getWheelPrizes = () => getJson<WheelPrize[]>("wheelPrizes", WHEEL_PRIZES);
-export const setWheelPrizes = (v: WheelPrize[]) => setJson("wheelPrizes", v);
+// Prizes saved before free prizes named a dish ("wheelPrizesV2" not set) get the new menu's dishes once:
+// free drink = soft drink, free dessert = Bubur Cha Cha, and "Free side" (no sides on the new menu)
+// becomes free prawn crackers. Once the owner saves the prizes, they are exactly what was saved.
+export const getWheelPrizes = async (): Promise<WheelPrize[]> => {
+  const [saved, v2] = await Promise.all([getJson<WheelPrize[] | null>("wheelPrizes", null), getJson<boolean>("wheelPrizesV2", false)]);
+  if (!saved) return WHEEL_PRIZES;
+  if (v2) return saved;
+  return saved.map((p) => {
+    const d = WHEEL_PRIZES.find((x) => x.id === p.id);
+    if (p.kind !== "freebie" || p.freeItemId || !d?.freeItemId) return p;
+    return { ...p, freeItemId: d.freeItemId, ...(p.id === "freeside" && p.label === "Free side" ? { label: d.label } : {}) };
+  });
+};
+export const setWheelPrizes = async (v: WheelPrize[]) => { await setJson("wheelPrizes", v); await setJson("wheelPrizesV2", true); };
 
 /* ---- Menu overrides (name / price / soldOut / image / category / lead-time per item) ---- */
 export type MenuOverride = {
@@ -112,7 +140,12 @@ export const setCareers = (v: JobPosting[]) => setJson("careers", v);
 /* ---- Deal of the day ---- */
 export interface DealOfDay { active: boolean; title: string; description: string; itemId?: string; price?: number; badge: string }
 export const DEFAULT_DEAL: DealOfDay = { active: false, title: "", description: "", badge: "Deal of the Day" };
-export const getDeal = () => getJson<DealOfDay>("dealOfDay", DEFAULT_DEAL);
+// A deal saved for a dish that is no longer on the menu (e.g. the previous menu) is switched off rather
+// than pointing at nothing (and blocking every menu save); the owner sets up a new one in Promotions.
+export const getDeal = async (): Promise<DealOfDay> => {
+  const deal = await getJson<DealOfDay>("dealOfDay", DEFAULT_DEAL);
+  return deal.itemId && !MENU.some((m) => m.id === deal.itemId) && !CUSTOM_DISH_ID.test(deal.itemId) ? { ...deal, itemId: undefined, active: false } : deal;
+};
 export const setDeal = (v: DealOfDay) => setJson("dealOfDay", v);
 
 /* ---- Max delivery mileage ---- */

@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getBlackouts, getDisabledZones, getOrdersPaused } from "@/server/settings";
-import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules } from "@/server/config";
+import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules, getWheelPrizes } from "@/server/config";
 import { getSiteContent } from "@/server/site-content";
 import { computeTotals, offerVoucher, isValidPostcodeServer, LOYALTY_POINTS_PER_POUND, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
 import { orderTiming, checkWhen, type OrderTiming } from "@/server/order-time";
@@ -86,6 +86,9 @@ async function resolveVoucher(code: string | undefined, user: User | null, promo
           code: c, label: reward.label, minSpend: reward.minSpend ?? 0,
           pctOff: reward.kind === "percent" ? reward.amount ?? undefined : undefined,
           amountOff: reward.kind === "voucher" ? reward.amount ?? undefined : undefined,
+          // A free-dish wheel prize adds its dish (rewards are matched to the prize by name). If the prize
+          // names no dish, the reward shows on the order for staff to honour, as before.
+          freeItemId: reward.kind === "freebie" ? (await getWheelPrizes()).find((p) => p.kind === "freebie" && p.label === reward.label)?.freeItemId : undefined,
           ...(welcome ? { firstOrderOnly: true, onePerCustomer: "first-order" } : {}),
         },
       };

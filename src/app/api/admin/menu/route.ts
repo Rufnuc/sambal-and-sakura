@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { staffFor } from "@/server/auth";
-import { getMenuOverrides, setMenuOverrides, getCategories, getCustomDishes, setCustomDishes } from "@/server/config";
+import { getMenuOverrides, setMenuOverrides, getCategories, getCustomDishes, setCustomDishes, getMenuVersion } from "@/server/config";
 import { MENU } from "@/lib/data/menu";
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
@@ -11,8 +11,8 @@ import { actorOf } from "@/server/admin-view";
 export async function GET() {
   const u = await staffFor("menu");
   if (!u) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const [menuOverrides, categories, customDishes] = await Promise.all([getMenuOverrides(), getCategories(), getCustomDishes()]);
-  return NextResponse.json({ menuOverrides, categories, customDishes, canEdit: u.role === "admin" });
+  const [menuOverrides, categories, customDishes, menuVersion] = await Promise.all([getMenuOverrides(), getCategories(), getCustomDishes(), getMenuVersion()]);
+  return NextResponse.json({ menuOverrides, categories, customDishes, menuVersion, canEdit: u.role === "admin" });
 }
 
 const patchSchema = z.object({ itemId: z.string().max(60), soldOut: z.boolean() });
@@ -34,5 +34,5 @@ export async function PATCH(req: Request) {
     await setCustomDishes(custom);
   }
   await audit({ actor: actorOf(u), action: "menu.sold_out", entity: "menu", entityId: itemId, detail: { soldOut } });
-  return NextResponse.json({ menuOverrides: ov, customDishes: custom });
+  return NextResponse.json({ menuOverrides: ov, customDishes: custom, menuVersion: await getMenuVersion() });
 }

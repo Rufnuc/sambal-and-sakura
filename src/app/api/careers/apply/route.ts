@@ -32,7 +32,10 @@ const fields = z.object({
   turnstileToken: z.string().max(2048).optional(),
 });
 
-const CV_PER_DAY = Number(process.env.CAREERS_DAILY_LIMIT) || 30; // applications per day, whole site
+// Applications per day, whole site: a backstop against floods of applications. Kept high so one person
+// can't use it up and block real applicants (per-connection and per-mailbox limits do the everyday work,
+// and careers emails can't touch the order-email reserve). Positive whole numbers only.
+const CV_PER_DAY = Math.max(1, Math.floor(Number(process.env.CAREERS_DAILY_LIMIT))) || 100;
 
 /** One key per real inbox: lower-case, "+tag" removed, and dots ignored for Gmail. */
 function mailboxKey(email: string): string {

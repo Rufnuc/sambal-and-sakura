@@ -12,7 +12,7 @@ import {
   getMaxMiles, setMaxMiles,
   getDeliveryRules, setDeliveryRules,
   getCategories, setCategories,
-  getCustomDishes, setCustomDishes,
+  getCustomDishes, setCustomDishes, getMenuVersion,
   type MenuOverrides, type ZoneConfig, type JobPosting, type DealOfDay, type ReferralConfig, type DeliveryRules,
 } from "@/server/config";
 import { TESTIMONIALS, type Offer, type WheelPrize } from "@/lib/data/site";
@@ -35,11 +35,12 @@ export async function GET() {
     getReferralConfig(), getZones(), getOffers(), getWheelPrizes(), getMenuOverrides(),
     getCareers(), getDeal(), getMaxMiles(), getSiteContent(), getPromotions(), getDeliveryRules(), getCategories(), getCustomDishes(),
   ]);
-  const siteVersion = await getSiteContentVersion();
-  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions, delivery, categories, customDishes });
+  const [siteVersion, menuVersion] = await Promise.all([getSiteContentVersion(), getMenuVersion()]);
+  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions, delivery, categories, customDishes, menuVersion });
 }
 
 type Block = { key: string; label: string; schema: z.ZodType; save: (v: never) => Promise<void> };
+const MENU_BLOCKS = ["categories", "customDishes", "menuOverrides"];
 const BLOCKS: Block[] = [
   { key: "referral", label: "Referral settings", schema: referralSchema, save: (v: ReferralConfig) => setReferralConfig(v) },
   { key: "zones", label: "Delivery zones", schema: zonesSchema, save: (v: ZoneConfig[]) => setZones(v) },
@@ -71,6 +72,12 @@ export async function PUT(req: Request) {
   }
   if (body.maxMiles !== undefined && (typeof body.maxMiles !== "number" || !Number.isFinite(body.maxMiles) || body.maxMiles < 0 || body.maxMiles > 50)) {
     return NextResponse.json({ error: "Delivery distance must be between 0 and 50 miles." }, { status: 400 });
+  }
+
+  // Menu settings are saved whole, so a save made from an out-of-date screen would undo changes made since
+  // (e.g. a dish staff just marked sold out). Like site content, it must say which version it started from.
+  if (valid.some((v) => MENU_BLOCKS.includes(v.block.key)) && body.menuBaseVersion !== (await getMenuVersion())) {
+    return NextResponse.json({ error: "The menu was changed somewhere else (for example a dish was marked sold out) since this page loaded. It has been reloaded: please make your change again.", conflict: true }, { status: 409 });
   }
 
   const menuProblem = await checkMenuLinks(valid);

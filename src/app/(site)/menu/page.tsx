@@ -3,7 +3,7 @@ import { Banknote, Leaf, Flame } from "lucide-react";
 import { MenuBrowser } from "@/components/menu/menu-browser";
 import { MenuJsonLd } from "@/components/seo/structured-data";
 import { Sparkles } from "lucide-react";
-import { getEffectiveMenu, getDeal, getCategories } from "@/server/config";
+import { getPublicMenu, getDeal, getCategories } from "@/server/config";
 import { gbp } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
 import { telHref } from "@/lib/site-content";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MenuPage() {
-  const [menu, deal, { business: b }, allCats] = await Promise.all([getEffectiveMenu(), getDeal(), getSiteContent(), getCategories()]);
+  const [menu, deal, { business: b }, allCats] = await Promise.all([getPublicMenu(), getDeal(), getSiteContent(), getCategories()]);
   const categories = allCats.filter((c) => !c.hidden);
   return (
     <div className="px-4 sm:px-6">

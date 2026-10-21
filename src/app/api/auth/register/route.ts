@@ -19,11 +19,9 @@ export async function POST(req: Request) {
   const { name, email, phone, password, marketingOptIn, locale, turnstileToken, referralCode: refCode } = parsed.data;
   const ip = clientIp(req);
 
-  // Duplicate-account farming: limit per network (trusted IP, see rate-limit.ts) and per phone.
-  const limited = await limitOr429([
-    { name: "register-ip", id: ip, limit: 3, windowSec: 86400 },
-    { name: "register-phone", id: phoneKey(phone), limit: 2, windowSec: 30 * 86400 },
-  ], "Too many accounts created recently. Please contact us if you need help.");
+  // Duplicate-account farming: limit per network (trusted IP, see rate-limit.ts) first...
+  const LIMIT_MSG = "Too many accounts created recently. Please contact us if you need help.";
+  const limited = await limitOr429([{ name: "register-ip", id: ip, limit: 3, windowSec: 86400 }], LIMIT_MSG);
   if (limited) return limited;
   if (!(await verifyHuman(turnstileToken, ip))) {
     return NextResponse.json({ error: "Please complete the security check and try again." }, { status: 400 });
@@ -34,7 +32,7 @@ export async function POST(req: Request) {
   let referral: ReturnType<typeof referralSignupData> | null = null;
   if (refCode) {
     try {
-      const referrer = await checkReferralCode(refCode, phone, refCfg);
+      const referrer = await checkReferralCode(refCode, refCfg);
       if (referrer) referral = referralSignupData(referrer, refCode, phone, refCfg);
     } catch (e) {
       if (e instanceof ReferralError) return NextResponse.json({ error: e.message, field: "referralCode" }, { status: 400 });
@@ -49,6 +47,12 @@ export async function POST(req: Request) {
   if ((await isEmailBlocked(email)) || (await prisma.user.findUnique({ where: { email }, select: { id: true } }))) {
     return NextResponse.json({ error: "We couldn't create an account with that email. If you've ordered with us before, sign in instead, or contact the restaurant." }, { status: 409 });
   }
+
+  // ...and per phone, counted only for a request that is about to create an account, so sign-ups that are
+  // refused (bad referral code, failed bot check, email already registered) can't use up someone else's
+  // phone allowance and block them from signing up.
+  const phoneLimited = await limitOr429([{ name: "register-phone", id: phoneKey(phone), limit: 2, windowSec: 30 * 86400 }], LIMIT_MSG);
+  if (phoneLimited) return phoneLimited;
 
   const expiresAt = new Date(Date.now() + 30 * 86400000);
   const passwordHash = await hashPassword(password);

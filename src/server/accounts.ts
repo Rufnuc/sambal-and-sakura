@@ -7,6 +7,7 @@ import { getSiteContent } from "@/server/site-content";
 import { sendTransactional } from "@/server/email";
 import { accountEmail } from "@/server/email-templates";
 import { log } from "@/server/log";
+import { ukParts } from "@/server/order-time";
 
 // Customer account lifecycle:
 //   active → deactivate → (sign in + "Reactivate" within 14 days) → active
@@ -39,7 +40,9 @@ export function reactivationDeadline(u: Pick<User, "deactivatedAt">): Date | nul
 async function emailUser(u: Pick<User, "id" | "email" | "name" | "locale">, event: "deactivated" | "closed" | "reactivated", deadline?: Date) {
   const { business } = await getSiteContent();
   const m = accountEmail(event, u.name, u.locale, business, deadline);
-  void sendTransactional(`account-${event}`, `account:${u.id}:${event}:${Date.now()}`, { to: { email: u.email, name: u.name }, ...m });
+  // At most one email per account, per kind, per UK day: switching an account off and on repeatedly
+  // can't be used to burn through the daily email allowance.
+  void sendTransactional(`account-${event}`, `account:${u.id}:${event}:${ukParts(new Date()).dateKey}`, { to: { email: u.email, name: u.name }, ...m });
 }
 
 export async function deactivateAccount(u: User): Promise<Date> {

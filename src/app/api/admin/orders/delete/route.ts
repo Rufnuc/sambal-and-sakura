@@ -5,7 +5,6 @@ import { requireOwnPassword } from "@/server/step-up";
 import { zId } from "@/server/sanitize";
 import { clientIp } from "@/server/rate-limit";
 import { deleteTestOrder, DeleteOrderError } from "@/server/order-delete";
-import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
 
 // POST {ids, confirmPassword}: owner only. Removes test orders completely (see src/server/order-delete.ts).
@@ -24,13 +23,9 @@ export async function POST(req: Request) {
   let referrerRewardKept = false;
   for (const id of [...new Set(parsed.data.ids)]) {
     try {
-      const r = await deleteTestOrder(id);
+      const r = await deleteTestOrder(id, { actor: actorOf(u), ip: clientIp(req) }); // audit entry written in the same transaction
       deleted.push(id);
       referrerRewardKept ||= r.referrerRewardKept;
-      await audit({
-        actor: actorOf(u), action: "order.deleted", entity: "order", entityId: id, ip: clientIp(req),
-        detail: { total: r.order.total, fulfilment: r.order.fulfilment, status: r.order.status, placedAt: r.order.createdAt, pointsEntries: r.pointsEntries, vouchersReturned: r.vouchersReturned, referralReset: r.referralReset },
-      });
     } catch (e) {
       if (e instanceof DeleteOrderError) refused.push({ id, error: e.message });
       else throw e;

@@ -11,7 +11,7 @@ import { DishImage } from "@/components/brand/dish-image";
 import { Reveal } from "@/components/brand/reveal";
 import { OpenStatus } from "@/components/brand/open-status";
 import type { MenuItem } from "@/lib/data/menu";
-import { getEffectiveMenu } from "@/server/config";
+import { getPublicMenu } from "@/server/config";
 import { telHref, averageRating, type SiteContent, type ValueIcon } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
 import { RestaurantJsonLd, WebSiteJsonLd } from "@/components/seo/structured-data";
@@ -26,7 +26,7 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [menu, content] = await Promise.all([getEffectiveMenu(), getLiveSiteContent()]);
+  const [menu, content] = await Promise.all([getPublicMenu(), getLiveSiteContent()]);
   // The owner's picks (Admin → Site content → Home page), else chef's specials and popular dishes.
   const picked = content.signature.dishIds.map((id) => menu.find((m) => m.id === id)).filter((m): m is MenuItem => !!m);
   const signature = picked.length ? picked : menu.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6);

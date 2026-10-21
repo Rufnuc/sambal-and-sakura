@@ -45,23 +45,22 @@ function addressKey(address: string | null, postcode: string | null): string | n
 }
 
 /**
- * Check a referral code typed at sign-up. Returns the referrer, null when the referral doesn't apply, or
- * throws ReferralError for a problem with the CODE (invalid, at its limit, over-used today).
+ * Check a referral code typed at sign-up. Returns the referrer, null when referrals are off, or throws
+ * ReferralError for a problem with the CODE (invalid, at its limit, over-used today).
  *
- * Nothing about the PHONE is ever told to the caller: an anonymous sign-up must not reveal whether a phone
- * number has ordered before, was referred before, or belongs to the code's owner. So every check that depends
- * only on the code runs first, on every request, and a phone that isn't eligible just gets null: the account
- * is created normally, without the referral reward.
+ * Nothing here depends on the phone typed at sign-up: every valid code gets the same result (the friend's
+ * reward and a pending referral), so neither the sign-up answer nor the new account can reveal whether a
+ * phone has ordered before, was referred before or belongs to the code's owner. Those rules are enforced
+ * where nobody can watch them: the friend's reward only works on a phone's first order (checkout), and the
+ * referrer is only paid when the friend's phone was genuinely new (rewardReferrerIfQualified).
  */
-export async function checkReferralCode(rawCode: string, phone: string, cfg?: ReferralConfig): Promise<User | null> {
+export async function checkReferralCode(rawCode: string, cfg?: ReferralConfig): Promise<User | null> {
   const conf = cfg ?? (await getReferralConfig());
   if (!conf.enabled) return null;
   const code = normCode(rawCode);
   if (!code) return null;
   const referrer = await prisma.user.findUnique({ where: { referralCode: code } });
   if (!referrer || referrer.status !== "active" || referrer.role !== "customer") throw new ReferralError("That referral code isn't valid. Check it, or leave it empty.");
-
-  // Code-only checks, before anything about the phone.
   if (conf.maxPerUser > 0) {
     const used = await prisma.referral.count({ where: { referrerId: referrer.id, status: { not: "void" } } });
     if (used >= conf.maxPerUser) throw new ReferralError("This referral code has reached its limit. You can still create your account without it.");
@@ -69,15 +68,6 @@ export async function checkReferralCode(rawCode: string, phone: string, cfg?: Re
   // A code being sprayed across many new accounts in a day is a farm, not friends.
   const r = await hit("referral-code", referrer.id, SIGNUPS_PER_CODE_PER_DAY, 86_400);
   if (!r.ok) throw new ReferralError("This referral code has been used a lot today. Please try again tomorrow, or create your account without it.");
-
-  // New customers only, and not your own code: when the phone doesn't qualify, the referral is quietly ignored.
-  const key = phoneKey(phone);
-  if (key && key === phoneKey(referrer.phone)) return null;
-  const [orderedBefore, referredBefore] = await Promise.all([
-    prisma.order.count({ where: { customerPhone: canonicalPhone(phone), status: { not: "cancelled" } } }),
-    prisma.referral.count({ where: { refereePhoneKey: key, status: { not: "void" } } }),
-  ]);
-  if (orderedBefore || referredBefore) return null;
   return referrer;
 }
 
@@ -118,6 +108,18 @@ export async function rewardReferrerIfQualified(tx: Tx, order: Order): Promise<s
   const referrer = await tx.user.findUnique({ where: { id: ref.referrerId } });
   if (!referrer || referrer.status !== "active") return voidIt("Referrer's account isn't active");
   if (phoneKey(order.customerPhone) === phoneKey(referrer.phone)) return voidIt("Order placed with the referrer's phone number");
+  // New customers only (checked here, not at sign-up, so it can't be used to look up a phone): the phone the
+  // friend signed up with must not be the referrer's, must not have ordered before the sign-up, and must
+  // not have been referred earlier by anyone.
+  const key = ref.refereePhoneKey;
+  if (key && key === phoneKey(referrer.phone)) return voidIt("Signed up with the referrer's phone number");
+  const before = { createdAt: { lt: ref.createdAt } };
+  const [orderedBefore, referredBefore] = await Promise.all([
+    tx.order.count({ where: { ...before, status: { not: "cancelled" }, customerPhone: canonicalPhone(order.customerPhone) } }),
+    key ? tx.referral.count({ where: { ...before, id: { not: ref.id }, refereePhoneKey: key, status: { not: "void" } } }) : Promise.resolve(0),
+  ]);
+  if (orderedBefore) return voidIt("The friend's phone had ordered before signing up");
+  if (referredBefore) return voidIt("That phone number was already referred");
 
   // Delivered to the referrer's own address (any earlier delivery by their account or phone)?
   const home = addressKey(order.address, order.postcode);

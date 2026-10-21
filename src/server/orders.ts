@@ -114,8 +114,14 @@ async function voucherProblem(v: Voucher, phone: string | undefined, user: User 
   return null;
 }
 
-/** Price an order exactly as checkout will charge it (the single source of truth for the UI). */
-export async function buildQuote(input: QuoteInput, user: User | null): Promise<Resolved> {
+/**
+ * Price an order exactly as checkout will charge it (the single source of truth for the UI).
+ * `checkPhone`: apply first-order / once-per-phone rules to the phone typed in the form. Only the real
+ * checkout (createOrder, behind its per-IP and per-phone limits and the bot check) does this. A plain
+ * quote checks only the signed-in customer's own account, so it can't be used to ask "has this phone
+ * number ordered here before?" about someone else.
+ */
+export async function buildQuote(input: QuoteInput, user: User | null, opts: { checkPhone?: boolean } = {}): Promise<Resolved> {
   const [disabledZones, menu, zones, blackouts, paused, site, promos, offers, delivery] = await Promise.all([
     getDisabledZones(), getEffectiveMenu(), getZones(), getBlackouts(), getOrdersPaused(), getSiteContent(), getPromotions(), getOffers(), getDeliveryRules(),
   ]);
@@ -123,7 +129,7 @@ export async function buildQuote(input: QuoteInput, user: User | null): Promise<
   let voucherError = r.error;
   let voucher = r.voucher;
   if (voucher) {
-    const problem = await voucherProblem(voucher, input.phone, user);
+    const problem = await voucherProblem(voucher, opts.checkPhone ? input.phone : user?.phone || undefined, user);
     if (problem) { voucherError = problem; voucher = null; }
   }
   const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, disabledZones, menu, zones, delivery, autoFreeItem: promos.offers.enabled });
@@ -184,7 +190,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
     if (existing) return replayFor(existing, input, user);
   }
 
-  const { quote, voucher, ownedRewardId } = await buildQuote(input, user);
+  const { quote, voucher, ownedRewardId } = await buildQuote(input, user, { checkPhone: true });
 
   if (quote.issues.length) {
     const names = quote.issues.map((i) => i.name).join(", ");

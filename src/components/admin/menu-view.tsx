@@ -17,7 +17,7 @@ import {
   MENU, ALLERGENS, ALLERGEN_LABELS, DIET_TAGS, categoryLabel,
   type MenuCategory, type MenuCategoryCfg, type MenuItem, type ModifierGroup, type Allergen, type DietTag,
 } from "@/lib/data/menu";
-import { saveConfig, uploadImage, fetchMenuAvailability, setSoldOut, type AdminConfig, type MenuOverrideCfg } from "@/lib/admin/api";
+import { saveConfig, uploadImage, fetchMenuAvailability, setSoldOut, ConflictError, type AdminConfig, type MenuOverrideCfg } from "@/lib/admin/api";
 import { gbp } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -61,13 +61,13 @@ export function MenuView() {
   const [showCats, setShowCats] = useState(false);
   const [deleting, setDeleting] = useState<MenuItem | null>(null);
   const [canEdit, setCanEdit] = useState(false); // owner: full edits; staff: sold-out switch only
+  const [menuVersion, setMenuVersion] = useState(""); // what this screen loaded; sent back with every save
 
-  useEffect(() => {
-    fetchMenuAvailability().then((r) => {
-      setOverrides(r?.menuOverrides ?? {}); setCustom(r?.customDishes ?? []); setCategories(r?.categories ?? []);
-      setCanEdit(!!r?.canEdit); setReady(true);
-    });
-  }, []);
+  const reload = () => fetchMenuAvailability().then((r) => {
+    setOverrides(r?.menuOverrides ?? {}); setCustom(r?.customDishes ?? []); setCategories(r?.categories ?? []);
+    setMenuVersion(r?.menuVersion ?? ""); setCanEdit(!!r?.canEdit); setReady(true);
+  });
+  useEffect(() => { void reload(); }, []);
 
   const all = useMemo(() => [...MENU.map((m) => withOverride(m, overrides[m.id])), ...custom], [overrides, custom]);
   const label = (id: string) => categoryLabel(categories, id);
@@ -75,11 +75,13 @@ export function MenuView() {
   // Saves one menu piece; the server checks the pieces still fit together (e.g. no dish left without a category).
   async function save(patch: Pick<Partial<AdminConfig>, "menuOverrides" | "customDishes" | "categories">): Promise<boolean> {
     try {
-      const c = await saveConfig(patch);
+      const c = await saveConfig({ ...patch, menuBaseVersion: menuVersion });
       setOverrides(c.menuOverrides ?? {}); setCustom(c.customDishes ?? []); setCategories(c.categories ?? []);
+      setMenuVersion(c.menuVersion ?? "");
       return true;
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error((e as Error).message, { duration: e instanceof ConflictError ? 10_000 : undefined });
+      if (e instanceof ConflictError) { setEditing(null); await reload(); } // show what changed; nothing was saved
       return false;
     }
   }
@@ -87,7 +89,7 @@ export function MenuView() {
   async function toggleSoldOut(m: MenuItem) {
     const next = await setSoldOut(m.id, !m.soldOut);
     if (!next) { toast.error("Could not update. Check your connection."); return; }
-    setOverrides(next.menuOverrides); setCustom(next.customDishes);
+    setOverrides(next.menuOverrides); setCustom(next.customDishes); setMenuVersion(next.menuVersion);
     toast.success(`${m.name} marked ${!m.soldOut ? "sold out" : "available"}`);
   }
 

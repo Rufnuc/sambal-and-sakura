@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
 import { MENU, DEFAULT_CATEGORIES, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
@@ -122,6 +123,16 @@ export const setCategories = (v: MenuCategoryCfg[]) => setJson("menuCategories",
 export const getCustomDishes = () => getJson<MenuItem[]>("customDishes", []);
 export const setCustomDishes = (v: MenuItem[]) => setJson("customDishes", v.map((d) => ({ ...d, custom: true })));
 
+/**
+ * Fingerprint of the saved menu settings (dish changes, added dishes, categories). The admin Menu screen
+ * sends back the version it loaded; a save from a stale screen is refused, so it can't silently undo a
+ * change made elsewhere in the meantime (e.g. staff marking a dish sold out).
+ */
+export async function getMenuVersion(): Promise<string> {
+  const rows = await prisma.setting.findMany({ where: { key: { in: ["menuOverrides", "customDishes", "menuCategories"] } }, orderBy: { key: "asc" } });
+  return createHash("sha1").update(rows.map((r) => `${r.key}=${r.value}`).join("\n")).digest("hex").slice(0, 16);
+}
+
 /** Every dish, including hidden ones and those in hidden categories (for the admin). */
 export async function getAdminMenu(): Promise<MenuItem[]> {
   const [ov, custom] = await Promise.all([getMenuOverrides(), getCustomDishes()]);
@@ -133,6 +144,15 @@ export async function getEffectiveMenu(): Promise<MenuItem[]> {
   const [all, cats] = await Promise.all([getAdminMenu(), getCategories()]);
   const shown = new Set(cats.filter((c) => !c.hidden).map((c) => c.id));
   return all.filter((m) => !m.hidden && shown.has(m.category)).map(({ hidden: _h, ...m }) => m);
+}
+
+/**
+ * The menu as it may be sent to a browser: the effective menu without owner-only fields. aiNotes are
+ * only for the dish assistant (server side); allergensChecked is an admin bookkeeping flag.
+ * Use this for every page and API that hands menu items to the client.
+ */
+export async function getPublicMenu(): Promise<MenuItem[]> {
+  return (await getEffectiveMenu()).map(({ aiNotes: _n, allergensChecked: _a, ...m }) => m);
 }
 
 function applyOverride(m: MenuItem, o: MenuOverride | undefined): MenuItem {

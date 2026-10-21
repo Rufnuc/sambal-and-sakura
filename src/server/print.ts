@@ -215,7 +215,7 @@ async function ctx() {
     // With a Google review link set (Admin -> Site content), the QR asks for a review; otherwise it opens the site.
     qrUrl: business.googleReviewUrl ? `${SITE_URL}/review` : SITE_URL,
     qrLabel: business.googleReviewUrl ? "Enjoyed it? Scan to leave us a review" : "Scan to order direct next time",
-    company: `${COMPANY.name} - Company no. ${COMPANY.number}`,
+    company: `${COMPANY.name} `,
   };
 }
 
@@ -253,8 +253,10 @@ export async function claimTabletJobs(opts: { receipt?: boolean } = {}): Promise
   const orderStatuses = cloud ? ["failed"] : ["not-needed", "pending", "failed"];
   const candidates = await prisma.order.findMany({
     where: {
-      createdAt: { gte: since }, status: { notIn: ["cancelled", "completed"] }, ...paid,
-      OR: [{ printStatus: { in: orderStatuses } }, ...(cloud ? [{ printStatus: "pending", createdAt: { lte: waitFor } }] : [])],
+      // Both conditions must hold, so they go inside AND: a second `OR` key next to `...paid` would replace
+      // the paid filter and send unpaid WeChat orders to the kitchen.
+      createdAt: { gte: since }, status: { notIn: ["cancelled", "completed"] },
+      AND: [paid, { OR: [{ printStatus: { in: orderStatuses } }, ...(cloud ? [{ printStatus: "pending", createdAt: { lte: waitFor } }] : [])] }],
     },
     select: { id: true, printStatus: true }, orderBy: { createdAt: "asc" }, take: 20,
   });

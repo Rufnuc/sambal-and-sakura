@@ -15,9 +15,10 @@ export const emailConfigured = () => Boolean(process.env.BREVO_API_KEY && proces
 
 export const DAILY_LIMIT = Number(process.env.EMAIL_DAILY_LIMIT) || 300;
 const TRANSACTIONAL_RESERVE = Math.round(DAILY_LIMIT * 0.4); // kept free for order/booking emails
-// Only these may use the reserve. Everything else (careers applications and receipts, referral rewards,
-// test sends) stops at the same point as promotions, so no amount of form traffic can stop order emails.
-const PRIORITY_TEMPLATE = /^(order|booking|account)-/;
+// Only these may use the reserve: one-off order and booking updates. Everything else (account emails,
+// careers applications and receipts, referral rewards, test sends) stops at the same point as promotions,
+// so nothing a visitor or customer can repeat can stop order emails.
+const PRIORITY_TEMPLATE = /^(order|booking)-/;
 
 export interface EmailMessage {
   to: { email: string; name?: string };

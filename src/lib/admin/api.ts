@@ -150,12 +150,12 @@ export async function fetchAnalytics(days = 14): Promise<{ days: number; counts:
 }
 
 /* ---- Menu availability (staff with Menu access) ---- */
-export interface MenuAdminData { menuOverrides: Record<string, MenuOverrideCfg>; categories: MenuCategoryCfg[]; customDishes: MenuItem[]; canEdit: boolean }
+export interface MenuAdminData { menuOverrides: Record<string, MenuOverrideCfg>; categories: MenuCategoryCfg[]; customDishes: MenuItem[]; menuVersion: string; canEdit: boolean }
 export async function fetchMenuAvailability(): Promise<MenuAdminData | null> {
   const res = await fetch("/api/admin/menu", { cache: "no-store" });
   return res.ok ? res.json() : null;
 }
-export async function setSoldOut(itemId: string, soldOut: boolean): Promise<Pick<MenuAdminData, "menuOverrides" | "customDishes"> | null> {
+export async function setSoldOut(itemId: string, soldOut: boolean): Promise<Pick<MenuAdminData, "menuOverrides" | "customDishes" | "menuVersion"> | null> {
   const res = await fetch("/api/admin/menu", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId, soldOut }) });
   return res.ok ? res.json() : null;
 }
@@ -174,10 +174,23 @@ export interface Diagnostics {
 export async function testFakeAddress(): Promise<{ header: string; result: "protected" | "TRUSTED" | "error"; detail: string }[]> {
   const FAKE = "198.51.100.7"; // documentation-only address, never a real visitor
   const out: { header: string; result: "protected" | "TRUSTED" | "error"; detail: string }[] = [];
-  for (const header of ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"]) {
+  // First a normal check: the owner must be signed in, or the site's own "forbidden" would look like a refusal.
+  const base = await fetchDiagnostics();
+  if (!base) return [{ header: "-", result: "error", detail: "sign in as the owner, then run the test again" }];
+  // Also test the header named in CLIENT_IP_HEADER, if it's set to one outside the usual three.
+  const headers = ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"];
+  const own = base.clientIpHeaderSetting?.toLowerCase();
+  if (own && !headers.includes(own)) headers.push(own);
+  for (const header of headers) {
     const res = await fetch("/api/admin/diagnostics", { cache: "no-store", headers: { [header]: FAKE } }).catch(() => null);
     if (!res) { out.push({ header, result: "error", detail: "no answer" }); continue; }
-    if (res.status === 403 || res.status === 400) { out.push({ header, result: "protected", detail: `refused (${res.status})` }); continue; }
+    if (res.status === 403 || res.status === 400) {
+      // The site's own refusal is JSON {"error":"forbidden"} (session problem), not the hosting edge refusing.
+      const body = await res.text().catch(() => "");
+      const ours = /"error"\s*:\s*"forbidden"/.test(body);
+      out.push(ours ? { header, result: "error", detail: "the site refused the test (sign in again)" } : { header, result: "protected", detail: `refused by the host (${res.status})` });
+      continue;
+    }
     const d = await res.json().catch(() => null) as Diagnostics | null;
     if (!d) { out.push({ header, result: "error", detail: `status ${res.status}` }); continue; }
     out.push(d.detectedIp === FAKE ? { header, result: "TRUSTED", detail: "the made-up address was used" } : { header, result: "protected", detail: `ignored, saw ${d.detectedIp}` });
@@ -225,7 +238,7 @@ export interface AdminConfig {
   wheelPrizes: WheelPrizeCfg[]; menuOverrides: Record<string, MenuOverrideCfg>;
   careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent; siteVersion: string;
   promotions: PromotionsCfg; delivery: DeliveryCfg;
-  categories: MenuCategoryCfg[]; customDishes: MenuItem[];
+  categories: MenuCategoryCfg[]; customDishes: MenuItem[]; menuVersion: string;
 }
 export type PromoKey = "offers" | "wheel" | "referral";
 export interface PromoCfg { enabled: boolean; message: string; graceDays: number; pausedAt?: string | null }
@@ -296,11 +309,15 @@ export async function fetchConfig(): Promise<AdminConfig> {
   return res.json();
 }
 /** Save part of the config. Throws an Error with the server's readable message if it was rejected. */
-export async function saveConfig(patch: Partial<AdminConfig>): Promise<AdminConfig> {
+/** Thrown when a save is refused because the data changed elsewhere (409): reload and try again. */
+export class ConflictError extends Error {}
+
+export async function saveConfig(patch: Partial<AdminConfig> & { menuBaseVersion?: string }): Promise<AdminConfig> {
   const res = await fetch("/api/admin/config", {
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 409 && data.conflict) throw new ConflictError(data.error ?? "Changed elsewhere. Reload and try again.");
   if (!res.ok) throw new Error(data.error ?? "Could not save.");
   return data;
 }

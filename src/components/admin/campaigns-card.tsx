@@ -11,7 +11,7 @@ import { saveConfig, type PromoKey, type PromotionsCfg } from "@/lib/admin/api";
 import { cn } from "@/lib/utils";
 
 const ROWS: { key: PromoKey; title: string; stops: string; rewards: boolean }[] = [
-  { key: "offers", title: "Offers & vouchers", stops: "Offer codes (e.g. SAKURA10) and the automatic free gyoza stop working at checkout.", rewards: false },
+  { key: "offers", title: "Offers & vouchers", stops: "Offer codes (e.g. SAKURA10) and the automatic free dish over a spend stop working at checkout.", rewards: false },
   { key: "wheel", title: "Fortune Wheel", stops: "Nobody can spin.", rewards: true },
   { key: "referral", title: "Refer a friend", stops: "New referral codes are ignored and the friend banner disappears.", rewards: true },
 ];

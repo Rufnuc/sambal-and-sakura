@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   alternates: { canonical: "/menu" },
   title: "Menu",
-  description: "Explore our Chinese classics and Japanese specials - dim sum, salt & pepper, aromatic duck, katsu curry, chef specials and more.",
+  description: "Our full menu with prices: salt & pepper, tempura, aromatic crispy duck, sushi and sashimi, ramen, nasi lemak, rendang and more.",
 };
 
 export default async function MenuPage() {
@@ -28,16 +28,21 @@ export default async function MenuPage() {
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">
           Everything, made to order
         </h1>
-        <p className="mt-3 max-w-2xl text-muted-foreground text-pretty">
-          Allergens and diet tags are listed on every dish.
-        </p>
+        {/* Only claimed once true: allergens are entered per dish by the kitchen (Admin -> Menu). */}
+        {menu.every((m) => m.allergens.length > 0) && (
+          <p className="mt-3 max-w-2xl text-muted-foreground text-pretty">
+            Allergens and diet tags are listed on every dish.
+          </p>
+        )}
         <p className="mt-2 max-w-2xl text-sm text-sambal">
           Food allergy or intolerance? Please phone us on{" "}
           <a href={telHref(b.phone)} className="font-medium underline">{b.phone}</a> to confirm before ordering.
         </p>
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-jade/10 px-3 py-1 text-jade"><Banknote className="size-4" /> Cash only</span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-jade/10 px-3 py-1 text-jade"><Leaf className="size-4" /> Veg & vegan options</span>
+          {menu.some((m) => m.tags.includes("vegetarian") || m.tags.includes("vegan")) && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-jade/10 px-3 py-1 text-jade"><Leaf className="size-4" /> Veg & vegan options</span>
+          )}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-sambal/10 px-3 py-1 text-sambal"><Flame className="size-4" /> Spice levels to order</span>
         </div>
       </section>

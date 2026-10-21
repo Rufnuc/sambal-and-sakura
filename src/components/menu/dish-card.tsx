@@ -122,11 +122,10 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
         </div>
         <p className={cn("mt-1 line-clamp-2 text-muted-foreground", dense ? "text-xs sm:text-sm" : "text-sm")}>{item.description}</p>
 
-        {item.allergens.length > 0 && (
-          <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>
-            Allergens: {item.allergens.join(", ")}
-          </p>
-        )}
+        {/* No list yet means "not listed", never "none": customers are told to ask. */}
+        <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>
+          {item.allergens.length > 0 ? <>Allergens: {item.allergens.join(", ")}</> : "Allergens not listed yet - please ask us before ordering"}
+        </p>
 
         <div className={cn("mt-3", dense && "mt-2 sm:mt-3")}>
           <DishAssistant item={item} compact={dense} />

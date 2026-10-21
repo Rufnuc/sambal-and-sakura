@@ -65,19 +65,20 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     headlineAccent: "cherry blossom",
     headlineEnd: ".",
     images: [
-      { dishId: "chicken-katsu-don", photo: "" },
-      { dishId: "duck-half", photo: "" },
-      { dishId: "sp-king-prawns", photo: "" },
+      { dishId: "m76-nasi-lemak", photo: "" },
+      { dishId: "m29-aromatic-duck", photo: "" },
+      { dishId: "m107-dragon-roll", photo: "" },
     ],
-    featured: 1,
+    featured: 0,
   },
-  signature: { dishIds: [] },
+  // Six dishes across the menu; the owner picks their own in Admin -> Site content -> Home page.
+  signature: { dishIds: ["m76-nasi-lemak", "m101-signature-salmon-roll", "m37-sambal-pomfret", "m29-aromatic-duck", "m58-chicken-katsu-curry", "m98-ramen-bar"] },
   valueStrip: [
     { icon: "banknote", title: "Pay your way", text: "Cash on delivery or collection, or WeChat Pay online where available." },
     // {deliveryTitle} / {deliveryLine}: filled in from Admin -> Settings -> Delivery prices (src/server/live-content.ts).
     { icon: "bike", title: "{deliveryTitle}", text: "{deliveryLine}" },
     { icon: "chef", title: "Sushi by a Japan-trained chef", text: "Authentic Japanese technique, prepared to order." },
-    { icon: "pot", title: "Freshly made to order", text: "Authentic Chinese & Japanese, cooked when you order." },
+    { icon: "pot", title: "Freshly made to order", text: "Chinese, Japanese and Malaysian dishes, cooked when you order." },
   ],
   cta: {
     heading: "Hungry yet? Order direct and taste the difference.",

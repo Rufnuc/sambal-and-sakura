@@ -46,14 +46,14 @@ export async function POST(req: Request) {
     `Category: ${dish.category}`,
     `Description: ${dish.description}`,
     `Price: ${gbp(dish.price)}`,
-    dish.allergens.length ? `Listed allergens: ${dish.allergens.join(", ")}` : "Listed allergens: none noted",
+    dish.allergens.length ? `Listed allergens: ${dish.allergens.join(", ")}` : "Listed allergens: not listed yet (unknown - do not guess)",
     dish.tags.length ? `Tags: ${dish.tags.join(", ")}` : "",
     typeof dish.spiceLevel === "number" ? `Spice level: ${dish.spiceLevel}/3` : "",
     dish.aiNotes ? `Extra details from the restaurant: ${dish.aiNotes}` : "",
   ].filter(Boolean).join("\n");
 
   const system = [
-    `You are a warm, concise assistant for ${RESTAURANT.name}, a Chinese & Japanese restaurant in Middlesbrough.`,
+    `You are a warm, concise assistant for ${RESTAURANT.name}, a Chinese, Japanese & Malaysian restaurant in Middlesbrough.`,
     `Answer the customer's question about THIS dish using only the details below. Keep it to 2-4 short sentences.`,
     `If they ask to change the dish (remove/add an ingredient, extra spice, no onions, extra sauce, larger portion, etc.), say they can add the request as a note at checkout and the kitchen will try to accommodate it; staff confirm anything that isn't possible or changes the price. Never promise a change will be made.`,
     `Never say a dish is safe for an allergy or free of an allergen. For anything about allergens or exact ingredients, tell them to phone ${b.phone} before ordering.`,

@@ -21,7 +21,7 @@ export const RESTAURANT = {
   name: "Sambal & Sakura",
   tagline: "Where chili meets cherry blossom.",
   blurb:
-    "Chinese classics and authentic Japanese specials in the heart of Middlesbrough - with sushi crafted by a chef trained in Japan, sizzling salt & pepper, aromatic crispy duck, katsu curry and signature boba.",
+    "Chinese classics, Japanese sushi and Malaysian favourites in the heart of Middlesbrough - with sushi crafted by a chef trained in Japan, sizzling salt & pepper, aromatic crispy duck, nasi lemak, rendang and signature boba.",
   halal: true,
   phone: "+44 1642 245888",
   email: "order@sambalandsakura.co.uk",

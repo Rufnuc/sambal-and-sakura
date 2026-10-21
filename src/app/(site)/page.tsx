@@ -12,7 +12,7 @@ import { Reveal } from "@/components/brand/reveal";
 import { OpenStatus } from "@/components/brand/open-status";
 import type { MenuItem } from "@/lib/data/menu";
 import { getPublicMenu } from "@/server/config";
-import { telHref, averageRating, type SiteContent, type ValueIcon } from "@/lib/site-content";
+import { telHref, averageRating, DEFAULT_SITE_CONTENT, type SiteContent, type ValueIcon } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
 import { RestaurantJsonLd, WebSiteJsonLd } from "@/components/seo/structured-data";
 import { MapEmbed } from "@/components/brand/map-embed";
@@ -30,7 +30,9 @@ export default async function HomePage() {
   const [menu, content] = await Promise.all([getPublicMenu(), getLiveSiteContent()]);
   // The owner's picks (Admin → Site content → Home page), else chef's specials and popular dishes.
   const picked = content.signature.dishIds.map((id) => menu.find((m) => m.id === id)).filter((m): m is MenuItem => !!m);
-  const signature = picked.length ? picked : menu.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6);
+  // Nothing picked: the default six from across the menu (any the owner has hidden are skipped).
+  const defaults = DEFAULT_SITE_CONTENT.signature.dishIds.map((id) => menu.find((m) => m.id === id)).filter((m): m is MenuItem => !!m);
+  const signature = picked.length ? picked : defaults.length ? defaults : menu.filter((m) => m.tags.includes("chef") || m.tags.includes("popular")).slice(0, 6);
   return (
     <>
       <RestaurantJsonLd />
@@ -83,7 +85,7 @@ function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
               first), with the tagline as the big display line. */}
           <h1 className="mt-5">
             <span className="block font-sans text-sm font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/70">
-              {RESTAURANT.name} · Chinese &amp; Japanese restaurant in {b.address.city}
+              {RESTAURANT.name} · Chinese, Japanese &amp; Malaysian restaurant in {b.address.city}
             </span>
             <span className="mt-3 block font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-balance sm:text-6xl md:text-5xl lg:text-7xl">
               {hero.headlineStart}{gap(hero.headlineStart, hero.headlineAccent)}<span className="text-gold-ink">{hero.headlineAccent}</span>{gap(hero.headlineAccent, hero.headlineEnd)}{hero.headlineEnd}

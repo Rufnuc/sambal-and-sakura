@@ -93,6 +93,10 @@ async function resolveVoucher(code: string | undefined, user: User | null, promo
   }
   const v = offerVoucher(c, offers); // the owner's live offers (Admin → Promotions)
   if (v && !promos.offers.enabled) return { voucher: null, ownedRewardId: null, error: "That offer has ended for now." };
+  // A "free dish" code whose dish has left the menu would otherwise be accepted and give nothing.
+  if (v?.freeItemId && !(await getEffectiveMenu()).some((m) => m.id === v.freeItemId)) {
+    return { voucher: null, ownedRewardId: null, error: "That offer isn't available right now." };
+  }
   return v ? { voucher: v, ownedRewardId: null, error: null } : { voucher: null, ownedRewardId: null, error: "That voucher code isn't valid." };
 }
 

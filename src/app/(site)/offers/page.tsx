@@ -26,7 +26,10 @@ export default async function OffersPage({ searchParams }: { searchParams: Promi
   const { tab } = await searchParams;
   const initialTab: Tab = tab === "wheel" || tab === "refer" ? tab : "offers";
   const [rawOffers, prizes, referral, promos, menu] = await Promise.all([getOffers(), getWheelPrizes(), getReferralConfig(), getPromotions(), getEffectiveMenu()]);
-  const offers = rawOffers.filter((o) => !o.hidden).map((o) => ({ ...o, gives: describeCode(o, menu) })); // hidden codes stay private
+  // Hidden codes stay private, and an offer whose free dish is no longer on the menu isn't advertised.
+  const offers = rawOffers
+    .filter((o) => !o.hidden && (!o.freeItemId || menu.some((m) => m.id === o.freeItemId)))
+    .map((o) => ({ ...o, gives: describeCode(o, menu) }));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">

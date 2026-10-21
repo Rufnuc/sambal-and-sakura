@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
-import { MENU, DEFAULT_CATEGORIES, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
+import { MENU, DEFAULT_CATEGORIES, RETIRED_CATEGORIES, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
 import { TABLES, type Table } from "@/lib/data/tables";
 import { getPromotions } from "@/server/promotions";
 import { LEGACY_CODE_VALUES } from "@/server/pricing";
@@ -118,7 +118,32 @@ export const setMaxMiles = (v: number) => setJson("maxDeliveryMiles", v);
 
 /* ---- Menu: categories and the owner's own dishes ---- */
 // Categories (order, names, hidden) and dishes the owner added are data, edited in Admin -> Menu.
-export const getCategories = () => getJson<MenuCategoryCfg[]>("menuCategories", DEFAULT_CATEGORIES);
+export const getCategories = async () => {
+  const [saved, custom] = await Promise.all([getJson<MenuCategoryCfg[]>("menuCategories", DEFAULT_CATEGORIES), getCustomDishes()]);
+  return upgradeCategories(saved, new Set(custom.map((d) => d.category)));
+};
+
+/**
+ * A saved category list always shows every built-in category (otherwise its dishes would silently
+ * vanish: only listed categories are shown). A list saved for the previous menu (it still has the
+ * retired categories) is rebuilt: the owner's own categories that came first stay first (e.g. Appetiser),
+ * then the new menu in its printed order, then the owner's other categories. A retired category that
+ * still holds dishes the owner added is kept, so those dishes don't disappear.
+ */
+function upgradeCategories(saved: MenuCategoryCfg[], usedByCustom: Set<string>): MenuCategoryCfg[] {
+  const builtIn = new Set(DEFAULT_CATEGORIES.map((c) => c.id));
+  const retired = new Set(RETIRED_CATEGORIES.filter((id) => !usedByCustom.has(id)));
+  if (saved.some((c) => retired.has(c.id))) {
+    const own = saved.filter((c) => !builtIn.has(c.id) && !retired.has(c.id));
+    const firstBuiltIn = saved.findIndex((c) => builtIn.has(c.id) || retired.has(c.id));
+    const leading = own.filter((c) => saved.indexOf(c) < firstBuiltIn);
+    const hidden = new Set(saved.filter((c) => c.hidden).map((c) => c.id));
+    const menu = DEFAULT_CATEGORIES.map((c) => (hidden.has(c.id) ? { ...c, hidden: true } : c));
+    return [...leading, ...menu, ...own.filter((c) => !leading.includes(c))];
+  }
+  const missing = DEFAULT_CATEGORIES.filter((c) => !saved.some((s) => s.id === c.id));
+  return missing.length ? [...saved, ...missing] : saved;
+}
 export const setCategories = (v: MenuCategoryCfg[]) => setJson("menuCategories", v);
 export const getCustomDishes = () => getJson<MenuItem[]>("customDishes", []);
 export const setCustomDishes = (v: MenuItem[]) => setJson("customDishes", v.map((d) => ({ ...d, custom: true })));

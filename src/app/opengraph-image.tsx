@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Sambal & Sakura - Chinese & Japanese, Middlesbrough";
+export const alt = "Sambal & Sakura - Chinese, Japanese & Malaysian, Middlesbrough";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -44,7 +44,7 @@ export default function OgImage() {
             Sambal <span style={{ color: "#e9b84a", display: "flex", margin: "0 18px" }}>&</span> Sakura
           </div>
           <div style={{ fontSize: 38, color: "rgba(243,236,221,0.82)", marginTop: 20, display: "flex" }}>
-            Chinese classics &amp; Japanese specials
+            Chinese, Japanese &amp; Malaysian
           </div>
         </div>
 

@@ -49,7 +49,7 @@ export default async function CareersPage() {
         <p className="font-medium uppercase tracking-widest text-gold-ink">Join us</p>
         <h1 className="mt-1 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">Careers at Sambal &amp; Sakura</h1>
         <p className="mt-3 text-muted-foreground text-pretty">
-          We&apos;re a warm, busy kitchen bringing authentic Chinese and Japanese food to Middlesbrough. If you love great food and great service, we&apos;d love to hear from you.
+          We&apos;re a warm, busy kitchen bringing authentic Chinese, Japanese and Malaysian food to Middlesbrough. If you love great food and great service, we&apos;d love to hear from you.
         </p>
       </header>
 

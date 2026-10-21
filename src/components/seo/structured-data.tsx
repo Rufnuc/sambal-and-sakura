@@ -67,7 +67,7 @@ export async function RestaurantJsonLd() {
     image: `${SITE_URL}/opengraph-image`,
     logo: `${SITE_URL}/logo-mark.svg`,
     description: b.blurb,
-    servesCuisine: ["Chinese", "Japanese", "Asian"],
+    servesCuisine: ["Chinese", "Japanese", "Malaysian", "Asian"],
     priceRange: "££",
     telephone: b.phone,
     email: b.email,

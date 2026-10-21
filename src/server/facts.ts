@@ -30,7 +30,7 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
     .map((c) => c.label);
 
   const summary =
-    `${RESTAURANT.name} (also written Sambal and Sakura) is a Chinese and Japanese restaurant in ${b.address.city}, ` +
+    `${RESTAURANT.name} (also written Sambal and Sakura) is a Chinese, Japanese and Malaysian restaurant in ${b.address.city}, ` +
     `at ${formatAddress(b.address)}. ${b.blurb}`;
 
   const facts: Fact[] = [
@@ -76,7 +76,10 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
     },
     {
       label: "Allergies and diets",
-      value: `Allergens and vegetarian/vegan options are marked on every dish. For allergies, phone ${b.phone} to confirm before ordering.`,
+      // Only claim "every dish" once the kitchen has actually listed allergens for every dish.
+      value: menu.every((m) => m.allergens.length > 0)
+        ? `Allergens and vegetarian/vegan options are marked on every dish. For allergies, phone ${b.phone} to confirm before ordering.`
+        : `Allergen information is being added to the menu. If you have an allergy or dietary need, phone ${b.phone} before ordering and the kitchen will advise.`,
     },
   );
   if (RESTAURANT.halal) facts.push({ label: "Halal", value: "All food is halal." });
@@ -101,7 +104,7 @@ export function menuAsText(menu: MenuItem[], categories: MenuCategoryCfg[]): str
       const from = m.modifiers && m.modifiers.length > 0 ? "from " : "";
       const diet = m.tags.includes("vegan") ? " Vegan." : m.tags.includes("vegetarian") ? " Vegetarian." : "";
       const spice = m.spiceLevel ? ` Spice level ${m.spiceLevel}/3.` : "";
-      const allergens = m.allergens.length ? ` Contains: ${m.allergens.join(", ")}.` : "";
+      const allergens = m.allergens.length ? ` Contains: ${m.allergens.join(", ")}.` : " Allergens: not listed yet, ask the restaurant.";
       const sold = m.soldOut ? " (currently unavailable)" : "";
       lines.push(`- ${m.name} (${from}${gbp(m.price)})${sold}: ${m.description}${diet}${spice}${allergens}`);
     }

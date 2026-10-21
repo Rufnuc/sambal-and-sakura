@@ -94,7 +94,8 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
           </div>
 
           <div className="mt-2 flex flex-wrap gap-2">
-            {DIET_FILTERS.map((d) => {
+            {/* Only filters that match at least one dish (e.g. no "Vegan" chip until dishes are tagged vegan). */}
+            {DIET_FILTERS.filter((d) => menu.some((m) => m.tags.includes(d.id))).map((d) => {
               const on = diets.has(d.id);
               const Icon = d.icon;
               return (

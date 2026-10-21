@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const { business } = await getSiteContent();
   // Brand name first, then what it is and where: this is what Google shows as the blue link text.
-  const title = `${RESTAURANT.name} | Chinese & Japanese Restaurant in ${business.address.city}`;
+  const title = `${RESTAURANT.name} | Chinese, Japanese & Malaysian Restaurant in ${business.address.city}`;
   const verification = process.env.GOOGLE_SITE_VERIFICATION;
   const bingVerification = process.env.BING_SITE_VERIFICATION;
   return {

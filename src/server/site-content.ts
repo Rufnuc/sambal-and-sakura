@@ -8,7 +8,8 @@ import { MENU, CUSTOM_DISH_ID } from "@/lib/data/menu";
 
 const MENU_IDS = new Set(MENU.map((m) => m.id));
 // Built-in dishes, or ones the owner added (a deleted one simply stops showing on the home page).
-const dishId = z.string().max(60).refine((id) => MENU_IDS.has(id) || CUSTOM_DISH_ID.test(id), "Pick a dish from the menu");
+const knownDish = (id: unknown): boolean => typeof id === "string" && (MENU_IDS.has(id) || CUSTOM_DISH_ID.test(id));
+const dishId = z.string().max(60).refine(knownDish, "Pick a dish from the menu");
 // Our own uploaded photos or an https link (e.g. Cloudinary); never javascript:, data: etc. Empty = use the dish's menu photo.
 const photoUrl = z.string().trim().max(500).refine((s) => s === "" || (s.startsWith("/uploads/") && !s.includes("..")) || /^https:\/\/[^\s"'<>]+$/i.test(s), "Photos must be uploaded here or be an https link");
 
@@ -72,10 +73,25 @@ const schemas = {
   hero: z.object({
     badge: str(80), headlineStart: str(80), headlineAccent: str(60), headlineEnd: str(40),
     // Defaults: content saved before these existed must still validate (or the whole banner would reset).
-    images: z.array(z.object({ dishId, photo: photoUrl })).length(3).default(DEFAULT_SITE_CONTENT.hero.images),
+    // A plate whose dish is no longer on the menu (e.g. saved for the previous menu) gets the default
+    // dish for that plate, rather than failing and resetting the whole banner (headline included).
+    images: z.preprocess(
+      (v) => (Array.isArray(v) ? v.map((img, i) => (img && typeof img === "object" && knownDish((img as { dishId?: unknown }).dishId) ? img : DEFAULT_SITE_CONTENT.hero.images[i] ?? img)) : v),
+      z.array(z.object({ dishId, photo: photoUrl })).length(3),
+    ).default(DEFAULT_SITE_CONTENT.hero.images),
     featured: z.number().int().min(-1).max(2).default(DEFAULT_SITE_CONTENT.hero.featured),
   }),
-  signature: z.object({ dishIds: z.array(dishId).max(6).refine((ids) => new Set(ids).size === ids.length, "Each dish can only be picked once") }),
+  // Picks that are no longer on the menu are dropped (and if none are left, the default six are used).
+  signature: z.object({
+    dishIds: z.preprocess(
+      (v) => {
+        if (!Array.isArray(v)) return v;
+        const kept = v.filter(knownDish);
+        return kept.length || !v.length ? kept : DEFAULT_SITE_CONTENT.signature.dishIds;
+      },
+      z.array(dishId).max(6).refine((ids) => new Set(ids).size === ids.length, "Each dish can only be picked once"),
+    ),
+  }),
   // "sparkles" was retired (kept for AI features only): older saves get the cooking pot instead.
   valueStrip: z.array(z.object({ icon: z.preprocess((v) => (v === "sparkles" ? "pot" : v), z.enum(VALUE_ICONS)), title: str(70), text: str(160) })).max(6),
   cta: z.object({ heading: str(120), subtext: str(200) }),
@@ -115,12 +131,15 @@ const OLD_SOCIAL: Record<string, string> = {
   wechat: "SambalSakura",
 };
 const OLD_EMAIL = "hello@sambalandsakura.co.uk";
+// The description written for the previous menu (Chinese & Japanese only, "katsu curry").
+const OLD_BLURB = "Chinese classics and authentic Japanese specials in the heart of Middlesbrough - with sushi crafted by a chef trained in Japan, sizzling salt & pepper, aromatic crispy duck, katsu curry and signature boba.";
 function upgradeContactDefaults(c: SiteContent): SiteContent {
   const b = c.business;
   const social = { ...b.social };
   for (const k of SOCIAL_KEYS) if (social[k] === OLD_SOCIAL[k]) social[k] = "";
   const email = b.email === OLD_EMAIL ? DEFAULT_SITE_CONTENT.business.email : b.email;
-  return { ...c, business: { ...b, social, email } };
+  const blurb = b.blurb === OLD_BLURB ? DEFAULT_SITE_CONTENT.business.blurb : b.blurb;
+  return { ...c, business: { ...b, social, email, blurb } };
 }
 
 // Older saves copied the delivery prices into the text ("Free delivery over £25 / From £1.99 across

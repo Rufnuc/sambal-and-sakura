@@ -211,7 +211,7 @@ async function ctx() {
   const website = SITE_URL.replace(/^https?:\/\//, "");
   return {
     businessName: RESTAURANT.name, phone: business.phone,
-    tagline: "Chinese & Japanese Kitchen", address: formatAddress(business.address), website,
+    tagline: "Chinese, Japanese & Malaysian", address: formatAddress(business.address), website,
     // With a Google review link set (Admin -> Site content), the QR asks for a review; otherwise it opens the site.
     qrUrl: business.googleReviewUrl ? `${SITE_URL}/review` : SITE_URL,
     qrLabel: business.googleReviewUrl ? "Enjoyed it? Scan to leave us a review" : "Scan to order direct next time",

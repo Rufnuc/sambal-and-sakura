@@ -2,7 +2,7 @@
 
 import { realPhoto } from "@/lib/photo";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Minus, Check, Flame, Leaf, Star, ChefHat, BadgePlus } from "lucide-react";
+import { Plus, Minus, Check, Flame, Leaf, Star, ChefHat, BadgePlus, Phone } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -16,8 +16,10 @@ import { DishAssistant } from "@/components/menu/dish-assistant";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { useCart, MAX_QTY, type CartLine } from "@/lib/store/cart";
-import type { MenuItem } from "@/lib/data/menu";
+import { allergenNote, type MenuItem } from "@/lib/data/menu";
 import { cn } from "@/lib/utils";
+import { telHref } from "@/lib/site-content";
+import { useSiteContent } from "@/components/site-content-provider";
 
 const TAG_META: Record<string, { label: string; icon: React.ElementType; className: string }> = {
   popular: { label: "Popular", icon: Star, className: "bg-gold/15 text-gold-ink border-gold/30" },
@@ -63,6 +65,7 @@ function SpiceDots({ level }: { level?: number }) {
 // Tablet/desktop look is unchanged.
 export function DishCard({ item, className, dense = false }: { item: MenuItem; className?: string; dense?: boolean }) {
   const addLine = useCart((s) => s.addLine);
+  const phone = useSiteContent().business.phone;
 
   // Adding to the cart must never block the screen: no popup. Instead the button briefly reads
   // "Added" and the cart badge pops (see useBump). Screen readers get a polite announcement.
@@ -123,9 +126,7 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
         <p className={cn("mt-1 line-clamp-2 text-muted-foreground", dense ? "text-xs sm:text-sm" : "text-sm")}>{item.description}</p>
 
         {/* No list yet means "not listed", never "none": customers are told to ask. */}
-        <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>
-          {item.allergens.length > 0 ? <>Allergens: {item.allergens.join(", ")}</> : "Allergens not listed yet - please ask us before ordering"}
-        </p>
+        <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>{allergenNote(item)}</p>
 
         <div className={cn("mt-3", dense && "mt-2 sm:mt-3")}>
           <DishAssistant item={item} compact={dense} />
@@ -134,9 +135,14 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
         {/* Phones (dense): price on its own line, then quantity + Add, so both fit in a half-width card. */}
         <div className={cn("mt-auto flex flex-wrap items-center justify-between gap-2", dense ? "pt-3 sm:pt-4" : "pt-4")}>
           <div className={cn("flex items-baseline gap-2", dense && "w-full sm:w-auto")}>
-            <span className={cn("font-display font-bold", dense ? "text-base sm:text-xl" : "text-xl")}>{gbp(item.price)}</span>
+            <span className={cn("font-display font-bold", dense ? "text-base sm:text-xl" : "text-xl")}>{item.phoneOrder && !item.price ? "Seasonal price" : gbp(item.price)}</span>
           </div>
-          {item.modifiers && item.modifiers.length > 0 ? (
+          {item.phoneOrder ? (
+            // Ordered by phone only (seasonal price / pre-order): a call button instead of Add.
+            <a href={telHref(phone)} className={cn("inline-flex items-center gap-1.5 rounded-lg border border-border font-medium transition hover:bg-muted", dense ? "h-8 px-2.5 text-xs sm:h-9 sm:px-3 sm:text-sm" : "h-9 px-3 text-sm")}>
+              <Phone className="size-4" /> Phone to order
+            </a>
+          ) : item.modifiers && item.modifiers.length > 0 ? (
             <CustomiseDialog item={item} dense={dense} onAdded={flash} />
           ) : (
             <div className={cn("flex items-center gap-1.5", dense && "w-full justify-between sm:w-auto sm:justify-start")}>

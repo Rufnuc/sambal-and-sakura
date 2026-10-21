@@ -44,6 +44,10 @@ export const modifierGroupsSchema = z.array(z.object({
   }
 });
 
+const allergenList = z.array(z.enum(ALLERGENS as [Allergen, ...Allergen[]])).max(ALLERGENS.length).refine((a) => new Set(a).size === a.length, "An allergen is listed twice.");
+const dietTags = z.array(z.enum(DIET_TAGS.map((t) => t.id) as [DietTag, ...DietTag[]])).max(DIET_TAGS.length);
+const spice = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
+
 export const menuOverridesSchema = z.record(
   z.string().refine((id) => MENU_IDS.has(id), "Unknown dish"),
   z.object({
@@ -58,7 +62,13 @@ export const menuOverridesSchema = z.record(
     aiNotes: text(1500).optional(),
     hidden: z.boolean().optional(),
     modifiers: modifierGroupsSchema.optional(),
-  }).strict(),
+    // The kitchen enters these for the built-in dishes. An allergen list is only accepted once confirmed.
+    allergens: allergenList.optional(),
+    allergensChecked: z.literal(true).optional(),
+    tags: dietTags.optional(),
+    spiceLevel: spice.optional(),
+    phoneOrder: z.boolean().optional(),
+  }).strict().refine((o) => !o.allergens || o.allergensChecked, { message: "Tick that you've checked the allergens before saving them." }),
 );
 
 // Menu categories, in menu order. Removing one that still has dishes is refused in the config route.
@@ -83,10 +93,11 @@ export const customDishesSchema = z.array(z.object({
   category: slugId,
   price: money.refine(pence, "Use pounds and pence, e.g. 8 or 8.50."),
   description: text(600),
-  allergens: z.array(z.enum(ALLERGENS as [Allergen, ...Allergen[]])).max(ALLERGENS.length).refine((a) => new Set(a).size === a.length, "An allergen is listed twice."),
+  allergens: allergenList,
   allergensChecked: z.literal(true, { message: "Tick the allergens in each new dish (or confirm it contains none) before saving." }),
-  tags: z.array(z.enum(DIET_TAGS.map((t) => t.id) as [DietTag, ...DietTag[]])).max(DIET_TAGS.length).default([]),
-  spiceLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  tags: dietTags.default([]),
+  spiceLevel: spice.optional(),
+  phoneOrder: z.boolean().optional(),
   image: z.string().optional(), // ignored: set from `images`
   images: dishPhotos.optional(),
   soldOut: z.boolean().optional(),

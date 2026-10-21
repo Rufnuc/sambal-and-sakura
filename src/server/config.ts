@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
-import { MENU, DEFAULT_CATEGORIES, RETIRED_CATEGORIES, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
+import { MENU, DEFAULT_CATEGORIES, RETIRED_CATEGORIES, type Allergen, type DietTag, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
 import { TABLES, type Table } from "@/lib/data/tables";
 import { getPromotions } from "@/server/promotions";
 import { LEGACY_CODE_VALUES } from "@/server/pricing";
@@ -87,6 +87,9 @@ export type MenuOverride = {
   image?: string; images?: string[]; category?: MenuCategory; leadTimeHours?: number; description?: string; aiNotes?: string;
   hidden?: boolean;               // owner hid this built-in dish from the menu (can be shown again)
   modifiers?: ModifierGroup[];    // owner replaced the dish's choices (sizes, proteins, extras)
+  // Entered by the kitchen for the printed menu's dishes (the menu data leaves them empty).
+  allergens?: Allergen[]; allergensChecked?: boolean; tags?: DietTag[]; spiceLevel?: 0 | 1 | 2 | 3;
+  phoneOrder?: boolean;           // on the menu, but ordered by phone only
 };
 export const MAX_DISH_PHOTOS = 6;
 export type MenuOverrides = Record<string, MenuOverride>;
@@ -173,11 +176,12 @@ export async function getEffectiveMenu(): Promise<MenuItem[]> {
 
 /**
  * The menu as it may be sent to a browser: the effective menu without owner-only fields. aiNotes are
- * only for the dish assistant (server side); allergensChecked is an admin bookkeeping flag.
+ * only for the dish assistant (server side). allergensChecked stays: an empty, confirmed allergen list
+ * means "none of the 14", an unconfirmed one means "ask us".
  * Use this for every page and API that hands menu items to the client.
  */
 export async function getPublicMenu(): Promise<MenuItem[]> {
-  return (await getEffectiveMenu()).map(({ aiNotes: _n, allergensChecked: _a, ...m }) => m);
+  return (await getEffectiveMenu()).map(({ aiNotes: _n, ...m }) => m);
 }
 
 function applyOverride(m: MenuItem, o: MenuOverride | undefined): MenuItem {
@@ -196,6 +200,11 @@ function applyOverride(m: MenuItem, o: MenuOverride | undefined): MenuItem {
       leadTimeHours: typeof o.leadTimeHours === "number" ? o.leadTimeHours : m.leadTimeHours,
       aiNotes: o.aiNotes ?? m.aiNotes,
       modifiers: o.modifiers ?? m.modifiers,
+      allergens: o.allergens ?? m.allergens,
+      allergensChecked: o.allergens ? o.allergensChecked : m.allergensChecked,
+      tags: o.tags ?? m.tags,
+      spiceLevel: o.spiceLevel ?? m.spiceLevel,
+      phoneOrder: typeof o.phoneOrder === "boolean" ? o.phoneOrder : m.phoneOrder,
       ...(o.hidden ? { hidden: true } : {}),
     };
 }

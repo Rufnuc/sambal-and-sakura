@@ -30,7 +30,8 @@ type PriceResult = { line: PricedLine } | { issue: LineIssue };
 
 export function priceLine(line: IncomingLine, menu: MenuItem[]): PriceResult {
   const item = menu.find((m) => m.id === line.itemId);
-  if (!item || item.soldOut) return { issue: { itemId: line.itemId, name: item?.name ?? "An item", problem: "unavailable" } };
+  // Phone-order dishes (seasonal price) are on the menu but can never be priced into an online order.
+  if (!item || item.soldOut || item.phoneOrder) return { issue: { itemId: line.itemId, name: item?.name ?? "An item", problem: "unavailable" } };
   const qty = Math.max(1, Math.min(50, Math.floor(line.qty || 1)));
   const bad = { issue: { itemId: item.id, name: item.name, problem: "invalid-options" as const } };
 

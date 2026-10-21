@@ -24,7 +24,7 @@ export function CartContent({ onClose }: { onClose: () => void }) {
   const { menu } = useMenu();
   const upsells = menu.filter(
     // Only dishes that need no choices: anything with a required option goes through its own dialog.
-    (m) => (m.category === "desserts" || m.category === "sides") && !m.soldOut && !lines.some((l) => l.itemId === m.id) &&
+    (m) => (m.category === "desserts" || m.category === "drinks") && !m.soldOut && !m.phoneOrder && !lines.some((l) => l.itemId === m.id) &&
       !(m.modifiers ?? []).some((g) => g.required),
   ).slice(0, 3);
 

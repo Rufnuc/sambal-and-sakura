@@ -45,6 +45,11 @@ function withOverride(m: MenuItem, o: MenuOverrideCfg | undefined): MenuItem {
     leadTimeHours: typeof o.leadTimeHours === "number" ? o.leadTimeHours : m.leadTimeHours,
     aiNotes: o.aiNotes ?? m.aiNotes,
     modifiers: o.modifiers ?? m.modifiers,
+    allergens: o.allergens ?? m.allergens,
+    allergensChecked: o.allergens ? o.allergensChecked : m.allergensChecked,
+    tags: o.tags ?? m.tags,
+    spiceLevel: o.spiceLevel ?? m.spiceLevel,
+    phoneOrder: typeof o.phoneOrder === "boolean" ? o.phoneOrder : m.phoneOrder,
     hidden: !!o.hidden,
   };
 }
@@ -119,6 +124,12 @@ export function MenuView() {
     set("aiNotes", patch.aiNotes.trim(), base.aiNotes);
     set("modifiers", patch.modifiers.length ? patch.modifiers : undefined, base.modifiers);
     if (!patch.modifiers.length && base.modifiers?.length) o.modifiers = []; // the owner removed every choice
+    // Allergens are only stored once the owner has confirmed them (an empty, confirmed list = "none of the 14").
+    if (patch.allergensChecked) { o.allergens = patch.allergens; o.allergensChecked = true; } else { delete o.allergens; delete o.allergensChecked; }
+    set("tags", patch.tags, base.tags);
+    set("spiceLevel", patch.spiceLevel, base.spiceLevel ?? 0);
+    set("phoneOrder", patch.phoneOrder || undefined, base.phoneOrder);
+    if (!patch.phoneOrder && base.phoneOrder) o.phoneOrder = false;
     // Photos: the whole set (main first); `image` mirrors the main one for anything that shows a single photo.
     if (patch.images.length) { o.images = patch.images; o.image = patch.images[0]; } else { delete o.images; delete o.image; }
     const next = { ...overrides, [id]: o };
@@ -139,6 +150,7 @@ export function MenuView() {
       leadTimeHours: f.leadTimeHours > 0 ? f.leadTimeHours : undefined,
       aiNotes: f.aiNotes.trim() || undefined,
       modifiers: f.modifiers.length ? f.modifiers : undefined,
+      phoneOrder: f.phoneOrder || undefined,
       soldOut: existing?.soldOut, hidden: existing?.hidden, custom: true,
     };
     const next = existing ? custom.map((d) => (d.id === existing.id ? dish : d)) : [...custom, dish];
@@ -281,6 +293,7 @@ function withHidden(ov: Overrides, id: string, hide: boolean): Overrides {
 interface DishForm {
   name: string; description: string; price: number; category: string; leadTimeHours: number; aiNotes: string; images: string[];
   modifiers: ModifierGroup[]; allergens: Allergen[]; allergensChecked: boolean; tags: DietTag[]; spiceLevel: 0 | 1 | 2 | 3;
+  phoneOrder: boolean;
 }
 
 function DishDialog({ item, categories, onClose, onSave }: {
@@ -301,7 +314,7 @@ function DishEditor({ item, categories, onClose, onSave }: {
 }) {
   const isNew = item === "new";
   const dish = item !== "new" ? item : null;
-  const builtIn = !!dish && !dish.custom; // built-in dishes: allergens and diet tags are fixed in the menu data
+  const builtIn = !!dish && !dish.custom; // a dish from the printed menu (changes are saved as overrides)
   const [name, setName] = useState(dish?.name ?? "");
   const [price, setPrice] = useState(dish ? String(dish.price) : "");
   const [description, setDescription] = useState(dish?.description ?? "");
@@ -315,6 +328,7 @@ function DishEditor({ item, categories, onClose, onSave }: {
   const [checked, setChecked] = useState(!!dish?.allergensChecked);
   const [tags, setTags] = useState<DietTag[]>(dish?.tags ?? []);
   const [spice, setSpice] = useState<0 | 1 | 2 | 3>(dish?.spiceLevel ?? 0);
+  const [phoneOrder, setPhoneOrder] = useState(!!dish?.phoneOrder);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -342,11 +356,13 @@ function DishEditor({ item, categories, onClose, onSave }: {
     if (!name.trim()) { toast.error("Give the dish a name."); return; }
     if (!Number.isFinite(p) || p < 0) { toast.error("Enter a price, e.g. 8.50."); return; }
     if (!builtIn && !checked) { toast.error("Tick the allergens (or confirm it contains none) before saving."); return; }
+    // Printed-menu dishes can be saved before their allergens are known, but a changed list must be confirmed.
+    if (builtIn && !checked && !sameJson(allergens, dish!.allergens)) { toast.error("Tick that you've checked the allergens, or put them back as they were."); return; }
     const bad = modifiers.find((g) => !g.label.trim() || !g.options.length || g.options.some((o) => !o.label.trim()));
     if (bad) { toast.error("Every choice group needs a name and at least one named option."); return; }
     onSave({
       name, description, price: p, category, leadTimeHours: lead ? parseInt(lead, 10) : 0, aiNotes, images: photos,
-      modifiers, allergens, allergensChecked: checked, tags, spiceLevel: spice,
+      modifiers, allergens, allergensChecked: checked, tags, spiceLevel: spice, phoneOrder,
     });
   }
 
@@ -396,44 +412,41 @@ function DishEditor({ item, categories, onClose, onSave }: {
 
               <ChoicesEditor groups={modifiers} onChange={setModifiers} />
 
-              {builtIn ? (
-                <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                  Allergens: {dish!.allergens.length ? dish!.allergens.map((a) => ALLERGEN_LABELS[a]).join(", ") : "none listed"}. These are fixed for the original menu dishes.
-                </p>
-              ) : (
-                <div className="rounded-lg border border-border p-3">
-                  <Label>Allergens</Label>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Tick every one of the 14 allergens the dish contains. Customers see these on the menu.</p>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-3">
-                    {ALLERGENS.filter((a) => a !== "shellfish").map((a) => (
-                      <label key={a} className="flex items-center gap-2"><input type="checkbox" className="size-4" checked={allergens.includes(a)} onChange={() => toggleAllergen(a)} /> {ALLERGEN_LABELS[a]}</label>
+              {/* Allergens: required for dishes the owner adds; for printed-menu dishes the kitchen fills them in. */}
+              <div className="rounded-lg border border-border p-3">
+              <Label>Allergens</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">Tick every one of the 14 allergens the dish contains. Customers see these on the menu{builtIn ? '; until they are confirmed here the dish says "Allergens not listed yet - please ask us"' : ""}.</p>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-3">
+                {ALLERGENS.filter((a) => a !== "shellfish").map((a) => (
+                  <label key={a} className="flex items-center gap-2"><input type="checkbox" className="size-4" checked={allergens.includes(a)} onChange={() => toggleAllergen(a)} /> {ALLERGEN_LABELS[a]}</label>
+                ))}
+              </div>
+              <label className="mt-3 flex items-start gap-2 text-sm font-medium">
+                <input type="checkbox" className="mt-0.5 size-4" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+                {allergens.length ? "I've checked these allergens are right for this dish" : "I've checked: this dish contains none of the 14 allergens"}
+              </label>
+            </div>
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <Label>Labels</Label>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {DIET_TAGS.map((t) => (
+                      <button key={t.id} type="button" onClick={() => toggleTag(t.id)} aria-pressed={tags.includes(t.id)} className={cn("rounded-full border px-3 py-1 text-xs transition", tags.includes(t.id) ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted")}>{t.label}</button>
                     ))}
                   </div>
-                  <label className="mt-3 flex items-start gap-2 text-sm font-medium">
-                    <input type="checkbox" className="mt-0.5 size-4" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
-                    {allergens.length ? "I've checked these allergens are right for this dish" : "I've checked: this dish contains none of the 14 allergens"}
-                  </label>
                 </div>
-              )}
+                <div>
+                  <Label htmlFor="ed-spice">Spice</Label>
+                  <select id="ed-spice" value={spice} onChange={(e) => setSpice(Number(e.target.value) as 0 | 1 | 2 | 3)} className={cn(select, "mt-1.5 w-full")}>
+                    <option value={0}>Not spicy</option><option value={1}>Mild</option><option value={2}>Medium</option><option value={3}>Hot</option>
+                  </select>
+                </div>
+              </div>
 
-              {!builtIn && (
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                  <div>
-                    <Label>Labels</Label>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {DIET_TAGS.map((t) => (
-                        <button key={t.id} type="button" onClick={() => toggleTag(t.id)} aria-pressed={tags.includes(t.id)} className={cn("rounded-full border px-3 py-1 text-xs transition", tags.includes(t.id) ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted")}>{t.label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="ed-spice">Spice</Label>
-                    <select id="ed-spice" value={spice} onChange={(e) => setSpice(Number(e.target.value) as 0 | 1 | 2 | 3)} className={cn(select, "mt-1.5 w-full")}>
-                      <option value={0}>Not spicy</option><option value={1}>Mild</option><option value={2}>Medium</option><option value={3}>Hot</option>
-                    </select>
-                  </div>
-                </div>
-              )}
+              <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
+                <input type="checkbox" className="mt-0.5 size-4" checked={phoneOrder} onChange={(e) => setPhoneOrder(e.target.checked)} />
+                <span><span className="font-medium">Phone to order only</span><span className="block text-xs text-muted-foreground">Shown on the menu with a &quot;Phone to order&quot; button instead of Add (e.g. seasonal-price lobster). It can&apos;t be ordered online. Price 0 shows as &quot;Seasonal price&quot;.</span></span>
+              </label>
 
               <div>
                 <Label htmlFor="ed-lead">Advance notice (hours)</Label>

@@ -7,6 +7,14 @@ export type Allergen =
   | "gluten" | "soy" | "shellfish" | "fish" | "egg" | "peanut" | "treenut" | "sesame" | "dairy" | "crustaceans" | "molluscs"
   | "celery" | "lupin" | "mustard" | "sulphites";
 
+/** What to tell customers about a dish's allergens: the list, "none of the 14" once confirmed, or "ask us". */
+export function allergenNote(m: Pick<MenuItem, "allergens" | "allergensChecked">): string {
+  if (m.allergens.length) return `Allergens: ${m.allergens.join(", ")}`;
+  return m.allergensChecked ? "None of the 14 major allergens" : "Allergens not listed yet - please ask us before ordering";
+}
+/** True once the dish has an allergen list (or is confirmed to contain none of the 14). */
+export const allergensKnown = (m: Pick<MenuItem, "allergens" | "allergensChecked">) => m.allergens.length > 0 || !!m.allergensChecked;
+
 /** The 14 UK allergens (plus "shellfish", used by older built-in dishes), as shown in the admin dish editor. */
 export const ALLERGEN_LABELS: Record<Allergen, string> = {
   gluten: "Gluten (cereals)", crustaceans: "Crustaceans", egg: "Eggs", fish: "Fish", peanut: "Peanuts", soy: "Soya",
@@ -25,7 +33,7 @@ export const DIET_TAGS: { id: DietTag; label: string }[] = [
 // Setting "menuCategories"). These are the built-in ones the printed menu uses.
 export type MenuCategory = string;
 export type BuiltInCategory =
-  | "salt-pepper" | "tempura" | "starters" | "skewers" | "bao" | "fish" | "seafood" | "king-prawn"
+  | "appetiser" | "soup" | "salt-pepper" | "tempura" | "starters" | "skewers" | "bao" | "fish" | "seafood" | "king-prawn"
   | "beef" | "chicken" | "vegetables" | "rice" | "ho-fun" | "vermicelli" | "udon" | "ramen"
   | "sushi-rolls" | "sashimi" | "hosomaki" | "poke" | "nigiri" | "platters" | "desserts" | "drinks";
 export interface MenuCategoryCfg { id: string; label: string; hidden?: boolean }
@@ -56,7 +64,8 @@ export interface MenuItem {
   modifiers?: ModifierGroup[];
   custom?: boolean;         // added by the owner in Admin -> Menu (not part of the built-in menu)
   hidden?: boolean;         // hidden from customers (Admin -> Menu); only the admin list shows it
-  allergensChecked?: boolean; // owner-added dish: the owner confirmed its allergen list when saving it
+  allergensChecked?: boolean; // the owner confirmed this dish's allergen list when saving it
+  phoneOrder?: boolean;       // shown on the menu but ordered by phone only (e.g. seasonal-price pre-orders)
 }
 
 
@@ -66,7 +75,7 @@ export interface MenuItem {
 // Until a dish has a list, the website tells customers to ask before ordering (it never shows "none").
 // Diet tags (vegetarian / vegan) are also left for the kitchen to confirm: several dishes in the printed
 // "Vegetarian" section use oyster sauce, shrimp or egg.
-type DishExtra = Partial<Pick<MenuItem, "spiceLevel" | "tags" | "modifiers" | "leadTimeHours">>;
+type DishExtra = Partial<Pick<MenuItem, "spiceLevel" | "tags" | "modifiers" | "leadTimeHours" | "phoneOrder">>;
 function dish(id: string, name: string, category: BuiltInCategory, price: number, description: string, extra: DishExtra = {}): MenuItem {
   const spiceLevel = extra.spiceLevel ?? 0;
   const tags: DietTag[] = [...(extra.tags ?? []), ...(spiceLevel > 0 ? (["spicy"] as DietTag[]) : [])];
@@ -85,6 +94,26 @@ const fishCut = choose("cut", "Fillet or whole fish", [["fillet", "Fillet"], ["w
 // Dish ids start with the printed menu number (m12-...), so staff and customers can match the paper menu,
 // and so no setting saved for the previous menu's dishes can attach to these.
 export const MENU: MenuItem[] = [
+  /* APPETISER - 1 Seaweed and 3 Kimchi were added by the owner in Admin -> Menu, so they aren't repeated here */
+  dish("m2-edamame", "Edamame", "appetiser", 3.9, "Steamed edamame beans."),
+  // Same id as the previous menu's prawn crackers, so the photo the owner uploaded carries over.
+  dish("prawn-crackers", "Prawn Crackers", "appetiser", 2.5, "Light, crispy prawn crackers."),
+  dish("m5a-pan-fried-veg-gyoza", "Pan Fried Vegetable Gyoza (6)", "appetiser", 7.5, "Six pan-fried vegetable dumplings."),
+  dish("m5b-pan-fried-chicken-gyoza", "Pan Fried Chicken Gyoza (6)", "appetiser", 7.9, "Six pan-fried chicken dumplings."),
+  dish("m6a-deep-fried-veg-gyoza", "Deep Fried Vegetable Gyoza (6)", "appetiser", 6.2, "Six crispy deep-fried vegetable dumplings."),
+  dish("m6b-deep-fried-chicken-gyoza", "Deep Fried Chicken Gyoza (6)", "appetiser", 6.9, "Six crispy deep-fried chicken dumplings."),
+
+  /* SOUP */
+  dish("m7-miso-soup", "Miso Soup", "soup", 3.9, "Japanese miso soup."),
+  dish("m8-chicken-sweetcorn-soup", "Chicken Sweet Corn Soup", "soup", 4.5, "Chicken and sweet corn soup."),
+  dish("m9-hot-sour-soup", "Hot & Sour Soup", "soup", 5.2, "Hot and sour soup.", {
+    spiceLevel: 1, modifiers: [choose("protein", "Choose", [["veg", "Vegetarian"], ["chicken", "Chicken", 0.3], ["prawn", "Prawn", 0.3]])],
+  }),
+  dish("m10-tom-yum-soup", "Thai Tom Yum Soup", "soup", 5.2, "Spicy, sour Thai tom yum soup.", {
+    spiceLevel: 1, modifiers: [choose("protein", "Choose", [["veg", "Vegetarian"], ["chicken", "Chicken", 0.3], ["prawn", "Prawn", 0.3]])],
+  }),
+  dish("m11-seafood-soup", "Seafood Soup", "soup", 5.5, "With prawn, imitation crab stick, squid and mussel."),
+
   /* SALT & PEPPER */
   dish("m12-sp-chips", "Salt & Pepper Chips", "salt-pepper", 4.5, "Chips wok-tossed with salt & pepper."),
   dish("m13-sp-chicken-wings", "Salt & Pepper Chicken Wings (6)", "salt-pepper", 6.5, "Six chicken wings, salt & pepper style."),
@@ -149,6 +178,9 @@ export const MENU: MenuItem[] = [
   dish("m46a-la-zi-king-prawn", "La Zi King Prawn (shell on)", "king-prawn", 14.9, "Shell-on king prawns, La Zi style.", { spiceLevel: 1 }),
   dish("m46b-la-zi-crab", "La Zi Crab", "king-prawn", 15.0, "Crab, La Zi style."),
   dish("m47-typhoon-king-prawn", "Typhoon Shelter King Prawn (10)", "king-prawn", 15.9, "Onion, garlic, ginger and herbs."),
+  // Price changes with the season, so these are shown on the menu but ordered by phone.
+  dish("m47a-lobster", "Lobster (pre-order)", "king-prawn", 0, "Seasonal price. Pre-order only - phone us to order and we'll give you today's price.", { phoneOrder: true }),
+  dish("m47b-typhoon-crab", "Typhoon Shelter Crab (pre-order)", "king-prawn", 0, "Seasonal price. Pre-order only - phone us to order and we'll give you today's price.", { phoneOrder: true }),
   dish("m48-cereal-king-prawn", "Cereal King Prawn (10)", "king-prawn", 14.9, "Ten king prawns, cereal style."),
 
   /* BEEF */
@@ -295,6 +327,8 @@ export const MENU: MenuItem[] = [
 ];
 
 export const CATEGORY_LABELS: Record<BuiltInCategory, string> = {
+  appetiser: "Appetiser",
+  soup: "Soup",
   "salt-pepper": "Salt & Pepper",
   tempura: "Tempura",
   starters: "Starters",
@@ -324,7 +358,7 @@ export const CATEGORY_LABELS: Record<BuiltInCategory, string> = {
 // Categories of the previous menu. A category list saved while they existed is upgraded on read
 // (server/config.ts getCategories): these are dropped and the new built-in ones are added.
 export const RETIRED_CATEGORIES = [
-  "japanese", "soup", "ribs", "wrapping", "mains", "honey-chilli", "kung-po", "sweet-sour", "chef-special",
+  "japanese", "ribs", "wrapping", "mains", "honey-chilli", "kung-po", "sweet-sour", "chef-special",
   "omelette", "crispy-noodle", "chow-mein", "combo", "sides", "set-meals", "preorder",
 ];
 

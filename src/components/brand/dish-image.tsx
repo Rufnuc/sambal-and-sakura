@@ -14,6 +14,8 @@ const GRADIENTS = {
 } as const;
 
 const CATEGORY_GRADIENT: Record<MenuCategory, string> = {
+  appetiser: GRADIENTS.jade,
+  soup: GRADIENTS.teal,
   "salt-pepper": GRADIENTS.bronze,
   tempura: GRADIENTS.gold,
   starters: GRADIENTS.gold,

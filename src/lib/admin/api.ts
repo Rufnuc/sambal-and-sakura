@@ -5,7 +5,7 @@ import type { Booking, BookingStatus } from "@/lib/booking";
 import type { Table } from "@/lib/data/tables";
 import type { OrderStatus } from "@/lib/data/site";
 import type { SiteContent } from "@/lib/site-content";
-import type { MenuItem, MenuCategoryCfg, ModifierGroup } from "@/lib/data/menu";
+import type { Allergen, DietTag, MenuItem, MenuCategoryCfg, ModifierGroup } from "@/lib/data/menu";
 
 export interface AdminCustomer {
   id: string; name: string; email: string; phone: string;
@@ -247,6 +247,7 @@ export interface MenuOverrideCfg {
   name?: string; price?: number; soldOut?: boolean;
   image?: string; images?: string[]; category?: string; leadTimeHours?: number; description?: string; aiNotes?: string;
   hidden?: boolean; modifiers?: ModifierGroup[];
+  allergens?: Allergen[]; allergensChecked?: boolean; tags?: DietTag[]; spiceLevel?: 0 | 1 | 2 | 3; phoneOrder?: boolean;
 }
 
 /**

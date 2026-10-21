@@ -1,6 +1,6 @@
 import { RESTAURANT, ORDERING, COMPANY } from "@/lib/data/site";
 import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
-import type { MenuCategoryCfg, MenuItem } from "@/lib/data/menu";
+import { allergensKnown, type MenuCategoryCfg, type MenuItem } from "@/lib/data/menu";
 import { formatHours } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
@@ -77,7 +77,7 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
     {
       label: "Allergies and diets",
       // Only claim "every dish" once the kitchen has actually listed allergens for every dish.
-      value: menu.every((m) => m.allergens.length > 0)
+      value: menu.every(allergensKnown)
         ? `Allergens and vegetarian/vegan options are marked on every dish. For allergies, phone ${b.phone} to confirm before ordering.`
         : `Allergen information is being added to the menu. If you have an allergy or dietary need, phone ${b.phone} before ordering and the kitchen will advise.`,
     },
@@ -104,9 +104,10 @@ export function menuAsText(menu: MenuItem[], categories: MenuCategoryCfg[]): str
       const from = m.modifiers && m.modifiers.length > 0 ? "from " : "";
       const diet = m.tags.includes("vegan") ? " Vegan." : m.tags.includes("vegetarian") ? " Vegetarian." : "";
       const spice = m.spiceLevel ? ` Spice level ${m.spiceLevel}/3.` : "";
-      const allergens = m.allergens.length ? ` Contains: ${m.allergens.join(", ")}.` : " Allergens: not listed yet, ask the restaurant.";
+      const allergens = m.allergens.length ? ` Contains: ${m.allergens.join(", ")}.` : m.allergensChecked ? " None of the 14 major allergens." : " Allergens: not listed yet, ask the restaurant.";
       const sold = m.soldOut ? " (currently unavailable)" : "";
-      lines.push(`- ${m.name} (${from}${gbp(m.price)})${sold}: ${m.description}${diet}${spice}${allergens}`);
+      const price = m.phoneOrder ? (m.price ? `${gbp(m.price)}, phone to order` : "seasonal price, phone to order") : `${from}${gbp(m.price)}`;
+      lines.push(`- ${m.name} (${price})${sold}: ${m.description}${diet}${spice}${allergens}`);
     }
     lines.push("");
   }

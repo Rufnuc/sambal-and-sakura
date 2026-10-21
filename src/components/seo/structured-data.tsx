@@ -148,12 +148,13 @@ export function MenuJsonLd({ menu, categories }: { menu: MenuItem[]; categories:
             name: m.name,
             description: m.description,
             ...(diets.length ? { suitableForDiet: diets } : {}),
-            offers: {
+            // Phone-order dishes have no fixed online price (seasonal), so no price is claimed for them.
+            ...(m.phoneOrder ? {} : { offers: {
               "@type": "Offer",
               price: m.price.toFixed(2),
               priceCurrency: "GBP",
               availability: m.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
-            },
+            } }),
           };
         }),
     }))

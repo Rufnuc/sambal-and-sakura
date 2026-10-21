@@ -7,6 +7,7 @@ import { getPublicMenu, getDeal, getCategories } from "@/server/config";
 import { gbp } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
 import { telHref } from "@/lib/site-content";
+import { allergensKnown } from "@/lib/data/menu";
 
 // Rendered on every request: this page shows admin-editable content, so it must NOT be frozen at build time.
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function MenuPage() {
           Everything, made to order
         </h1>
         {/* Only claimed once true: allergens are entered per dish by the kitchen (Admin -> Menu). */}
-        {menu.every((m) => m.allergens.length > 0) && (
+        {menu.every(allergensKnown) && (
           <p className="mt-3 max-w-2xl text-muted-foreground text-pretty">
             Allergens and diet tags are listed on every dish.
           </p>

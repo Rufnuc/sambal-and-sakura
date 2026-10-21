@@ -2,7 +2,7 @@
 
 import { realPhoto } from "@/lib/photo";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Minus, Check, Flame, Leaf, Star, ChefHat, Sparkles } from "lucide-react";
+import { Plus, Minus, Check, Flame, Leaf, Star, ChefHat, BadgePlus } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -25,7 +25,7 @@ const TAG_META: Record<string, { label: string; icon: React.ElementType; classNa
   spicy: { label: "Spicy", icon: Flame, className: "bg-sambal/15 text-sambal border-sambal/30" },
   vegetarian: { label: "Veg", icon: Leaf, className: "bg-jade/15 text-jade border-jade/30" },
   vegan: { label: "Vegan", icon: Leaf, className: "bg-jade/15 text-jade border-jade/30" },
-  new: { label: "New", icon: Sparkles, className: "bg-sakura/20 text-sambal dark:text-sakura border-sakura/40" },
+  new: { label: "New", icon: BadgePlus, className: "bg-sakura/20 text-sambal dark:text-sakura border-sakura/40" },
 };
 
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Banknote, Leaf, Flame } from "lucide-react";
 import { MenuBrowser } from "@/components/menu/menu-browser";
 import { MenuJsonLd } from "@/components/seo/structured-data";
-import { Sparkles } from "lucide-react";
+import { Ticket } from "lucide-react";
 import { getPublicMenu, getDeal, getCategories } from "@/server/config";
 import { gbp } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
@@ -45,7 +45,7 @@ export default async function MenuPage() {
       {deal.active && deal.title && (
         <div className="mx-auto mt-6 max-w-7xl">
           <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-gold/30 bg-gradient-to-r from-gold/15 to-background p-5">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold-ink"><Sparkles className="size-6" /></span>
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold-ink"><Ticket className="size-6" /></span>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-gold-ink">{deal.badge}</p>
               <p className="font-display text-xl font-bold">{deal.title}</p>

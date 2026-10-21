@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Gift, Clock, Ticket, LogIn } from "lucide-react";
+import { FerrisWheel, Gift, Clock, Ticket, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LazyAuthDialog as AuthDialog } from "@/components/account/lazy-auth-dialog";
@@ -124,7 +124,7 @@ export function SpinWheel({ prizes = WHEEL_PRIZES }: { prizes?: WheelPrize[] }) 
           <ResultCard result={result} />
         ) : (
           <Button className="h-14 w-full text-lg font-semibold" onClick={spin} disabled={spinning}>
-            <Sparkles className="size-5" /> {spinning ? "Spinning…" : "Crack the cookie - spin!"}
+            <FerrisWheel className="size-5" /> {spinning ? "Spinning…" : "Crack the cookie - spin!"}
           </Button>
         )}
         {cooldownMsg && !spinning && (

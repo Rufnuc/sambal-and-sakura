@@ -3,7 +3,7 @@
 // restaurant saves in Admin -> Site content is stored in the database and layered on top.
 import { RESTAURANT, FAQS, type DayHours, type Testimonial, type Faq } from "@/lib/data/site";
 
-export const VALUE_ICONS = ["banknote", "bike", "sparkles", "chef", "leaf", "clock", "star", "gift", "shield", "heart"] as const;
+export const VALUE_ICONS = ["banknote", "bike", "pot", "chef", "leaf", "clock", "star", "gift", "shield", "heart"] as const;
 export type ValueIcon = (typeof VALUE_ICONS)[number];
 
 export const FAQ_GROUPS = ["ordering", "delivery", "booking", "payment", "allergens", "policies"] as const;
@@ -77,7 +77,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     // {deliveryTitle} / {deliveryLine}: filled in from Admin -> Settings -> Delivery prices (src/server/live-content.ts).
     { icon: "bike", title: "{deliveryTitle}", text: "{deliveryLine}" },
     { icon: "chef", title: "Sushi by a Japan-trained chef", text: "Authentic Japanese technique, prepared to order." },
-    { icon: "sparkles", title: "Freshly made to order", text: "Authentic Chinese & Japanese, cooked when you order." },
+    { icon: "pot", title: "Freshly made to order", text: "Authentic Chinese & Japanese, cooked when you order." },
   ],
   cta: {
     heading: "Hungry yet? Order direct and taste the difference.",

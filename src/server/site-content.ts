@@ -76,7 +76,8 @@ const schemas = {
     featured: z.number().int().min(-1).max(2).default(DEFAULT_SITE_CONTENT.hero.featured),
   }),
   signature: z.object({ dishIds: z.array(dishId).max(6).refine((ids) => new Set(ids).size === ids.length, "Each dish can only be picked once") }),
-  valueStrip: z.array(z.object({ icon: z.enum(VALUE_ICONS), title: str(70), text: str(160) })).max(6),
+  // "sparkles" was retired (kept for AI features only): older saves get the cooking pot instead.
+  valueStrip: z.array(z.object({ icon: z.preprocess((v) => (v === "sparkles" ? "pot" : v), z.enum(VALUE_ICONS)), title: str(70), text: str(160) })).max(6),
   cta: z.object({ heading: str(120), subtext: str(200) }),
   reviews: z.object({
     show: z.boolean(),

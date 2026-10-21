@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Ticket, Sparkles, Gift, BadgePercent, ShieldCheck, Share2, UserPlus, Wallet, CalendarClock } from "lucide-react";
+import { Ticket, FerrisWheel, Gift, BadgePercent, ShieldCheck, Share2, UserPlus, Wallet, CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CopyCode } from "@/components/copy-code";
 import { SpinWheel } from "@/components/wheel/spin-wheel";
@@ -11,7 +11,7 @@ import type { Offer, WheelPrize } from "@/lib/data/site";
 import { cn } from "@/lib/utils";
 import { gbpShort } from "@/lib/format";
 
-const KIND_ICON: Record<string, React.ElementType> = { "first-order": Sparkles, bundle: Ticket, freebie: Gift, percent: BadgePercent };
+const KIND_ICON: Record<string, React.ElementType> = { "first-order": UserPlus, bundle: Ticket, freebie: Gift, percent: BadgePercent };
 const STEP_ICONS = [Share2, UserPlus, Wallet];
 
 type Tab = "offers" | "wheel" | "refer";
@@ -47,7 +47,7 @@ export function OffersTabs({
 
   const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "offers", label: "Offers", icon: Ticket },
-    { id: "wheel", label: "Fortune Wheel", icon: Sparkles },
+    { id: "wheel", label: "Fortune Wheel", icon: FerrisWheel },
     { id: "refer", label: "Refer & Earn", icon: Gift }, // always listed: a switched-off one shows the owner's message
   ];
 
@@ -109,7 +109,7 @@ export function OffersTabs({
                 <h2 className="flex items-center gap-2 font-display text-xl font-bold"><Gift className="size-5 text-sambal" /> What you can win</h2>
                 <ul className="mt-4 grid grid-cols-2 gap-2 text-sm">
                   {winnable.map((p) => (
-                    <li key={p.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Sparkles className="size-4 text-gold-ink" /> {p.label}</li>
+                    <li key={p.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2"><Gift className="size-4 text-gold-ink" /> {p.label}</li>
                   ))}
                 </ul>
               </div>

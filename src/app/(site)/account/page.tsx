@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Star, Gift, LogOut, ShoppingBag, CalendarCheck, User as UserIcon, Sparkles, Crown, ShieldCheck, Download,
+  Star, Gift, LogOut, ShoppingBag, CalendarCheck, User as UserIcon, Crown, ShieldCheck, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -120,7 +120,7 @@ function Dashboard() {
             </div>
           </div>
           <Button className="h-11 gap-2" disabled={!canRedeem} onClick={redeem}>
-            <Sparkles className="size-4" /> Redeem {LOYALTY.redeemStep} pts → {gbp(LOYALTY.redeemValue)} off
+            <Gift className="size-4" /> Redeem {LOYALTY.redeemStep} pts → {gbp(LOYALTY.redeemValue)} off
           </Button>
         </div>
         <div className="mt-5">

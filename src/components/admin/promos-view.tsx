@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Gift, Sparkles, Plus, Trash2, Save } from "lucide-react";
+import { Gift, Info, Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,7 +144,7 @@ export function PromosView() {
             </div>
           ))}
         </div>
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Sparkles className="size-3.5 text-gold-ink" /> Probability is each prize's weight ÷ total. One spin per customer per week.</p>
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Info className="size-3.5 text-gold-ink" /> Probability is each prize's weight ÷ total. One spin per customer per week.</p>
       </SectionCard>
     </div>
   );

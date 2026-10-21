@@ -290,7 +290,7 @@ function HomeTab({ c, set, menuPhotos }: { c: SiteContent; set: (p: Partial<Site
 
       <SectionCard
         title="Highlights strip"
-        action={<Button variant="outline" size="sm" className="h-9 gap-1" disabled={c.valueStrip.length >= 6} onClick={() => set({ valueStrip: [...c.valueStrip, { icon: "sparkles", title: "New highlight", text: "" }] })}><Plus className="size-4" /> Add</Button>}
+        action={<Button variant="outline" size="sm" className="h-9 gap-1" disabled={c.valueStrip.length >= 6} onClick={() => set({ valueStrip: [...c.valueStrip, { icon: "star", title: "New highlight", text: "" }] })}><Plus className="size-4" /> Add</Button>}
       >
         <p className="mb-3 text-sm text-muted-foreground">The row of short selling points under the banner. Up to 6; 4 looks best.</p>
         <DeliveryTokensHint />

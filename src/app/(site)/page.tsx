@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getLiveSiteContent } from "@/server/live-content";
 import Link from "next/link";
 import {
-  ArrowRight, Banknote, Bike, Sparkles, Star, Phone, MapPin, Clock, ChefHat, Leaf, Gift, ShieldCheck, Heart,
+  ArrowRight, Banknote, Bike, CookingPot, Star, Phone, MapPin, Clock, ChefHat, Leaf, Gift, ShieldCheck, Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,9 +73,12 @@ function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 lg:py-24">
         <div className="max-w-xl">
-          <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold-ink">
-            <Sparkles className="size-3.5" /> {hero.badge}
-          </Badge>
+          {/* Optional: an empty badge (Admin -> Site content -> Home page) is not shown at all. */}
+          {hero.badge && (
+            <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold-ink">
+              {hero.badge}
+            </Badge>
+          )}
           {/* The page's one heading says plainly who and what this is (search engines and AI tools read it
               first), with the tagline as the big display line. */}
           <h1 className="mt-5">
@@ -132,7 +135,7 @@ function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
 
 /* --------------------------------------------------------- Value strip */
 const VALUE_ICON_MAP: Record<ValueIcon, React.ElementType> = {
-  banknote: Banknote, bike: Bike, sparkles: Sparkles, chef: ChefHat, leaf: Leaf,
+  banknote: Banknote, bike: Bike, pot: CookingPot, chef: ChefHat, leaf: Leaf,
   clock: Clock, star: Star, gift: Gift, shield: ShieldCheck, heart: Heart,
 };
 
@@ -142,7 +145,7 @@ function ValueStrip({ items }: { items: SiteContent["valueStrip"] }) {
     <section className="border-b border-border bg-background">
       <div className="mx-auto grid max-w-7xl gap-px overflow-hidden px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         {items.map((it, idx) => {
-          const Icon = VALUE_ICON_MAP[it.icon] ?? Sparkles;
+          const Icon = VALUE_ICON_MAP[it.icon] ?? CookingPot;
           return (
           <div key={idx} className="flex items-start gap-3 px-2 py-3">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-gold-ink">

@@ -1,6 +1,6 @@
 // Sambal & Sakura - site content & operational config.
-// Location & hours are the real restaurant (rebranding from Kung Fu Panda,
-// 236–238 Linthorpe Rd, Middlesbrough). Phone/email/socials are PLACEHOLDER - replace.
+// These are the built-in defaults. Everything customers see (phone, email, address, hours, social
+// profiles) is edited in Admin -> Site content, which is saved in the database and wins over this file.
 
 export interface HoursSession { open: string; close: string }
 export interface DayHours { day: string; sessions: HoursSession[] }
@@ -14,6 +14,8 @@ export const COMPANY = {
   registeredIn: "England and Wales",
   registeredOffice: "236-238 Linthorpe Road, Middlesbrough, England, TS1 3QP",
 };
+// The public Companies House record: an independent, official source for who runs the restaurant.
+export const COMPANIES_HOUSE_URL = `https://find-and-update.company-information.service.gov.uk/company/${COMPANY.number}`;
 
 export const RESTAURANT = {
   name: "Sambal & Sakura",
@@ -21,9 +23,8 @@ export const RESTAURANT = {
   blurb:
     "Chinese classics and authentic Japanese specials in the heart of Middlesbrough - with sushi crafted by a chef trained in Japan, sizzling salt & pepper, aromatic crispy duck, katsu curry and signature boba.",
   halal: true,
-  phone: "+44 1642 245888", // PLACEHOLDER - confirm the real number
-  phoneHref: "tel:+441642245888",
-  email: "hello@sambalandsakura.co.uk", // PLACEHOLDER
+  phone: "+44 1642 245888",
+  email: "order@sambalandsakura.co.uk",
   address: {
     line1: "236–238 Linthorpe Road",
     line2: "",
@@ -32,13 +33,8 @@ export const RESTAURANT = {
     country: "United Kingdom",
   },
   mapQuery: "236-238 Linthorpe Rd, Middlesbrough TS1 3QP",
-  social: {
-    instagram: "https://instagram.com/sambalandsakura",
-    tiktok: "https://tiktok.com/@sambalandsakura",
-    facebook: "https://facebook.com/sambalandsakura",
-    rednote: "https://www.xiaohongshu.com/", // RedNote / Little Red Book - PLACEHOLDER profile
-    wechat: "SambalSakura", // WeChat ID - PLACEHOLDER
-  },
+  // No profiles by default: each one is added and switched on in Admin -> Site content once it exists.
+  social: { instagram: "", tiktok: "", facebook: "", rednote: "", wechat: "" },
   // index 0 = Sunday. Real trading hours (split lunch/dinner Tue–Sat).
   hours: [
     { day: "Sun", sessions: [{ open: "11:30", close: "22:00" }] },

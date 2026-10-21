@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/admin/ui";
 import { fetchConfig, saveSite } from "@/lib/admin/api";
-import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
+import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent, type SocialKey } from "@/lib/site-content";
 import type { DayHours } from "@/lib/data/site";
 import { cn } from "@/lib/utils";
 import { HeroImagesEditor, SignatureEditor } from "@/components/admin/home-dishes-editor";
@@ -140,10 +140,19 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
+const SOCIAL_FIELDS: { key: SocialKey; label: string; example: string }[] = [
+  { key: "instagram", label: "Instagram link", example: "https://instagram.com/…" },
+  { key: "tiktok", label: "TikTok link", example: "https://tiktok.com/@…" },
+  { key: "facebook", label: "Facebook link", example: "https://facebook.com/…" },
+  { key: "rednote", label: "RedNote (Xiaohongshu) link", example: "https://www.xiaohongshu.com/user/profile/…" },
+  { key: "wechat", label: "WeChat ID", example: "Your WeChat ID" },
+];
+
 function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Partial<SiteContent["business"]>) => void }) {
   const b = c.business;
   const setAddr = (p: Partial<typeof b.address>) => setBusiness({ address: { ...b.address, ...p } });
   const setSocial = (p: Partial<typeof b.social>) => setBusiness({ social: { ...b.social, ...p } });
+  const setShow = (p: Partial<typeof b.socialShow>) => setBusiness({ socialShow: { ...b.socialShow, ...p } });
   return (
     <>
       <SectionCard title="Contact & address">
@@ -181,13 +190,24 @@ function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Part
       </SectionCard>
 
       <SectionCard title="Social media">
-        <p className="mb-3 text-sm text-muted-foreground">Leave a box empty to hide that icon from the website.</p>
+        <p className="mb-3 text-sm text-muted-foreground">Add the link to each profile, check it opens the right page, then switch it on. Only switched-on profiles appear on the website and in Google&apos;s business information.</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Instagram link"><Input value={b.social.instagram} onChange={(e) => setSocial({ instagram: e.target.value })} className="h-10" placeholder="https://instagram.com/…" /></Field>
-          <Field label="TikTok link"><Input value={b.social.tiktok} onChange={(e) => setSocial({ tiktok: e.target.value })} className="h-10" placeholder="https://tiktok.com/@…" /></Field>
-          <Field label="Facebook link"><Input value={b.social.facebook} onChange={(e) => setSocial({ facebook: e.target.value })} className="h-10" placeholder="https://facebook.com/…" /></Field>
-          <Field label="RedNote (Xiaohongshu) link"><Input value={b.social.rednote} onChange={(e) => setSocial({ rednote: e.target.value })} className="h-10" placeholder="https://www.xiaohongshu.com/user/…" /></Field>
-          <Field label="WeChat ID"><Input value={b.social.wechat} onChange={(e) => setSocial({ wechat: e.target.value })} className="h-10" /></Field>
+          {SOCIAL_FIELDS.map((f) => {
+            const on = b.socialShow[f.key];
+            const value = b.social[f.key];
+            return (
+              <Field key={f.key} label={f.label}>
+                <div className="flex items-center gap-2">
+                  <Input value={value} onChange={(e) => setSocial({ [f.key]: e.target.value })} className="h-10" placeholder={f.example} inputMode={f.key === "wechat" ? "text" : "url"} />
+                  <button type="button" onClick={() => setShow({ [f.key]: !on })} disabled={!value.trim() && !on} role="switch" aria-checked={on} aria-label={`Show ${f.label} on the website`} title={on ? "Shown on the website" : "Hidden"}
+                    className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition disabled:opacity-40", on ? "bg-jade" : "bg-muted")}>
+                    <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", on ? "translate-x-6" : "translate-x-1")} />
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{on ? "Shown on the website" : "Hidden"}</p>
+              </Field>
+            );
+          })}
         </div>
       </SectionCard>
     </>

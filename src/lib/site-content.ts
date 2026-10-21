@@ -8,6 +8,9 @@ export type ValueIcon = (typeof VALUE_ICONS)[number];
 
 export const FAQ_GROUPS = ["ordering", "delivery", "booking", "payment", "allergens", "policies"] as const;
 
+export const SOCIAL_KEYS = ["instagram", "tiktok", "facebook", "rednote", "wechat"] as const;
+export type SocialKey = (typeof SOCIAL_KEYS)[number];
+
 export interface ValueItem { icon: ValueIcon; title: string; text: string }
 
 /** One of the three stacked plates in the top banner: a dish, shown with its menu photo unless `photo` is set. */
@@ -22,7 +25,10 @@ export interface SiteContent {
     address: { line1: string; line2: string; city: string; postcode: string };
     mapQuery: string;
     googleReviewUrl: string; // where /review sends people (the "write a review" link from Google Business Profile)
-    social: { instagram: string; tiktok: string; facebook: string; rednote: string; wechat: string };
+    social: Record<SocialKey, string>;
+    // Each profile only appears on the website (footer, and Google's structured data) once the owner
+    // has switched it on, so a link that is half typed or not set up yet is never published.
+    socialShow: Record<SocialKey, boolean>;
     hours: DayHours[]; // index 0 = Sunday
   };
   hero: {
@@ -50,6 +56,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     mapQuery: RESTAURANT.mapQuery,
     googleReviewUrl: "",
     social: { ...RESTAURANT.social },
+    socialShow: { instagram: false, tiktok: false, facebook: false, rednote: false, wechat: false },
     hours: RESTAURANT.hours.map((h) => ({ day: h.day, sessions: h.sessions.map((s) => ({ ...s })) })),
   },
   hero: {
@@ -89,6 +96,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
 /** `tel:` link from a display phone number, e.g. "+44 1642 245888" -> "tel:+441642245888". */
 export function telHref(phone: string): string {
   return "tel:" + phone.replace(/[^\d+]/g, "");
+}
+
+/** The social profiles that are switched on and filled in: the only ones the website shows. */
+export function shownSocial(b: SiteContent["business"]): Partial<Record<SocialKey, string>> {
+  const out: Partial<Record<SocialKey, string>> = {};
+  for (const k of SOCIAL_KEYS) if (b.socialShow[k] && b.social[k]) out[k] = b.social[k];
+  return out;
 }
 
 export function averageRating(items: Testimonial[]): string {

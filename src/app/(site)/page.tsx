@@ -18,6 +18,7 @@ import { RestaurantJsonLd, WebSiteJsonLd } from "@/components/seo/structured-dat
 import { MapEmbed } from "@/components/brand/map-embed";
 import { HeroSlideshow } from "@/components/brand/hero-slideshow";
 import { realPhoto } from "@/lib/photo";
+import { RESTAURANT } from "@/lib/data/site";
 
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -52,6 +53,12 @@ const PLATES = [
   "bottom-0 right-[9%] w-[46%] rotate-[-3deg]",
 ];
 
+// Saving trims the space off the end of each headline part ("Where chili meets " -> "...meets"), which
+// ran the words together ("meetscherry"). Put it back between words, but not before punctuation.
+function gap(before: string, after: string): string {
+  return before && after && !/\s$/.test(before) && !/^[\s.,!?;:)]/.test(after) ? " " : "";
+}
+
 function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
   const { business: b, hero, reviews } = content;
   const plates = hero.images.slice(0, 3).map((img) => {
@@ -69,8 +76,15 @@ function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
           <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold-ink">
             <Sparkles className="size-3.5" /> {hero.badge}
           </Badge>
-          <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-balance sm:text-6xl md:text-5xl lg:text-7xl">
-            {hero.headlineStart}<span className="text-gold-ink">{hero.headlineAccent}</span>{hero.headlineEnd}
+          {/* The page's one heading says plainly who and what this is (search engines and AI tools read it
+              first), with the tagline as the big display line. */}
+          <h1 className="mt-5">
+            <span className="block font-sans text-sm font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/70">
+              {RESTAURANT.name} · Chinese &amp; Japanese restaurant in {b.address.city}
+            </span>
+            <span className="mt-3 block font-display text-5xl font-extrabold leading-[1.02] tracking-tight text-balance sm:text-6xl md:text-5xl lg:text-7xl">
+              {hero.headlineStart}{gap(hero.headlineStart, hero.headlineAccent)}<span className="text-gold-ink">{hero.headlineAccent}</span>{gap(hero.headlineAccent, hero.headlineEnd)}{hero.headlineEnd}
+            </span>
           </h1>
           <p className="mt-5 max-w-md text-lg text-sidebar-foreground/75 text-pretty">
             {b.blurb}

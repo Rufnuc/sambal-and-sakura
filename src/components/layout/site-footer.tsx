@@ -3,15 +3,16 @@ import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { OpenStatus } from "@/components/brand/open-status";
 import { FOOTER_NAV } from "@/lib/nav";
-import { RESTAURANT, COMPANY } from "@/lib/data/site";
+import { RESTAURANT, COMPANY, COMPANIES_HOUSE_URL } from "@/lib/data/site";
 import { CookieSettingsButton } from "@/components/cookie-settings-button";
 import { formatHours } from "@/lib/hours";
-import { telHref } from "@/lib/site-content";
+import { telHref, shownSocial } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
 
 export async function SiteFooter() {
   const { business: b, reviews } = await getSiteContent();
   const showReviews = reviews.show && reviews.items.length > 0;
+  const social = shownSocial(b); // only the profiles switched on in Admin -> Site content
   return (
     <footer className="mt-auto bg-sidebar text-sidebar-foreground">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
@@ -23,28 +24,28 @@ export async function SiteFooter() {
               <OpenStatus />
             </div>
             <div className="mt-5 flex gap-3">
-              {b.social.instagram && (
-              <a href={b.social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+              {social.instagram && (
+              <a href={social.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <InstagramGlyph />
               </a>
               )}
-              {b.social.tiktok && (
-              <a href={b.social.tiktok} target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+              {social.tiktok && (
+              <a href={social.tiktok} target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <TikTokGlyph />
               </a>
               )}
-              {b.social.facebook && (
-              <a href={b.social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+              {social.facebook && (
+              <a href={social.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <FacebookGlyph />
               </a>
               )}
-              {b.social.rednote && (
-              <a href={b.social.rednote} target="_blank" rel="noopener noreferrer" aria-label="RedNote" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+              {social.rednote && (
+              <a href={social.rednote} target="_blank" rel="noopener noreferrer" aria-label="RedNote" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <RedNoteGlyph />
               </a>
               )}
-              {b.social.wechat && (
-              <span aria-label={`WeChat: ${b.social.wechat}`} title={`WeChat: ${b.social.wechat}`} className="inline-flex size-10 cursor-help items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+              {social.wechat && (
+              <span aria-label={`WeChat: ${social.wechat}`} title={`WeChat: ${social.wechat}`} className="inline-flex size-10 cursor-help items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <WeChatGlyph />
               </span>
               )}
@@ -98,7 +99,7 @@ export async function SiteFooter() {
             <p>© {new Date().getFullYear()} {RESTAURANT.name}. <span className="text-[10px]">All food halal.</span></p>
             {/* Trading disclosures: a limited company's website must show these. */}
             <p className="mt-1 text-[10px] leading-relaxed">
-              {RESTAURANT.name} is the trading name of {COMPANY.name}, registered in {COMPANY.registeredIn}, company no. {COMPANY.number}.
+              {RESTAURANT.name} is the trading name of {COMPANY.name}, registered in {COMPANY.registeredIn}, company no. <a href={COMPANIES_HOUSE_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gold-ink">{COMPANY.number}</a>.
               Registered office: {COMPANY.registeredOffice}.
             </p>
           </div>

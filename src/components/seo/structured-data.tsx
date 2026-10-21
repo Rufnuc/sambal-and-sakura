@@ -1,8 +1,8 @@
-import { RESTAURANT } from "@/lib/data/site";
+import { RESTAURANT, COMPANY, COMPANIES_HOUSE_URL } from "@/lib/data/site";
 import { getLiveSiteContent } from "@/server/live-content";
 import { getSiteContent } from "@/server/site-content";
 import { getMaxMiles } from "@/server/config";
-import { averageRating } from "@/lib/site-content";
+import { averageRating, shownSocial } from "@/lib/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import type { MenuCategoryCfg, MenuItem } from "@/lib/data/menu";
 
@@ -15,6 +15,10 @@ export function ld(data: unknown): string {
 }
 
 const LAT = 54.5705, LON = -1.2355; // 236-238 Linthorpe Road, Middlesbrough
+
+// One name everywhere (the brand as written on the site), plus the way people type it. The domain's
+// run-together spelling is deliberately NOT listed: it reads as "samba land sakura".
+const ALT_NAMES = ["Sambal and Sakura"];
 
 /** FAQPage schema - helps answer engines (Google AI, ChatGPT search, Perplexity...) quote the answers. */
 export async function FaqJsonLd() {
@@ -39,6 +43,7 @@ export async function RestaurantJsonLd() {
   const [{ business: b, reviews }, maxMiles] = await Promise.all([getSiteContent(), getMaxMiles()]);
   // Only advertise a rating if the site is actually showing reviews.
   const showRating = reviews.show && reviews.items.length > 0;
+  const social = shownSocial(b);
 
   const openingHoursSpecification = b.hours.flatMap((h, i) =>
     h.sessions.map((s) => ({
@@ -55,15 +60,19 @@ export async function RestaurantJsonLd() {
     "@id": `${SITE_URL}/#restaurant`,
     name: RESTAURANT.name,
     // People type "and" - tell search and AI tools both spellings are the same business.
-    alternateName: ["Sambal and Sakura", "SambalandSakura"],
+    alternateName: ALT_NAMES,
+    // The company that runs it (shown in the site footer), so the business can be checked independently.
+    legalName: COMPANY.name,
+    identifier: { "@type": "PropertyValue", propertyID: "Companies House company number", value: COMPANY.number },
     image: `${SITE_URL}/opengraph-image`,
+    logo: `${SITE_URL}/logo-mark.svg`,
     description: b.blurb,
     servesCuisine: ["Chinese", "Japanese", "Asian"],
     priceRange: "££",
     telephone: b.phone,
     email: b.email,
     url: SITE_URL,
-    acceptsReservations: "True",
+    acceptsReservations: true,
     paymentAccepted: "Cash",
     currenciesAccepted: "GBP",
     menu: `${SITE_URL}/menu`,
@@ -75,6 +84,7 @@ export async function RestaurantJsonLd() {
       postalCode: b.address.postcode,
       addressCountry: "GB",
     },
+    hasMap: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.mapQuery)}`,
     geo: { "@type": "GeoCoordinates", latitude: LAT, longitude: LON },
     // Where delivery is available (the admin-set maximum distance), in metres.
     ...(maxMiles > 0
@@ -94,7 +104,8 @@ export async function RestaurantJsonLd() {
         result: { "@type": "Reservation", name: "Table reservation" },
       },
     ],
-    sameAs: [b.social.instagram, b.social.tiktok, b.social.facebook].filter(Boolean),
+    // Only real, owner-approved profiles (switched on in Admin -> Site content) and the official company record.
+    sameAs: [COMPANIES_HOUSE_URL, social.instagram, social.tiktok, social.facebook, social.rednote].filter(Boolean),
     ...(showRating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: averageRating(reviews.items), reviewCount: reviews.items.length, bestRating: 5 } } : {}),
   };
 
@@ -108,9 +119,11 @@ export function WebSiteJsonLd() {
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     name: RESTAURANT.name,
-    alternateName: ["Sambal and Sakura", "SambalandSakura"],
+    alternateName: ALT_NAMES,
     url: SITE_URL,
     inLanguage: "en-GB",
+    // The website belongs to the restaurant described in RestaurantJsonLd (same @id).
+    publisher: { "@id": `${SITE_URL}/#restaurant` },
   };
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld(data) }} />;
 }

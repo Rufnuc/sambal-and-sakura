@@ -12,7 +12,8 @@
     "db:seed": "node --env-file=.env prisma/seed.mjs",
     "db:reset": "prisma migrate reset --force --skip-seed && npm run db:seed",
     "db:pg:schema": "node scripts/prepare-postgres.mjs",
-    "db:create-admin": "node --env-file=.env scripts/create-admin.mjs"
+    "db:create-admin": "node --env-file=.env scripts/create-admin.mjs",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "prisma": {
     "seed": "node --env-file=.env prisma/seed.mjs"

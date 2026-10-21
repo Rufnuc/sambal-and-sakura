@@ -2,7 +2,7 @@ import { cache } from "react";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/server/db";
-import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent } from "@/lib/site-content";
+import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, SOCIAL_KEYS, type SiteContent } from "@/lib/site-content";
 import { cleanText } from "@/server/sanitize";
 import { MENU, CUSTOM_DISH_ID } from "@/lib/data/menu";
 
@@ -32,6 +32,7 @@ const httpsLink = str(200).transform((v) => {
   if (/^[a-z][a-z0-9+.-]*:/i.test(v) || /\s/.test(v)) return "";
   return "https://" + v.replace(/^\/+/, "");
 });
+const off = z.boolean().default(false);
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM (24-hour)");
 
 // The review link must be a Google https link, so a typo (or a pasted wrong link) can't send customers elsewhere.
@@ -64,6 +65,8 @@ const schemas = {
     mapQuery: str(200),
     googleReviewUrl: reviewUrl,
     social: z.object({ instagram: httpsLink, tiktok: httpsLink, facebook: httpsLink, rednote: httpsLink, wechat: str(80) }),
+    // Saved before the switches existed: everything starts off until the owner approves it.
+    socialShow: z.object({ instagram: off, tiktok: off, facebook: off, rednote: off, wechat: off }).default(DEFAULT_SITE_CONTENT.business.socialShow),
     hours: z.array(daySchema).length(7),
   }),
   hero: z.object({
@@ -97,7 +100,26 @@ function resolve(raw: unknown): SiteContent {
     const parsed = schemas[key].safeParse(obj[key]);
     if (parsed.success) out[key] = parsed.data;
   }
-  return upgradeDeliveryWording(out as unknown as SiteContent);
+  return upgradeContactDefaults(upgradeDeliveryWording(out as unknown as SiteContent));
+}
+
+// The first defaults had made-up contact details that may still be sitting, untouched, in a saved copy:
+// social profiles that were never set up, and a hello@ mailbox nobody reads. Exact copies of those are
+// cleared (or swapped for the real order@ address); anything the owner typed is kept as they wrote it.
+const OLD_SOCIAL: Record<string, string> = {
+  instagram: "https://instagram.com/sambalandsakura",
+  tiktok: "https://tiktok.com/@sambalandsakura",
+  facebook: "https://facebook.com/sambalandsakura",
+  rednote: "https://www.xiaohongshu.com/",
+  wechat: "SambalSakura",
+};
+const OLD_EMAIL = "hello@sambalandsakura.co.uk";
+function upgradeContactDefaults(c: SiteContent): SiteContent {
+  const b = c.business;
+  const social = { ...b.social };
+  for (const k of SOCIAL_KEYS) if (social[k] === OLD_SOCIAL[k]) social[k] = "";
+  const email = b.email === OLD_EMAIL ? DEFAULT_SITE_CONTENT.business.email : b.email;
+  return { ...c, business: { ...b, social, email } };
 }
 
 // Older saves copied the delivery prices into the text ("Free delivery over £25 / From £1.99 across

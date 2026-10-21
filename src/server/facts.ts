@@ -1,4 +1,4 @@
-import { RESTAURANT, ORDERING } from "@/lib/data/site";
+import { RESTAURANT, ORDERING, COMPANY } from "@/lib/data/site";
 import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
 import type { MenuCategoryCfg, MenuItem } from "@/lib/data/menu";
 import { formatHours } from "@/lib/hours";
@@ -83,6 +83,8 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
   facts.push(
     { label: "Menu", value: categories.join(", ") },
     { label: "Website languages", value: "English, Chinese (中文), Vietnamese (Tiếng Việt) and Japanese (日本語)." },
+    // Who runs it, checkable on the public Companies House register.
+    { label: "Operated by", value: `${COMPANY.name}, a company registered in ${COMPANY.registeredIn} (company number ${COMPANY.number}).` },
   );
 
   return { summary, facts };

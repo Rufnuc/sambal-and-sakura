@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Search, Star, ChefHat, Flame, Leaf, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DishCard } from "@/components/menu/dish-card";
@@ -16,12 +17,18 @@ const DIET_FILTERS: { id: DietTag; label: string; icon: React.ElementType }[] = 
   { id: "spicy", label: "Spicy", icon: Flame },
 ];
 
-export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories: MenuCategoryCfg[] }) {
+/**
+ * The menu with search, category chips and diet filters. Each category chip is a real link to its own
+ * page (/menu/<category>) so search engines and AI tools can open one section at a time; on the full
+ * menu a click filters in place instead. On a category page (`pageCategory`) `menu` holds only that
+ * category's dishes and the chips simply navigate.
+ */
+export function MenuBrowser({ menu, categories, pageCategory }: { menu: MenuItem[]; categories: MenuCategoryCfg[]; pageCategory?: string }) {
   // The owner's categories, in their order (Admin -> Menu); empty ones are skipped below.
   const CATEGORIES = categories.map((c) => c.id);
   const labelOf = (id: MenuCategory) => categories.find((c) => c.id === id)?.label ?? id;
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState<MenuCategory | "all">("all");
+  const [active, setActive] = useState<MenuCategory | "all">(pageCategory ?? "all");
   const [diets, setDiets] = useState<Set<DietTag>>(new Set());
   const firedView = useRef(false);
 
@@ -60,7 +67,9 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
     return map;
   }, [filtered]);
 
-  const hasFilters = query || diets.size > 0 || active !== "all";
+  const hasFilters = query || diets.size > 0 || (!pageCategory && active !== "all");
+  // On the full menu a chip filters in place; on a category page it goes to that page.
+  const pick = (c: MenuCategory | "all") => (e: React.MouseEvent) => { if (!pageCategory) { e.preventDefault(); setActive(c); } };
 
   return (
     <div>
@@ -85,9 +94,9 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
           </div>
 
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <Chip active={active === "all"} onClick={() => setActive("all")}>All</Chip>
+            <Chip href="/menu" active={active === "all"} onClick={pick("all")}>All</Chip>
             {CATEGORIES.map((c) => (
-              <Chip key={c} active={active === c} onClick={() => setActive(c)}>
+              <Chip key={c} href={`/menu/${c}`} active={active === c} onClick={pick(c)}>
                 {labelOf(c)}
               </Chip>
             ))}
@@ -114,7 +123,7 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
             })}
             {hasFilters && (
               <button
-                onClick={() => { setQuery(""); setActive("all"); setDiets(new Set()); }}
+                onClick={() => { setQuery(""); if (!pageCategory) setActive("all"); setDiets(new Set()); }}
                 className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium text-sambal hover:underline"
               >
                 <X className="size-3.5" /> Reset
@@ -134,7 +143,7 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-20 text-center">
             <Search className="size-8 text-muted-foreground" />
             <p className="font-medium">No dishes match your search.</p>
-            <button onClick={() => { setQuery(""); setActive("all"); setDiets(new Set()); }} className="text-sm font-medium text-gold-ink hover:underline">
+            <button onClick={() => { setQuery(""); if (!pageCategory) setActive("all"); setDiets(new Set()); }} className="text-sm font-medium text-gold-ink hover:underline">
               Clear filters
             </button>
           </div>
@@ -164,17 +173,18 @@ export function MenuBrowser({ menu, categories }: { menu: MenuItem[]; categories
   );
 }
 
-function Chip({ active, onClick, children }: { active?: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({ href, active, onClick, children }: { href: string; active?: boolean; onClick: (e: React.MouseEvent) => void; children: React.ReactNode }) {
   return (
-    <button
+    <Link
+      href={href}
       onClick={onClick}
-      aria-pressed={active}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "shrink-0 whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium transition",
         active ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted",
       )}
     >
       {children}
-    </button>
+    </Link>
   );
 }

@@ -7,6 +7,30 @@ export type Allergen =
   | "gluten" | "soy" | "shellfish" | "fish" | "egg" | "peanut" | "treenut" | "sesame" | "dairy" | "crustaceans" | "molluscs"
   | "celery" | "lupin" | "mustard" | "sulphites";
 
+/**
+ * The real prices behind a dish's choices, e.g. Aromatic Crispy Duck -> [{ label: "Quarter", price: 13.5 },
+ * { label: "Half", price: 24.9 }]. Only choice groups that change the price are listed; options with the
+ * same price are merged ("Beef, Prawn, Chicken"). Written out on the menu page, in the structured data and
+ * in llms-full.txt, so customers, search engines and AI tools see every price, not just the "from" one.
+ */
+export function optionPrices(m: Pick<MenuItem, "price" | "modifiers">): { label: string; price: number }[][] {
+  return (m.modifiers ?? [])
+    .filter((g) => g.type === "single" && g.options.some((o) => o.priceDelta !== 0))
+    .map((g) => {
+      const byPrice = new Map<number, string[]>();
+      for (const o of g.options) {
+        const price = Math.round((m.price + o.priceDelta) * 100) / 100;
+        byPrice.set(price, [...(byPrice.get(price) ?? []), o.label]);
+      }
+      return [...byPrice].sort((a, b) => a[0] - b[0]).map(([price, labels]) => ({ label: labels.join(", "), price }));
+    });
+}
+
+/** optionPrices as one line of text: "Quarter £13.50 · Half £24.90" (groups separated by "; "). */
+export function optionPriceText(m: Pick<MenuItem, "price" | "modifiers">): string {
+  return optionPrices(m).map((g) => g.map((o) => `${o.label} £${o.price.toFixed(2)}`).join(" · ")).join("; ");
+}
+
 /** What to tell customers about a dish's allergens: the list, "none of the 14" once confirmed, or "ask us". */
 export function allergenNote(m: Pick<MenuItem, "allergens" | "allergensChecked">): string {
   if (m.allergens.length) return `Allergens: ${m.allergens.join(", ")}`;

@@ -16,7 +16,7 @@ import { DishAssistant } from "@/components/menu/dish-assistant";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { useCart, MAX_QTY, type CartLine } from "@/lib/store/cart";
-import { allergenNote, type MenuItem } from "@/lib/data/menu";
+import { allergenNote, allergensKnown, optionPriceText, type MenuItem } from "@/lib/data/menu";
 import { cn } from "@/lib/utils";
 import { telHref } from "@/lib/site-content";
 import { useSiteContent } from "@/components/site-content-provider";
@@ -66,6 +66,7 @@ function SpiceDots({ level }: { level?: number }) {
 export function DishCard({ item, className, dense = false }: { item: MenuItem; className?: string; dense?: boolean }) {
   const addLine = useCart((s) => s.addLine);
   const phone = useSiteContent().business.phone;
+  const options = optionPriceText(item);
 
   // Adding to the cart must never block the screen: no popup. Instead the button briefly reads
   // "Added" and the cart badge pops (see useBump). Screen readers get a polite announcement.
@@ -125,8 +126,12 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
         </div>
         <p className={cn("mt-1 line-clamp-2 text-muted-foreground", dense ? "text-xs sm:text-sm" : "text-sm")}>{item.description}</p>
 
-        {/* No list yet means "not listed", never "none": customers are told to ask. */}
-        <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>{allergenNote(item)}</p>
+        {/* Every price behind the choices, in the page itself (not only in the pop-up), so customers,
+            search engines and AI tools can all read e.g. "Quarter £13.50 · Half £24.90". */}
+        {options && <p className={cn("mt-1.5 font-medium text-foreground/80", dense ? "text-[11px] sm:text-xs" : "text-xs")}>{options}</p>}
+
+        {/* Only a confirmed list (or "none of the 14") is shown per dish; the menu page says to ask about the rest. */}
+        {allergensKnown(item) && <p className={cn("mt-2 text-xs text-muted-foreground", dense && "hidden sm:block")}>{allergenNote(item)}</p>}
 
         <div className={cn("mt-3", dense && "mt-2 sm:mt-3")}>
           <DishAssistant item={item} compact={dense} />
@@ -135,6 +140,7 @@ export function DishCard({ item, className, dense = false }: { item: MenuItem; c
         {/* Phones (dense): price on its own line, then quantity + Add, so both fit in a half-width card. */}
         <div className={cn("mt-auto flex flex-wrap items-center justify-between gap-2", dense ? "pt-3 sm:pt-4" : "pt-4")}>
           <div className={cn("flex items-baseline gap-2", dense && "w-full sm:w-auto")}>
+            {options && !item.phoneOrder && <span className="text-xs text-muted-foreground">from</span>}
             <span className={cn("font-display font-bold", dense ? "text-base sm:text-xl" : "text-xl")}>{item.phoneOrder && !item.price ? "Seasonal price" : gbp(item.price)}</span>
           </div>
           {item.phoneOrder ? (

@@ -1,6 +1,6 @@
 import { RESTAURANT, ORDERING, COMPANY } from "@/lib/data/site";
 import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
-import { allergensKnown, type MenuCategoryCfg, type MenuItem } from "@/lib/data/menu";
+import { allergensKnown, optionPriceText, type MenuCategoryCfg, type MenuItem } from "@/lib/data/menu";
 import { formatHours } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
@@ -107,7 +107,8 @@ export function menuAsText(menu: MenuItem[], categories: MenuCategoryCfg[]): str
       const allergens = m.allergens.length ? ` Contains: ${m.allergens.join(", ")}.` : m.allergensChecked ? " None of the 14 major allergens." : " Allergens: not listed yet, ask the restaurant.";
       const sold = m.soldOut ? " (currently unavailable)" : "";
       const price = m.phoneOrder ? (m.price ? `${gbp(m.price)}, phone to order` : "seasonal price, phone to order") : `${from}${gbp(m.price)}`;
-      lines.push(`- ${m.name} (${price})${sold}: ${m.description}${diet}${spice}${allergens}`);
+      const options = optionPriceText(m);
+      lines.push(`- ${m.name} (${price})${sold}: ${m.description}${options && !m.phoneOrder ? ` Prices: ${options}.` : ""}${diet}${spice}${allergens}`);
     }
     lines.push("");
   }

@@ -6,8 +6,8 @@ import { Ticket } from "lucide-react";
 import { getPublicMenu, getDeal, getCategories } from "@/server/config";
 import { gbp } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
-import { telHref } from "@/lib/site-content";
 import { allergensKnown } from "@/lib/data/menu";
+import { AllergyNotice } from "@/components/menu/allergy-notice";
 
 // Rendered on every request: this page shows admin-editable content, so it must NOT be frozen at build time.
 export const dynamic = "force-dynamic";
@@ -20,7 +20,8 @@ export const metadata: Metadata = {
 
 export default async function MenuPage() {
   const [menu, deal, { business: b }, allCats] = await Promise.all([getPublicMenu(), getDeal(), getSiteContent(), getCategories()]);
-  const categories = allCats.filter((c) => !c.hidden);
+  // Only categories with dishes: each chip links to that category's own page.
+  const categories = allCats.filter((c) => !c.hidden && menu.some((m) => m.category === c.id));
   return (
     <div className="px-4 sm:px-6">
       <MenuJsonLd menu={menu} categories={categories} />
@@ -35,10 +36,7 @@ export default async function MenuPage() {
             Allergens and diet tags are listed on every dish.
           </p>
         )}
-        <p className="mt-2 max-w-2xl text-sm text-sambal">
-          Food allergy or intolerance? Please phone us on{" "}
-          <a href={telHref(b.phone)} className="font-medium underline">{b.phone}</a> to confirm before ordering.
-        </p>
+        <AllergyNotice phone={b.phone} allListed={menu.every(allergensKnown)} />
         <div className="mt-4 flex flex-wrap gap-3 text-sm">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-jade/10 px-3 py-1 text-jade"><Banknote className="size-4" /> Cash only</span>
           {menu.some((m) => m.tags.includes("vegetarian") || m.tags.includes("vegan")) && (

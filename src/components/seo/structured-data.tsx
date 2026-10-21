@@ -4,7 +4,7 @@ import { getSiteContent } from "@/server/site-content";
 import { getMaxMiles } from "@/server/config";
 import { averageRating, shownSocial } from "@/lib/site-content";
 import { SITE_URL } from "@/lib/site-url";
-import type { MenuCategoryCfg, MenuItem } from "@/lib/data/menu";
+import { optionPrices, type MenuCategoryCfg, type MenuItem } from "@/lib/data/menu";
 
 /**
  * Serialise structured data for a <script type="application/ld+json"> tag. Escaping "<" stops text typed
@@ -133,6 +133,13 @@ const DIET: Record<string, string> = {
   vegan: "https://schema.org/VeganDiet",
 };
 
+function offersFor(m: MenuItem) {
+  const availability = m.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock";
+  const opts = optionPrices(m)[0];
+  if (!opts?.length) return { "@type": "Offer", price: m.price.toFixed(2), priceCurrency: "GBP", availability };
+  return opts.map((o) => ({ "@type": "Offer", name: o.label, price: o.price.toFixed(2), priceCurrency: "GBP", availability }));
+}
+
 /** The full menu as structured data: every dish with its price and diet, so "does X do katsu curry / how much is it" can be answered. */
 export function MenuJsonLd({ menu, categories }: { menu: MenuItem[]; categories: MenuCategoryCfg[] }) {
   const sections = categories
@@ -149,12 +156,8 @@ export function MenuJsonLd({ menu, categories }: { menu: MenuItem[]; categories:
             description: m.description,
             ...(diets.length ? { suitableForDiet: diets } : {}),
             // Phone-order dishes have no fixed online price (seasonal), so no price is claimed for them.
-            ...(m.phoneOrder ? {} : { offers: {
-              "@type": "Offer",
-              price: m.price.toFixed(2),
-              priceCurrency: "GBP",
-              availability: m.soldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
-            } }),
+            // Dishes with priced choices get one Offer per price ("Quarter" £13.50, "Half" £24.90).
+            ...(m.phoneOrder ? {} : { offers: offersFor(m) }),
           };
         }),
     }))

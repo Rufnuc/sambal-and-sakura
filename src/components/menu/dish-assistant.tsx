@@ -51,7 +51,7 @@ export function DishAssistant({ item, compact = false }: { item: MenuItem; compa
         className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:border-gold/40 hover:bg-gold/10 hover:text-gold-ink"
         aria-label={`Ask about ${item.name}`}
       >
-        <Sparkles className="size-3.5" /> {compact ? (<><span className="sm:hidden">Ask</span><span className="hidden sm:inline">Ask about this</span></>) : "Ask about this"}
+        <Sparkles className="size-3.5" /> {compact ? "Ask" : "Ask about this"}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>

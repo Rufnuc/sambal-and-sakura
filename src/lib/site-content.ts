@@ -8,7 +8,7 @@ export type ValueIcon = (typeof VALUE_ICONS)[number];
 
 export const FAQ_GROUPS = ["ordering", "delivery", "booking", "payment", "allergens", "policies"] as const;
 
-export const SOCIAL_KEYS = ["instagram", "tiktok", "facebook", "rednote", "wechat"] as const;
+export const SOCIAL_KEYS = ["instagram", "tiktok", "facebook", "rednote", "wechat", "tripadvisor"] as const;
 export type SocialKey = (typeof SOCIAL_KEYS)[number];
 
 export interface ValueItem { icon: ValueIcon; title: string; text: string }
@@ -56,7 +56,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     mapQuery: RESTAURANT.mapQuery,
     googleReviewUrl: "",
     social: { ...RESTAURANT.social },
-    socialShow: { instagram: false, tiktok: false, facebook: false, rednote: false, wechat: false },
+    socialShow: { instagram: false, tiktok: false, facebook: false, rednote: false, wechat: false, tripadvisor: true },
     hours: RESTAURANT.hours.map((h) => ({ day: h.day, sessions: h.sessions.map((s) => ({ ...s })) })),
   },
   hero: {

@@ -44,6 +44,11 @@ export async function SiteFooter() {
                 <RedNoteGlyph />
               </a>
               )}
+              {social.tripadvisor && (
+              <a href={social.tripadvisor} target="_blank" rel="noopener noreferrer" aria-label="Tripadvisor" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+                <ReviewsGlyph />
+              </a>
+              )}
               {social.wechat && (
               <span aria-label={`WeChat: ${social.wechat}`} title={`WeChat: ${social.wechat}`} className="inline-flex size-10 cursor-help items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <WeChatGlyph />
@@ -145,6 +150,15 @@ function RedNoteGlyph() {
     <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
       <rect x="2" y="4" width="20" height="16" rx="4" />
       <text x="12" y="15.5" textAnchor="middle" fontSize="8" fontWeight="700" fill="var(--sidebar)">小</text>
+    </svg>
+  );
+}
+// A neutral "reviews" mark (two eyes) for the Tripadvisor link; the brand's own logo isn't reproduced.
+function ReviewsGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="7" cy="13" r="4" /><circle cx="17" cy="13" r="4" /><circle cx="7" cy="13" r="1" fill="currentColor" /><circle cx="17" cy="13" r="1" fill="currentColor" />
+      <path d="M3 8c2.5-2 5.5-3 9-3s6.5 1 9 3" />
     </svg>
   );
 }

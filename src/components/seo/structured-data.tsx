@@ -105,7 +105,7 @@ export async function RestaurantJsonLd() {
       },
     ],
     // Only real, owner-approved profiles (switched on in Admin -> Site content) and the official company record.
-    sameAs: [COMPANIES_HOUSE_URL, social.instagram, social.tiktok, social.facebook, social.rednote].filter(Boolean),
+    sameAs: [COMPANIES_HOUSE_URL, social.tripadvisor, social.instagram, social.tiktok, social.facebook, social.rednote].filter(Boolean),
     ...(showRating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: averageRating(reviews.items), reviewCount: reviews.items.length, bestRating: 5 } } : {}),
   };
 

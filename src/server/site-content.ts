@@ -65,9 +65,10 @@ const schemas = {
     address: z.object({ line1: str(120), line2: str(120), city: str(80), postcode: str(12) }),
     mapQuery: str(200),
     googleReviewUrl: reviewUrl,
-    social: z.object({ instagram: httpsLink, tiktok: httpsLink, facebook: httpsLink, rednote: httpsLink, wechat: str(80) }),
+    // Saves from before the Tripadvisor listing existed get the approved listing (switched on below).
+    social: z.object({ instagram: httpsLink, tiktok: httpsLink, facebook: httpsLink, rednote: httpsLink, wechat: str(80), tripadvisor: httpsLink.default(DEFAULT_SITE_CONTENT.business.social.tripadvisor) }),
     // Saved before the switches existed: everything starts off until the owner approves it.
-    socialShow: z.object({ instagram: off, tiktok: off, facebook: off, rednote: off, wechat: off }).default(DEFAULT_SITE_CONTENT.business.socialShow),
+    socialShow: z.object({ instagram: off, tiktok: off, facebook: off, rednote: off, wechat: off, tripadvisor: z.boolean().default(true) }).default(DEFAULT_SITE_CONTENT.business.socialShow),
     hours: z.array(daySchema).length(7),
   }),
   hero: z.object({

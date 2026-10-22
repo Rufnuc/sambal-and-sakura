@@ -146,6 +146,7 @@ const SOCIAL_FIELDS: { key: SocialKey; label: string; example: string }[] = [
   { key: "facebook", label: "Facebook link", example: "https://facebook.com/…" },
   { key: "rednote", label: "RedNote (Xiaohongshu) link", example: "https://www.xiaohongshu.com/user/profile/…" },
   { key: "wechat", label: "WeChat ID", example: "Your WeChat ID" },
+  { key: "tripadvisor", label: "Tripadvisor listing", example: "https://www.tripadvisor.co.uk/Restaurant_Review-…" },
 ];
 
 function BusinessTab({ c, setBusiness }: { c: SiteContent; setBusiness: (p: Partial<SiteContent["business"]>) => void }) {

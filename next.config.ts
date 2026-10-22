@@ -32,7 +32,17 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // The files crawlers fetch first are cached at the edge (Cloudflare) for a day, so Googlebot always gets
+    // robots.txt instantly. If the server is slow or waking up and robots.txt fails, Google treats the whole
+    // site as blocked ("No information is available for this page") until it checks again.
+    const crawlerFile = [{ key: "Cache-Control", value: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400" }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/robots.txt", headers: crawlerFile },
+      { source: "/sitemap.xml", headers: crawlerFile },
+      { source: "/llms.txt", headers: crawlerFile },
+      { source: "/llms-full.txt", headers: crawlerFile },
+    ];
   },
   // The FAQ moved onto the Contact page. A server-level 308 (not a page-level redirect, which can only
   // redirect client-side under a loading boundary) keeps old links and Google results working.

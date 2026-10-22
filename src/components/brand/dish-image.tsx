@@ -99,9 +99,13 @@ export function DishImage({
           <path d="M50 20 C56 28 56 40 50 46 C44 40 44 28 50 20 Z" transform="rotate(288 50 50)" />
         </g>
       </svg>
-      <span className="font-display text-3xl font-bold tracking-tight drop-shadow-sm select-none">
-        {initials(name)}
-      </span>
+      {/* Drawn by CSS from data-initials, not written as text: otherwise "SN", "AC"... become part of the
+          page text that Google uses for snippets and AI tools read as content. */}
+      <span
+        data-initials={initials(name)}
+        aria-hidden="true"
+        className="font-display text-3xl font-bold tracking-tight drop-shadow-sm select-none before:content-[attr(data-initials)]"
+      />
     </div>
   );
 }

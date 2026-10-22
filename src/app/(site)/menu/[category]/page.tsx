@@ -10,6 +10,7 @@ import { RESTAURANT } from "@/lib/data/site";
 import { allergensKnown, optionPrices, type MenuItem } from "@/lib/data/menu";
 import { formatAddress } from "@/lib/site-content";
 import { gbp } from "@/lib/format";
+import { fitDescription } from "@/lib/seo";
 
 // One section of the menu on its own short page (e.g. /menu/sushi-rolls): the full menu is long, and
 // search engines and AI tools reading a page often stop before the end. Rendered on every request,
@@ -25,12 +26,20 @@ async function load(id: string) {
   return { category, categories, dishes: menu.filter((m) => m.category === id), business };
 }
 
-/** "Dragon Roll £12.80, Aromatic Crispy Duck from £13.50, ..." for the description and intro. */
-function priceList(dishes: MenuItem[], max: number): string {
-  return dishes
-    .slice(0, max)
-    .map((m) => (m.phoneOrder && !m.price ? `${m.name} (seasonal price)` : `${m.name} ${optionPrices(m).length ? "from " : ""}${gbp(m.price)}`))
-    .join(", ");
+const priced = (m: MenuItem) => (m.phoneOrder && !m.price ? `${m.name} (seasonal price)` : `${m.name} ${optionPrices(m).length ? "from " : ""}${gbp(m.price)}`);
+
+/** "Special Sushi Rolls at Sambal & Sakura, Middlesbrough: Dragon Roll £12.80, ..." - as many dishes as fit in
+ *  the ~155 characters search engines show, then "and more". */
+function sectionDescription(label: string, city: string, dishes: MenuItem[]): string {
+  const start = `${label} at ${RESTAURANT.name}, ${city}: `;
+  let list = "";
+  for (const m of dishes) {
+    const next = list ? `${list}, ${priced(m)}` : priced(m);
+    if ((start + next + " and more.").length > 155) break;
+    list = next;
+  }
+  const more = list.split(", ").length < dishes.length ? " and more" : "";
+  return fitDescription(`${start}${list || `${dishes.length} dishes`}${more}.`);
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
@@ -39,7 +48,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!cat) return { title: "Menu" };
   return {
     title: `${cat.label} - Menu`,
-    description: `${cat.label} at ${RESTAURANT.name}, ${business.address.city}: ${priceList(dishes, 6)}${dishes.length > 6 ? " and more" : ""}.`,
+    description: sectionDescription(cat.label, business.address.city, dishes),
     alternates: { canonical: `/menu/${cat.id}` },
   };
 }

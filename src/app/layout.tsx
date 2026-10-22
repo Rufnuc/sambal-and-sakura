@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { RESTAURANT } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
 import { SITE_URL } from "@/lib/site-url";
+import { fitDescription } from "@/lib/seo";
 
 const display = Playfair_Display({
   subsets: ["latin"],
@@ -29,14 +30,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const { business } = await getSiteContent();
   // Brand name first, then what it is and where: this is what Google shows as the blue link text.
   const title = `${RESTAURANT.name} | Chinese, Japanese & Malaysian Restaurant in ${business.address.city}`;
+  // Search engines show about 155 characters, so the meta description is written for that, not the
+  // longer shop description (which stays on the page itself).
+  const street = business.address.line1.replace(/^[\d\s\u2013-]+/, "") || business.address.city;
+  const description = fitDescription(
+    `${RESTAURANT.name}: Chinese, Japanese & Malaysian restaurant on ${street}, ${business.address.city}. Sushi, ramen, nasi lemak & more. Order online or book a table.`,
+  );
   const verification = process.env.GOOGLE_SITE_VERIFICATION;
   const bingVerification = process.env.BING_SITE_VERIFICATION;
   return {
     metadataBase: new URL(SITE_URL),
     title: { default: title, template: `%s · ${RESTAURANT.name}` },
-    description: business.blurb,
+    description,
     applicationName: RESTAURANT.name,
-    openGraph: { title, description: business.blurb, type: "website", locale: "en_GB", siteName: RESTAURANT.name },
+    openGraph: { title, description, type: "website", locale: "en_GB", siteName: RESTAURANT.name },
     icons: { icon: "/logo-mark.svg", apple: "/apple-icon" },
     ...(verification || bingVerification
       ? { verification: { ...(verification ? { google: verification } : {}), ...(bingVerification ? { other: { "msvalidate.01": bingVerification } } : {}) } }

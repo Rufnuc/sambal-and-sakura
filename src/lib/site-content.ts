@@ -94,7 +94,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   faqs: FAQS.map((f) => ({ ...f })),
 };
 
-/** `tel:` link from a display phone number, e.g. "+44 1642 245888" -> "tel:+441642245888". */
+/** The number in international form for structured data: "07716 757789" -> "+44 7716 757789". */
+export function intlPhone(phone: string): string {
+  const p = phone.trim();
+  return /^0\d/.test(p) ? "+44 " + p.slice(1) : p;
+}
+
+/** `tel:` link from a display phone number, e.g. "07716 757789" -> "tel:07716757789". */
 export function telHref(phone: string): string {
   return "tel:" + phone.replace(/[^\d+]/g, "");
 }

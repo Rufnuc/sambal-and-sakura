@@ -2,7 +2,7 @@ import { RESTAURANT, COMPANY, COMPANIES_HOUSE_URL } from "@/lib/data/site";
 import { getLiveSiteContent } from "@/server/live-content";
 import { getSiteContent } from "@/server/site-content";
 import { getMaxMiles } from "@/server/config";
-import { averageRating, shownSocial } from "@/lib/site-content";
+import { averageRating, shownSocial, intlPhone } from "@/lib/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { optionPrices, type MenuCategoryCfg, type MenuItem } from "@/lib/data/menu";
 
@@ -69,7 +69,7 @@ export async function RestaurantJsonLd() {
     description: b.blurb,
     servesCuisine: ["Chinese", "Japanese", "Malaysian", "Asian"],
     priceRange: "££",
-    telephone: b.phone,
+    telephone: intlPhone(b.phone),
     email: b.email,
     url: SITE_URL,
     acceptsReservations: true,

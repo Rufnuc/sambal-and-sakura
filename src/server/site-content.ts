@@ -132,6 +132,8 @@ const OLD_SOCIAL: Record<string, string> = {
   wechat: "SambalSakura",
 };
 const OLD_EMAIL = "hello@sambalandsakura.co.uk";
+// The first phone number on the site, replaced by the restaurant's real one (as on Google) in Oct 2026.
+const OLD_PHONE = "+44 1642 245888";
 // The description written for the previous menu (Chinese & Japanese only, "katsu curry").
 const OLD_BLURB = "Chinese classics and authentic Japanese specials in the heart of Middlesbrough - with sushi crafted by a chef trained in Japan, sizzling salt & pepper, aromatic crispy duck, katsu curry and signature boba.";
 function upgradeContactDefaults(c: SiteContent): SiteContent {
@@ -140,7 +142,8 @@ function upgradeContactDefaults(c: SiteContent): SiteContent {
   for (const k of SOCIAL_KEYS) if (social[k] === OLD_SOCIAL[k]) social[k] = "";
   const email = b.email === OLD_EMAIL ? DEFAULT_SITE_CONTENT.business.email : b.email;
   const blurb = b.blurb === OLD_BLURB ? DEFAULT_SITE_CONTENT.business.blurb : b.blurb;
-  return { ...c, business: { ...b, social, email, blurb } };
+  const phone = b.phone.replace(/\s/g, "") === OLD_PHONE.replace(/\s/g, "") ? DEFAULT_SITE_CONTENT.business.phone : b.phone;
+  return { ...c, business: { ...b, social, email, blurb, phone } };
 }
 
 // Older saves copied the delivery prices into the text ("Free delivery over £25 / From £1.99 across

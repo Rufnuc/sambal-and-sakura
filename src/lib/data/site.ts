@@ -23,7 +23,7 @@ export const RESTAURANT = {
   blurb:
     "Chinese classics, Japanese sushi and Malaysian favourites in the heart of Middlesbrough - with sushi crafted by a chef trained in Japan, sizzling salt & pepper, aromatic crispy duck, nasi lemak, rendang and signature boba.",
   halal: true,
-  phone: "+44 1642 245888",
+  phone: "07716 757789", // the restaurant's number, as on its Google Business Profile
   email: "order@sambalandsakura.co.uk",
   address: {
     line1: "236–238 Linthorpe Road",

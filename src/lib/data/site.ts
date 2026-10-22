@@ -33,9 +33,9 @@ export const RESTAURANT = {
     country: "United Kingdom",
   },
   mapQuery: "236-238 Linthorpe Rd, Middlesbrough TS1 3QP",
-  // Each profile is added and switched on in Admin -> Site content once it exists. Tripadvisor is the
-  // restaurant's approved listing (October 2026).
-  social: { instagram: "", tiktok: "", facebook: "", rednote: "", wechat: "", tripadvisor: "https://www.tripadvisor.com/Restaurant_Review-g186340-d34750959-Reviews-Sambal_Sakura-Middlesbrough_North_Yorkshire_England.html" },
+  // Each profile is added and switched on in Admin -> Site content once it exists. Tripadvisor and the
+  // Google Business Profile (Google's id /g/11p27mv379) are the restaurant's approved listings (October 2026).
+  social: { google: "https://www.google.com/search?kgmid=/g/11p27mv379&q=Sambal+%26+Sakura", instagram: "", tiktok: "", facebook: "", rednote: "", wechat: "", tripadvisor: "https://www.tripadvisor.com/Restaurant_Review-g186340-d34750959-Reviews-Sambal_Sakura-Middlesbrough_North_Yorkshire_England.html" },
   // index 0 = Sunday. Real trading hours (split lunch/dinner Tue–Sat).
   hours: [
     { day: "Sun", sessions: [{ open: "11:30", close: "22:00" }] },

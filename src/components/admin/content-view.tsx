@@ -141,6 +141,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
 }
 
 const SOCIAL_FIELDS: { key: SocialKey; label: string; example: string }[] = [
+  { key: "google", label: "Google Business Profile", example: "https://share.google/… or the Google Maps link" },
   { key: "instagram", label: "Instagram link", example: "https://instagram.com/…" },
   { key: "tiktok", label: "TikTok link", example: "https://tiktok.com/@…" },
   { key: "facebook", label: "Facebook link", example: "https://facebook.com/…" },

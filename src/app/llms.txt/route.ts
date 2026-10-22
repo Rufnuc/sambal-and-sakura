@@ -4,7 +4,7 @@ import { SITE_URL } from "@/lib/site-url";
 import { getSiteContent } from "@/server/site-content";
 import { shownSocial } from "@/lib/site-content";
 
-const SOCIAL_NAMES = { tripadvisor: "Tripadvisor", instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook", rednote: "RedNote" } as const;
+const SOCIAL_NAMES = { google: "Google Business Profile", tripadvisor: "Tripadvisor", instagram: "Instagram", tiktok: "TikTok", facebook: "Facebook", rednote: "RedNote" } as const;
 
 // A short, plain-text description of the site for AI assistants (the emerging /llms.txt convention).
 // Built live from the admin-edited data. Note: no major AI provider has confirmed they read this file,

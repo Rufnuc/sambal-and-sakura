@@ -44,6 +44,11 @@ export async function SiteFooter() {
                 <RedNoteGlyph />
               </a>
               )}
+              {social.google && (
+              <a href={social.google} target="_blank" rel="noopener noreferrer" aria-label="Google Business Profile" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
+                <MapPin className="size-4" />
+              </a>
+              )}
               {social.tripadvisor && (
               <a href={social.tripadvisor} target="_blank" rel="noopener noreferrer" aria-label="Tripadvisor" className="inline-flex size-10 items-center justify-center rounded-full border border-sidebar-border transition hover:bg-sidebar-accent">
                 <ReviewsGlyph />

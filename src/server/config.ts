@@ -121,7 +121,12 @@ export type MenuOverride = {
 };
 export const MAX_DISH_PHOTOS = 6;
 export type MenuOverrides = Record<string, MenuOverride>;
-export const getMenuOverrides = () => getJson<MenuOverrides>("menuOverrides", {});
+// Settings saved for dishes that are no longer on the menu (e.g. the previous menu's dishes) are left
+// out, so they can't block the next admin save ("Menu: Invalid key in record") and are dropped when it
+// writes the list back.
+const MENU_IDS = new Set(MENU.map((m) => m.id));
+export const getMenuOverrides = async (): Promise<MenuOverrides> =>
+  Object.fromEntries(Object.entries(await getJson<MenuOverrides>("menuOverrides", {})).filter(([id]) => MENU_IDS.has(id)));
 export const setMenuOverrides = (v: MenuOverrides) => setJson("menuOverrides", v);
 
 /* ---- Careers ---- */

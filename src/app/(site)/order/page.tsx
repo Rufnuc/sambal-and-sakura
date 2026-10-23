@@ -397,7 +397,8 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
             <div className="mt-3 rounded-lg border border-sambal/30 bg-sambal/10 p-3 text-sm">
               <p className="font-medium text-sambal">Some items changed:</p>
               <ul className="mt-1 list-disc pl-5 text-foreground">
-                {unavailable.map((i) => <li key={i.itemId}>{i.name} - {i.problem === "unavailable" ? "no longer available" : "please choose its options again"}</li>)}
+                {/* A dish that left the menu has no name on the server ("An item"): use the name from the basket. */}
+                {unavailable.map((i) => <li key={i.itemId}>{lines.find((l) => l.itemId === i.itemId)?.name ?? i.name} - {i.problem === "unavailable" ? "no longer available" : "please choose its options again"}</li>)}
               </ul>
               <Button size="sm" variant="outline" className="mt-2 h-8" onClick={removeUnavailable}>Remove them</Button>
             </div>

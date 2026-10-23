@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { cache } from "react";
 import { prisma } from "@/server/db";
 import { OFFERS, WHEEL_PRIZES, ORDERING, type Offer, type WheelPrize } from "@/lib/data/site";
 import { MENU, DEFAULT_CATEGORIES, RETIRED_CATEGORIES, CUSTOM_DISH_ID, type Allergen, type DietTag, type MenuItem, type MenuCategory, type MenuCategoryCfg, type ModifierGroup } from "@/lib/data/menu";
@@ -9,14 +10,30 @@ import { LEGACY_CODE_VALUES } from "@/server/pricing";
 // Operator-editable config, stored as JSON Setting rows with static defaults.
 // Customer pages + server pricing read the EFFECTIVE values from here.
 
+// One database read per setting per request. Pages read the same settings many times (the menu alone
+// needs dish settings, added dishes and categories, and a page's title and body each load it). Saving a
+// setting forgets its cached value, so a save followed by a read in the same request sees the new value.
+// Outside a request (scripts, jobs) `cache` doesn't memoise and every read goes to the database.
+const requestSettings = cache(() => new Map<string, Promise<string | null>>());
+function readSetting(key: string): Promise<string | null> {
+  const store = requestSettings();
+  let value = store.get(key);
+  if (!value) {
+    value = prisma.setting.findUnique({ where: { key } }).then((row) => row?.value ?? null);
+    store.set(key, value);
+  }
+  return value;
+}
+
 async function getJson<T>(key: string, fallback: T): Promise<T> {
-  const row = await prisma.setting.findUnique({ where: { key } });
-  if (!row) return fallback;
-  try { return JSON.parse(row.value) as T; } catch { return fallback; }
+  const value = await readSetting(key);
+  if (value === null) return fallback;
+  try { return JSON.parse(value) as T; } catch { return fallback; }
 }
 async function setJson(key: string, value: unknown): Promise<void> {
   const v = JSON.stringify(value);
   await prisma.setting.upsert({ where: { key }, update: { value: v }, create: { key, value: v } });
+  requestSettings().delete(key);
 }
 
 /* ---- Referral ---- */

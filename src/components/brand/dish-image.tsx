@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { photoSrcSet } from "@/lib/photo";
 import type { MenuCategory } from "@/lib/data/menu";
 
 // Intentional, on-brand placeholder art for dishes (no stock photos available).
@@ -59,6 +60,7 @@ export function DishImage({
   rounded = "rounded-xl",
   src,
   eager = false,
+  sizes = "(min-width: 1024px) 400px, (min-width: 640px) 45vw, 50vw",
 }: {
   name: string;
   category: MenuCategory;
@@ -66,13 +68,14 @@ export function DishImage({
   rounded?: string;
   src?: string;
   eager?: boolean; // above-the-fold images (the home banner) load straight away
+  sizes?: string;   // how wide the picture is shown, so the browser downloads a matching size (thumbnails pass e.g. "56px")
 }) {
   // Real photo when the operator has uploaded one; branded placeholder otherwise.
   if (src) {
     return (
       <div className={cn("relative overflow-hidden bg-muted", rounded, className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={name} loading={eager ? "eager" : "lazy"} decoding="async" width={900} height={675} className="size-full object-cover" />
+        <img src={src} srcSet={photoSrcSet(src)} sizes={sizes} alt={name} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} decoding="async" width={900} height={675} className="size-full object-cover" />
       </div>
     );
   }

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DishImage } from "@/components/brand/dish-image";
 import type { MenuCategory } from "@/lib/data/menu";
 import { cn } from "@/lib/utils";
+import { photoSrcSet } from "@/lib/photo";
 
 /**
  * A dish's photos. One photo (or none) renders exactly like DishImage. Several become a swipeable strip
@@ -36,7 +37,7 @@ export function DishGallery({ name, category, photos, className, rounded = "roun
         {photos.map((src, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={src} src={src} alt={`${name} - photo ${i + 1} of ${photos.length}`}
+            key={src} src={src} srcSet={photoSrcSet(src)} sizes="(min-width: 1024px) 400px, (min-width: 640px) 45vw, 50vw" alt={`${name} - photo ${i + 1} of ${photos.length}`}
             loading="lazy" decoding="async" width={900} height={675} draggable={false}
             className="size-full shrink-0 snap-center object-cover"
           />

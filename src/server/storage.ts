@@ -1,6 +1,7 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes, createHash } from "node:crypto";
+import { PHOTO_WIDTHS, photoAtWidth } from "@/lib/photo";
 
 // Pluggable image storage.
 //   - Default (free, works immediately on a VPS / self-host): saves to /public/uploads
@@ -70,7 +71,22 @@ async function toCloudinary(file: File, kind: UploadKind = "menu"): Promise<Stor
   // Deliver an auto-optimised, width-capped version: 900px for the menu grid, 1200px for email pictures.
   // Emails get a fixed format (jpg), because some email apps can't show WebP/AVIF.
   const transform = kind === "campaign" ? "f_jpg,q_auto,w_1200,c_limit" : "f_auto,q_auto,w_900,c_limit";
-  return { url: data.secure_url.replace("/upload/", `/upload/${transform}/`), via: "cloudinary" };
+  const url = data.secure_url.replace("/upload/", `/upload/${transform}/`);
+  if (kind !== "campaign") warmPhotoSizes(url);
+  return { url, via: "cloudinary" };
+}
+
+/**
+ * Cloudinary makes each size of a photo the first time it's asked for (about a second). Ask for every
+ * size the menu uses straight after upload, in the formats browsers request, so customers get them
+ * already made. Fire-and-forget: a failure only means the first viewer waits a moment.
+ */
+function warmPhotoSizes(url: string): void {
+  for (const width of PHOTO_WIDTHS) {
+    for (const accept of ["image/avif,image/webp,*/*", "image/webp,*/*", "image/*"]) {
+      void fetch(photoAtWidth(url, width), { headers: { Accept: accept } }).then((r) => r.body?.cancel()).catch(() => {});
+    }
+  }
 }
 
 async function toLocalDisk(file: File, kind: UploadKind = "menu"): Promise<StoredImage> {

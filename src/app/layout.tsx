@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { preconnect } from "react-dom";
 import { Playfair_Display, Karla } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
@@ -52,6 +53,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Menu photos come from Cloudinary: open the connection while the page loads, not at the first photo.
+  if (process.env.CLOUDINARY_CLOUD_NAME) preconnect("https://res.cloudinary.com", { crossOrigin: "anonymous" });
   return (
     <html
       lang="en"

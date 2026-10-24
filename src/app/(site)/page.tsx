@@ -121,7 +121,7 @@ function Hero({ content, menu }: { content: SiteContent; menu: MenuItem[] }) {
             it fits beside the text (tablets and up); phones get the text alone. */}
         <div className="relative mx-auto hidden aspect-square w-full max-w-md md:block">
           {plates.map((p, i) => p && (
-            <DishImage key={i} name={p.name} category={p.category} src={p.src} eager className={`absolute aspect-square shadow-2xl ring-4 ring-sidebar ${PLATES[i]}`} rounded="rounded-3xl" />
+            <DishImage key={i} name={p.name} category={p.category} src={p.src} eager sizes="260px" className={`absolute aspect-square shadow-2xl ring-4 ring-sidebar ${PLATES[i]}`} rounded="rounded-3xl" />
           ))}
           {featured && (
             <div className="absolute bottom-[9%] left-0 max-w-[60%] rounded-2xl bg-background px-3 py-2 text-foreground shadow-xl sm:px-4 sm:py-3">

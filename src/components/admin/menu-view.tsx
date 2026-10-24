@@ -221,7 +221,7 @@ export function MenuView() {
         <ul className="divide-y divide-border">
           {items.map((m) => (
             <li key={m.id} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 py-3", offMenu(m) && "opacity-60")}>
-              <DishImage name={m.name} category={m.category} className="size-14 shrink-0" rounded="rounded-lg" src={realPhoto(m.image)} />
+              <DishImage name={m.name} category={m.category} className="size-14 shrink-0" rounded="rounded-lg" src={realPhoto(m.image)} sizes="56px" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <p className="truncate font-medium">{m.name}</p>

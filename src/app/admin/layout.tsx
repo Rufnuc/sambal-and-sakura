@@ -5,6 +5,9 @@ import { PrintStation } from "@/components/admin/print-station";
 import { currentUser, isStaff } from "@/server/auth";
 import { ADMIN_SECTIONS, canAccess, parsePermissions } from "@/lib/admin/sections";
 
+// Rendered on every request (live, admin-editable or per-visitor content).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Operations",
   robots: { index: false, follow: false },

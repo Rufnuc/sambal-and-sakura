@@ -5,6 +5,7 @@ import { getMenuOverrides, setMenuOverrides, getCategories, getCustomDishes, set
 import { MENU } from "@/lib/data/menu";
 import { audit } from "@/server/audit";
 import { actorOf } from "@/server/admin-view";
+import { refreshMenuPages } from "@/server/menu-pages";
 
 // Staff with Menu access: read the menu settings and switch dishes sold out / back on (built-in and added ones).
 // Adding dishes, choices, categories, prices, names, photos etc. stays owner-only (Admin config).
@@ -34,5 +35,6 @@ export async function PATCH(req: Request) {
     await setCustomDishes(custom);
   }
   await audit({ actor: actorOf(u), action: "menu.sold_out", entity: "menu", entityId: itemId, detail: { soldOut } });
+  await refreshMenuPages(); // the menu pages show sold-out dishes
   return NextResponse.json({ menuOverrides: ov, customDishes: custom, menuVersion: await getMenuVersion() });
 }

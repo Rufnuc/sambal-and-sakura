@@ -24,6 +24,7 @@ import {
   menuOverridesSchema, categoriesSchema, customDishesSchema, zonesSchema, offersSchema, wheelPrizesSchema, careersSchema, dealSchema, referralSchema, deliveryRulesSchema, firstIssue,
 } from "@/server/config-schema";
 import { audit } from "@/server/audit";
+import { refreshMenuPages } from "@/server/menu-pages";
 import { actorOf } from "@/server/admin-view";
 import { clientIp } from "@/server/rate-limit";
 import { getPromotions, setPromotions, promotionsSchema, type PromotionsInput } from "@/server/promotions";
@@ -99,7 +100,10 @@ export async function PUT(req: Request) {
   if (typeof body.maxMiles === "number") await setMaxMiles(body.maxMiles);
 
   const changed = [...valid.map((v) => v.block.key), ...(body.site !== undefined ? ["site"] : []), ...(typeof body.maxMiles === "number" ? ["maxMiles"] : [])];
-  if (changed.length) await audit({ actor: actorOf(u), action: "config.save", entity: "config", detail: { sections: changed }, ip: clientIp(req) });
+  if (changed.length) {
+    await audit({ actor: actorOf(u), action: "config.save", entity: "config", detail: { sections: changed }, ip: clientIp(req) });
+    await refreshMenuPages(); // dishes, prices, categories, deal and site content all show on the menu pages
+  }
   return GET();
 }
 

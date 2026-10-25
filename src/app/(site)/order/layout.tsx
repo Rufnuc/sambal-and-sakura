@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+// Rendered on every request (live, admin-editable or per-visitor content).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/order" },
   title: "Order Online for Delivery or Collection",

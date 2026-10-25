@@ -7,6 +7,9 @@ import { getSiteContent } from "@/server/site-content";
 import { gbp } from "@/lib/format";
 import { AutoPrint } from "@/components/print/auto-print";
 
+// Rendered on every request (live, admin-editable or per-visitor content).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Order ticket", robots: { index: false, follow: false } };
 
 type Mod = { groupId: string; optionId: string; label: string };

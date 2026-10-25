@@ -9,8 +9,10 @@ import { getSiteContent } from "@/server/site-content";
 import { allergensKnown } from "@/lib/data/menu";
 import { AllergyNotice } from "@/components/menu/allergy-notice";
 
-// Rendered on every request: this page shows admin-editable content, so it must NOT be frozen at build time.
-export const dynamic = "force-dynamic";
+// Served from a ready-made copy (fast for customers, search engines and AI tools), rebuilt whenever the
+// menu, offers or site content is saved in the admin (refreshMenuPages in server/menu-pages.ts) and at
+// least every 5 minutes as a safety net.
+export const revalidate = 300; // at most 5 minutes old even if a save were missed
 
 export const metadata: Metadata = {
   alternates: { canonical: "/menu" },

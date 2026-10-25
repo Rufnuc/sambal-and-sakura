@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { UnsubscribeButton } from "./unsubscribe-button";
 
+// Rendered on every request (live, admin-editable or per-visitor content).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Unsubscribe", robots: { index: false, follow: false } };
 
 // A button (not an automatic unsubscribe on page load), so email scanners that open links can't

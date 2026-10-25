@@ -6,6 +6,9 @@ import type { Offer } from "@/lib/data/site";
 import type { MenuItem } from "@/lib/data/menu";
 import { getPromotions, publicPromotions } from "@/server/promotions";
 
+// Rendered on every request (live, admin-editable or per-visitor content).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/offers" },
   title: "Offers & Rewards",

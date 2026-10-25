@@ -10,6 +10,9 @@ import { getSiteContent } from "@/server/site-content";
 import { telHref, formatAddress } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
 
+// Rendered on every request (live, admin-editable or per-visitor content).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
   title: "Contact",

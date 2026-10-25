@@ -13,9 +13,12 @@ import { gbp } from "@/lib/format";
 import { fitDescription } from "@/lib/seo";
 
 // One section of the menu on its own short page (e.g. /menu/sushi-rolls): the full menu is long, and
-// search engines and AI tools reading a page often stop before the end. Rendered on every request,
-// like the full menu, so it always shows the owner's latest prices.
-export const dynamic = "force-dynamic";
+// search engines and AI tools reading a page often stop before the end. Like the full menu it's served
+// from a ready-made copy, made on first visit and rebuilt when the menu is saved (or every 5 minutes).
+export const revalidate = 300; // at most 5 minutes old even if a save were missed
+export function generateStaticParams() {
+  return []; // no copies made during the build: each section page is made on its first visit
+}
 
 type Params = { params: Promise<{ category: string }> };
 

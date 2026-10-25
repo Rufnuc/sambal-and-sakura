@@ -31,6 +31,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The menu pages are served from a ready-made copy (revalidate = 300). This caps how long any cache in
+  // front of the site may keep showing an old copy while it fetches a new one (Next's default is a year).
+  expireTime: 3600,
   async headers() {
     // The files crawlers fetch first are cached at the edge (Cloudflare) for a day, so Googlebot always gets
     // robots.txt instantly. If the server is slow or waking up and robots.txt fails, Google treats the whole

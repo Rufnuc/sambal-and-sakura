@@ -23,9 +23,10 @@ const body = Karla({
   display: "swap",
 });
 
-// Every page renders on request: the site shows admin-editable content (menu, offers, hours, FAQ...),
-// so nothing may be frozen at build time. Also means a first deploy never needs the database to build.
-export const dynamic = "force-dynamic";
+// Pages render on request (each section sets dynamic = "force-dynamic"): the site shows admin-editable
+// content (offers, hours, FAQ...), so nothing may be frozen at build time. The menu pages are the one
+// exception: they are served from a ready-made copy that is rebuilt whenever the admin saves
+// (server/menu-pages.ts). Don't set dynamic here - it would apply to the menu pages too.
 
 export async function generateMetadata(): Promise<Metadata> {
   const { business } = await getSiteContent();

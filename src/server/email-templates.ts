@@ -127,6 +127,8 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
   const track = trackUrl ? [`${t(l, "order.trackHint")}<br>${button(trackUrl, t(l, "order.trackButton"))}`] : [];
   // "You saved £2.50 (10% off) by ordering direct on our website." - the % as it was when they ordered.
   const pct = o.onlineDiscountLabel?.match(/(\d+(?:\.\d+)?)%/)?.[1];
+  // The code the customer gives at the door / counter (big, so it's easy to read out).
+  const handover = o.handoverCode ? [t(l, o.fulfilment === "delivery" ? "order.handover.delivery" : "order.handover.collection", { code: `<b style="font-size:20px;letter-spacing:4px">${esc(o.handoverCode)}</b>` })] : [];
   const saved = o.onlineDiscount > 0 && pct ? [t(l, "order.onlineSaved", { amount: b(money(o.onlineDiscount)), pct })] : [];
 
   switch (event) {
@@ -135,6 +137,7 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
         t(l, "order.received.summary", { ref, type, when }),
         items,
         `${o.discount > 0 ? t(l, "order.totalDiscount", { total: b(money(o.total)), discount: money(o.discount) }) : t(l, "order.total", { total: b(money(o.total)) })} ${pay}`,
+        ...handover,
         ...saved,
         t(l, o.fulfilment === "delivery" ? "order.deliverTo" : "order.collectFrom", { address }),
         ...track,
@@ -142,9 +145,9 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
       ]);
     // These two also say "enjoy your meal": there's no separate "completed" email.
     case "out-for-delivery":
-      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), items, pay, ...saved, ...track, t(l, "order.enjoy")]);
+      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), ...handover, items, pay, ...saved, ...track, t(l, "order.enjoy")]);
     case "ready-for-collection":
-      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), items, pay, ...saved, ...track, t(l, "order.enjoy")]);
+      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), ...handover, items, pay, ...saved, ...track, t(l, "order.enjoy")]);
     case "cancelled":
       return build(l, biz, t(l, "order.cancelled.subject", { ref: plainRef }), t(l, "order.cancelled.heading"), [
         o.cancelReason ? t(l, "order.cancelled.bodyReason", { ref, total: money(o.total), reason: esc(o.cancelReason) }) : t(l, "order.cancelled.body", { ref, total: money(o.total) }),
@@ -204,6 +207,17 @@ export function accountEmail(event: "deactivated" | "closed" | "reactivated", na
   }
   if (event === "reactivated") return build(l, biz, t(l, "account.reactivated.subject"), t(l, "account.reactivated.heading"), [t(l, "account.reactivated.body", { name: n })]);
   return build(l, biz, t(l, "account.closed.subject"), t(l, "account.closed.heading"), [t(l, "account.closed.body1", { name: n }), t(l, "account.closed.body2")]);
+}
+
+/** "Confirm your email" (after sign-up) or "Reset your password". `url` is built from SITE_URL by the caller. */
+export function authLinkEmail(purpose: "verify" | "reset", name: string, locale: string, biz: Business, url: string): Built {
+  const l = asEmailLocale(locale);
+  const k = purpose === "verify" ? "auth.verify" : "auth.reset";
+  return build(l, biz, t(l, `${k}.subject`), t(l, `${k}.heading`), [
+    t(l, `${k}.body`, { name: firstName(name) }),
+    button(url, t(l, `${k}.button`)),
+    t(l, `${k}.ignore`),
+  ]);
 }
 
 /* ------------------------------------------------------------------ referrals */

@@ -23,6 +23,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       lines: o.lines.map((l) => ({ name: l.name, qty: l.qty, unitPrice: l.unitPrice })),
       subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
       onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, voucherCode: o.voucherCode,
+      // Only while it's still needed: the customer gives it at the door / counter.
+      handoverCode: ["completed", "cancelled"].includes(o.status) ? null : o.handoverCode,
       paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
       cancelKind: o.cancelKind, cancelReason: o.cancelKind === "customer" ? o.cancelReason?.replace(/^Customer: /, "") : null,
     },

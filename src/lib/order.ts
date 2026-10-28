@@ -28,6 +28,7 @@ export interface PlacedOrder {
   discount: number;
   total: number;
   voucherCode?: string;
+  handoverCode?: string; // the customer gives it to the driver / counter
   when: "asap" | "scheduled";
   scheduledTime?: string; // e.g. "Sat 11 Oct 19:00"
   etaMins: number;

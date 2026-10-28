@@ -14,7 +14,7 @@ interface TrackData {
     createdAt: string; etaMins: number; firstName: string;
     lines: { name: string; qty: number; unitPrice: number }[];
     subtotal: number; deliveryFee: number; discount: number; total: number;
-    onlineDiscount: number; onlineDiscountLabel: string | null; voucherCode: string | null;
+    onlineDiscount: number; onlineDiscountLabel: string | null; voucherCode: string | null; handoverCode: string | null;
     paymentMethod: string; paymentStatus: string; cancelKind: string | null; cancelReason: string | null;
   };
   cancel: { can: true; secondsLeft: number } | { can: false; reason: string };
@@ -133,6 +133,14 @@ export function TrackOrder({ id, token }: { id: string; token: string }) {
             );
           })}
         </ol>
+      )}
+
+      {o.handoverCode && !cancelled && !finished && (
+        <div className="mt-6 rounded-2xl border-2 border-dashed border-gold/60 bg-gold/10 p-5 text-center">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your handover code</p>
+          <p className="font-mono text-3xl font-bold tracking-[0.3em] notranslate" translate="no">{o.handoverCode}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{delivery ? "Tell this to the driver when your food arrives." : "Give this at the counter when you collect."}</p>
+        </div>
       )}
 
       {!cancelled && !finished && (

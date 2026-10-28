@@ -15,7 +15,8 @@ import { markCampaignWork, campaignWorkPending, clearCampaignWork } from "@/serv
 export const unsubscribeUrl = (userId: string) => `${SITE_URL}/unsubscribe?u=${encodeURIComponent(userId)}&t=${hmac("unsubscribe", userId)}`;
 
 /** Customers who can receive promotions: active accounts that said yes. */
-export const marketableWhere = { role: "customer", status: "active", marketingOptIn: true } as const;
+// Only to confirmed emails: a box ticked at sign-up isn't consent from the inbox's owner until they click the link.
+export const marketableWhere = { role: "customer", status: "active", marketingOptIn: true, emailVerifiedAt: { not: null } } as const;
 
 export type CampaignTranslations = Partial<Record<"zh" | "vi" | "ja", { subject: string; body: string }>>;
 

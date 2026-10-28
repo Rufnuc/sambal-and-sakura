@@ -17,6 +17,7 @@ export interface Account {
   role: string; points: number; referralCode: string; createdAt: string;
   pendingPoints?: number; // earned on orders not completed yet (not spendable)
   marketingOptIn?: boolean;
+  emailVerified?: boolean; // clicked the link in the sign-up email
 }
 
 export const LOYALTY = {

@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/site-url";
 export const dynamic = "force-dynamic";
 
 // Private areas: never crawled.
-const PRIVATE = ["/admin", "/staff", "/account", "/api/", "/print/", "/review", "/track/", "/unsubscribe"];
+const PRIVATE = ["/admin", "/staff", "/account", "/reset-password", "/verify-email", "/api/", "/print/", "/review", "/track/", "/unsubscribe"];
 
 // AI assistants and AI search engines are welcome on the public pages (people ask them "where can I
 // get Chinese food near me?"). Listed by name so a host or CDN default that blocks AI bots can't

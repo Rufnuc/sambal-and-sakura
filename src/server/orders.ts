@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import type { User } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getBlackouts, getDisabledZones, getOrdersPaused } from "@/server/settings";
@@ -272,6 +272,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
           customerName: input.name, customerPhone: canonicalPhone(input.phone), customerEmail: input.email,
           fulfilment: input.fulfilment, status: "received",
           subtotal: quote.subtotal, deliveryFee: quote.deliveryFee, discount: quote.discount, total: quote.total,
+          handoverCode: String(randomInt(1000, 10000)), // the customer gives this to the driver / counter
           onlineDiscount: quote.onlineDiscount, onlineDiscountLabel: quote.onlineDiscount > 0 && quote.online ? quote.online.label : null,
           voucherCode: voucher && quote.voucherApplied ? voucher.code : null,
           address: input.fulfilment === "delivery" ? input.address : null,

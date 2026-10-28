@@ -19,7 +19,7 @@ interface RawOrder {
   subtotal: number; deliveryFee: number; discount: number; total: number;
   customerName: string; customerPhone: string; customerEmail: string | null; userId: string | null;
   address: string | null; postcode: string | null; notes: string | null; whenType: string; etaMins: number;
-  scheduledTime?: string | null; voucherCode?: string | null;
+  scheduledTime?: string | null; voucherCode?: string | null; handoverCode?: string | null;
   paymentMethod?: string; paymentStatus?: string;
   printStatus?: string; printError?: string | null; flags?: string[]; cancelReason?: string | null;
   cancelKind?: string | null; cancelledAt?: string | null;
@@ -49,7 +49,7 @@ function normOrder(o: RawOrder): PlacedOrder {
     })),
     subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
     when: o.whenType === "asap" ? "asap" : "scheduled", etaMins: o.etaMins,
-    scheduledTime: o.scheduledTime ?? undefined, voucherCode: o.voucherCode ?? undefined,
+    scheduledTime: o.scheduledTime ?? undefined, voucherCode: o.voucherCode ?? undefined, handoverCode: o.handoverCode ?? undefined,
     paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
     printStatus: o.printStatus, printError: o.printError ?? undefined, flags: o.flags ?? [], cancelReason: o.cancelReason ?? undefined,
     cancelKind: o.cancelKind ?? undefined, cancelledAt: o.cancelledAt ? Date.parse(o.cancelledAt) : undefined,

@@ -5,6 +5,7 @@ import { registerSchema } from "@/server/validation";
 import { referralCode, rewardCode, withFreshIds } from "@/server/ids";
 import { clientIp, limitOr429 } from "@/server/rate-limit";
 import { verifyHuman } from "@/server/turnstile";
+import { emailLink } from "@/server/email-links";
 import { canonicalPhone, phoneKey } from "@/server/phone";
 import { WELCOME_POINTS } from "@/server/points";
 import { log } from "@/server/log";
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
     },
   }), ["referralCode", "code"]);
   log.info("account_created", { userId: user.id, referred: !!referral });
+  void emailLink(user, "verify").catch(() => {}); // "confirm your email" - ordering doesn't wait for it
   await createSession(user);
   return NextResponse.json({ user: publicUser(user) });
 }

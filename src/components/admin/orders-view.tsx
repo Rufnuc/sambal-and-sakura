@@ -532,6 +532,7 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
                 <p className="capitalize text-muted-foreground">{detail.fulfilment}{detail.customer.address ? ` · ${detail.customer.address}` : ""}{detail.customer.postcode ? ` (${detail.customer.postcode})` : ""}</p>
                 {detail.when === "scheduled" && detail.scheduledTime && <p className="mt-1 font-semibold">For {detail.scheduledTime}</p>}
                 {detail.customer.notes && <p className="mt-1 flex items-center gap-1.5 text-muted-foreground"><Clock className="size-3.5" /> Customer note: {detail.customer.notes}</p>}
+                {detail.handoverCode && <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm">Handover code <span className="font-mono text-lg font-bold tracking-widest">{detail.handoverCode}</span> <span className="text-muted-foreground">- the customer should say this before you hand it over</span></p>}
                 {detail.cancelReason && <p className="mt-1 text-sambal">Cancelled{detail.cancelKind === "customer" ? " by the customer" : detail.cancelKind === "no-show" ? " (not collected)" : ""}: {detail.cancelReason}</p>}
                 <ul className="mt-4 divide-y divide-border border-y border-border">
                   {detail.lines.map((l) => (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Star, Gift, LogOut, ShoppingBag, CalendarCheck, User as UserIcon, Crown, ShieldCheck, Download,
+  Star, Gift, LogOut, ShoppingBag, CalendarCheck, User as UserIcon, Crown, ShieldCheck, Download, MailCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,8 @@ function Dashboard() {
         </div>
         <Button variant="outline" className="h-10 gap-2" onClick={() => logout()}><LogOut className="size-4" /> Sign out</Button>
       </div>
+
+      {user.emailVerified === false && <ConfirmEmailBanner email={user.email} />}
 
       <Card className="bg-gradient-to-br from-gold/15 to-card">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -280,7 +282,7 @@ function SecurityCard({ onSignOutEverywhere }: { onSignOutEverywhere: () => void
       <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
         <div>
           <p className="text-sm font-medium">Offers by email</p>
-          <p className="text-xs text-muted-foreground">Order and booking emails are always sent.</p>
+          <p className="text-xs text-muted-foreground">Order and booking emails are always sent.{user?.marketingOptIn && user.emailVerified === false ? " Offers start once you confirm your email." : ""}</p>
         </div>
         <button onClick={toggleOffers} role="switch" aria-checked={!!user?.marketingOptIn} aria-label="Offers by email" className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition", user?.marketingOptIn ? "bg-jade" : "bg-muted")}>
           <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", user?.marketingOptIn ? "translate-x-6" : "translate-x-1")} />
@@ -321,5 +323,24 @@ function SecurityCard({ onSignOutEverywhere }: { onSignOutEverywhere: () => void
         </div>
       )}
     </Card>
+  );
+}
+
+/** Shown until they click the link in the sign-up email. Ordering works either way. */
+function ConfirmEmailBanner({ email }: { email: string }) {
+  const [busy, setBusy] = useState(false);
+  async function resend() {
+    setBusy(true);
+    const res = await fetch("/api/auth/verify/resend", { method: "POST" });
+    const d = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (res.ok) toast.success(d.already ? "Your email is already confirmed." : `We've sent a new link to ${email}.`);
+    else toast.error(d.error ?? "Could not send the link.");
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm">
+      <p className="flex items-start gap-2"><MailCheck className="mt-0.5 size-4 shrink-0 text-gold-ink" /> <span>Please confirm your email: tap the link we sent to <span className="font-medium notranslate" translate="no">{email}</span>. You can order as normal in the meantime.</span></p>
+      <Button size="sm" variant="outline" className="h-9" disabled={busy} onClick={resend}>Send the link again</Button>
+    </div>
   );
 }

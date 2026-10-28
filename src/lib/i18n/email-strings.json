@@ -95,6 +95,78 @@
     "vi": "Tổng cộng: {total} (đã giảm {discount}).",
     "ja": "合計：{total}（{discount}割引済み）。"
   },
+  "auth.verify.subject": {
+    "en": "Please confirm your email",
+    "zh": "请确认您的邮箱",
+    "vi": "Vui lòng xác nhận email của bạn",
+    "ja": "メールアドレスの確認をお願いします"
+  },
+  "auth.verify.heading": {
+    "en": "Confirm your email",
+    "zh": "确认您的邮箱",
+    "vi": "Xác nhận email của bạn",
+    "ja": "メールアドレスの確認"
+  },
+  "auth.verify.body": {
+    "en": "Hi {name}, thanks for creating an account. Please tap the button to confirm this is your email address. You can order straight away either way.",
+    "zh": "{name}，您好！感谢您注册账户。请点击下方按钮确认这是您的邮箱地址。无论是否确认，您都可以立即下单。",
+    "vi": "Chào {name}, cảm ơn bạn đã tạo tài khoản. Vui lòng bấm nút bên dưới để xác nhận đây là email của bạn. Bạn vẫn có thể đặt món ngay.",
+    "ja": "{name}様、アカウントのご登録ありがとうございます。下のボタンを押して、このメールアドレスがご本人のものであることをご確認ください。確認前でもすぐにご注文いただけます。"
+  },
+  "auth.verify.button": {
+    "en": "Confirm my email",
+    "zh": "确认我的邮箱",
+    "vi": "Xác nhận email",
+    "ja": "メールアドレスを確認する"
+  },
+  "auth.verify.ignore": {
+    "en": "The link works for 7 days. If you didn't create an account, you can ignore this email.",
+    "zh": "此链接 7 天内有效。如果您没有注册账户，请忽略此邮件。",
+    "vi": "Liên kết có hiệu lực trong 7 ngày. Nếu bạn không tạo tài khoản, hãy bỏ qua email này.",
+    "ja": "このリンクの有効期限は7日間です。お心当たりのない場合は、このメールを無視してください。"
+  },
+  "auth.reset.subject": {
+    "en": "Reset your password",
+    "zh": "重置您的密码",
+    "vi": "Đặt lại mật khẩu của bạn",
+    "ja": "パスワードの再設定"
+  },
+  "auth.reset.heading": {
+    "en": "Reset your password",
+    "zh": "重置密码",
+    "vi": "Đặt lại mật khẩu",
+    "ja": "パスワードの再設定"
+  },
+  "auth.reset.body": {
+    "en": "Hi {name}, we received a request to reset the password for your account. Tap the button to choose a new one.",
+    "zh": "{name}，您好！我们收到了重置您账户密码的请求。请点击下方按钮设置新密码。",
+    "vi": "Chào {name}, chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Bấm nút bên dưới để chọn mật khẩu mới.",
+    "ja": "{name}様、アカウントのパスワード再設定のご依頼を受け付けました。下のボタンを押して新しいパスワードを設定してください。"
+  },
+  "auth.reset.button": {
+    "en": "Choose a new password",
+    "zh": "设置新密码",
+    "vi": "Chọn mật khẩu mới",
+    "ja": "新しいパスワードを設定する"
+  },
+  "auth.reset.ignore": {
+    "en": "The link works once, for 30 minutes. If you didn't ask for this, ignore this email: your password stays the same. Never share this link.",
+    "zh": "此链接仅可使用一次，30 分钟内有效。如果这不是您本人的操作，请忽略此邮件，您的密码不会改变。请勿分享此链接。",
+    "vi": "Liên kết chỉ dùng được một lần, trong 30 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này: mật khẩu của bạn vẫn giữ nguyên. Đừng chia sẻ liên kết này.",
+    "ja": "このリンクは1回のみ、30分間有効です。お心当たりのない場合はこのメールを無視してください。パスワードは変更されません。このリンクは誰にも共有しないでください。"
+  },
+  "order.handover.delivery": {
+    "en": "Your handover code is {code}. Please tell it to the driver when your food arrives.",
+    "zh": "您的取餐码是 {code}。外卖送达时，请将它告诉送餐员。",
+    "vi": "Mã nhận hàng của bạn là {code}. Vui lòng đọc mã này cho tài xế khi đồ ăn được giao đến.",
+    "ja": "受け渡しコードは {code} です。お料理が届いたら、配達員にお伝えください。"
+  },
+  "order.handover.collection": {
+    "en": "Your handover code is {code}. Please give it at the counter when you collect.",
+    "zh": "您的取餐码是 {code}。到店取餐时，请在柜台出示。",
+    "vi": "Mã nhận hàng của bạn là {code}. Vui lòng đọc mã này tại quầy khi đến lấy đồ ăn.",
+    "ja": "受け渡しコードは {code} です。お受け取りの際にカウンターでお伝えください。"
+  },
   "order.onlineSaved": {
     "en": "You saved {amount} ({pct}% off) by ordering direct on our website.",
     "zh": "您通过我们的官网直接下单，节省了 {amount}（{pct}% 折扣）。",

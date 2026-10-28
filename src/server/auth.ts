@@ -117,6 +117,7 @@ export function publicUser(u: User) {
     id: u.id, name: u.name, email: u.email, phone: u.phone,
     role: u.role, points: u.points, referralCode: u.referralCode,
     marketingOptIn: u.marketingOptIn, createdAt: u.createdAt,
+    emailVerified: !!u.emailVerifiedAt, // marketing emails wait for this; ordering doesn't
   };
 }
 

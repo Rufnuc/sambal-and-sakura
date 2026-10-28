@@ -50,6 +50,7 @@ function renderText(o: TicketOrder): string {
   else if (wechatFirst) { out.push(center("WECHAT - NOT PAID YET")); out.push(center("Check before handing over")); }
   else { out.push(center(`CASH ${money(o.total)}`)); out.push(center(isDelivery ? "COLLECT ON DELIVERY" : "PAY ON COLLECTION")); }
   out.push("#".repeat(W));
+  if (o.handoverCode) { out.push(center("ASK THE CUSTOMER FOR THEIR CODE")); out.push(center(`CODE ${o.handoverCode}`)); out.push("#".repeat(W)); }
   for (const f of o.flags ?? []) if (FLAG_TEXT[f]) out.push(`!! ${FLAG_TEXT[f]} !!`.slice(0, W));
   out.push(rule);
   out.push("Customer:");
@@ -120,7 +121,7 @@ async function loadTicket(id: string): Promise<TicketOrder | null> {
     address: o.address, postcode: o.postcode, notes: o.notes,
     whenType: o.whenType, scheduledTime: o.scheduledTime, etaMins: o.etaMins,
     subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
-    voucherCode: o.voucherCode, onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
+    voucherCode: o.voucherCode, onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, handoverCode: o.handoverCode, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
     flags, createdAt: o.createdAt, pointsEarned: o.pointsEarned,
   };
 }

@@ -30,6 +30,9 @@ model User {
   marketingOptIn   Boolean   @default(false)
   marketingOptInAt DateTime?
   locale           String    @default("en") // email language: en | zh | vi | ja (last used on the site)
+  // Set when they click the link in the sign-up email (or complete a password reset, which proves the same).
+  // Ordering never waits for it; marketing emails do.
+  emailVerifiedAt  DateTime?
 
   orders        Order[]
   bookings      Booking[]
@@ -39,6 +42,22 @@ model User {
   wheel         WheelState?
   referralsMade Referral[]  @relation("referralsMade")
   referredBy    Referral?   @relation("referredBy")
+  authTokens    AuthToken[]
+}
+
+// One-time links emailed to a customer: "confirm your email" and "reset your password".
+model AuthToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique // SHA-256 of the link's token; the raw token is only in the email
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String    // verify | reset
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
 }
 
 model Session {
@@ -68,6 +87,7 @@ model Order {
   discount      Float       @default(0)        // every discount on the order (online discount + any code)
   onlineDiscount      Float   @default(0)        // the part of `discount` that is the online order discount
   onlineDiscountLabel String?                    // e.g. "Online order discount (10%)", as it was when ordered
+  handoverCode  String?                          // 4 digits the customer gives the driver / counter (kitchen ticket only, never the bag receipt)
   total         Float
   voucherCode   String?
   address       String?

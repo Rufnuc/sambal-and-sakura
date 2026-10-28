@@ -54,6 +54,8 @@ export default function StaffLogin() {
         </div>
         {error && <p className="mt-3 text-sm text-[color:var(--sambal)]">{error}</p>}
         <Button type="submit" className="mt-5 h-12 w-full font-semibold" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</Button>
+        {/* No reset-by-email for staff on purpose: someone who got into a staff inbox could take over the admin. */}
+        <p className="mt-3 text-center text-xs text-muted-foreground">Forgot your password? Ask the owner to reset it in Admin → Staff.</p>
         <p className="mt-3 text-center text-xs text-sidebar-foreground/50">Authorised staff only.</p>
       </form>
     </main>

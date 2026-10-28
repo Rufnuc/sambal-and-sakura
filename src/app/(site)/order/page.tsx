@@ -44,6 +44,7 @@ export interface ApiOrder {
   scheduledTime?: string | null;
   onlineDiscount?: number;
   onlineDiscountLabel?: string | null;
+  handoverCode?: string | null;
 }
 
 export type PayMethod = "cash" | "wechat";
@@ -556,6 +557,13 @@ function Confirmation({ order, method, payToken, trackPath }: { order: ApiOrder;
           </Badge>
           <span className="font-display text-xl font-bold">{gbp(order.total)}</span>
         </div>
+        {order.handoverCode && (
+          <div className="mt-4 rounded-xl border-2 border-dashed border-gold/60 bg-gold/10 px-4 py-3 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Your handover code</p>
+            <p className="font-mono text-3xl font-bold tracking-[0.3em] notranslate" translate="no">{order.handoverCode}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{order.fulfilment === "delivery" ? "Tell this to the driver when your food arrives." : "Give this at the counter when you collect."} It&apos;s also in your confirmation email. Keep it to yourself until then.</p>
+          </div>
+        )}
         {!!order.onlineDiscount && (
           <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
             <BadgePercent className="size-4" /> You saved {gbp(order.onlineDiscount)} by ordering direct on our website{order.onlineDiscountLabel ? ` (${order.onlineDiscountLabel.replace(/^.*\((.*)\)$/, "$1")} off)` : ""}.

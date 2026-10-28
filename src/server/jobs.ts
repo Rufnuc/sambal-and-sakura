@@ -59,12 +59,13 @@ async function unacknowledgedOrders() {
 
 async function cleanup() {
   const now = new Date();
-  const [sessions, limits, events] = await Promise.all([
+  const [sessions, limits, events, links] = await Promise.all([
     prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.rateLimit.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.event.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - EVENT_DAYS * 86400000) } } }),
+    prisma.authToken.deleteMany({ where: { OR: [{ expiresAt: { lt: now } }, { usedAt: { not: null } }] } }), // emailed links
   ]);
-  log.info("cleanup", { sessions: sessions.count, rateLimits: limits.count, events: events.count });
+  log.info("cleanup", { sessions: sessions.count, rateLimits: limits.count, events: events.count, links: links.count });
 }
 
 async function retention() {

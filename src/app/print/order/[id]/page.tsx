@@ -50,6 +50,8 @@ export default async function OrderTicketPage({ params }: { params: Promise<{ id
           {order.whenType === "scheduled" && order.scheduledTime ? `SCHEDULED ${order.scheduledTime}` : "ASAP"}
           {" · "}{order.status.replace(/-/g, " ")}
         </p>
+        {/* Staff copy only: the customer gives this code before the food is handed over. */}
+        {order.handoverCode && <p className="mt-1 border-2 border-black p-1 text-lg font-extrabold">ASK FOR CODE: {order.handoverCode}</p>}
       </div>
 
       <Hr />

@@ -10,7 +10,7 @@ import { telHref, shownSocial } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
 
 export async function SiteFooter() {
-  const { business: b, reviews } = await getSiteContent();
+  const { business: b, reviews, story } = await getSiteContent();
   const showReviews = reviews.show && reviews.items.length > 0;
   const social = shownSocial(b); // only the profiles switched on in Admin -> Site content
   return (
@@ -66,7 +66,7 @@ export async function SiteFooter() {
             <div key={col.heading}>
               <h3 className="font-display text-sm font-bold uppercase tracking-wide text-sidebar-foreground/90">{col.heading}</h3>
               <ul className="mt-4 flex flex-col gap-2.5">
-                {col.links.filter((l) => l.href !== "/#reviews" || showReviews).map((l) => (
+                {[...col.links, ...(col.heading === "About" && story.show ? [{ href: "/our-story", label: "Our Story" }] : [])].filter((l) => l.href !== "/#reviews" || showReviews).map((l) => (
                   <li key={l.href}>
                     <Link href={l.href} className="text-sm text-sidebar-foreground/80 transition hover:text-gold-ink">
                       {l.label}

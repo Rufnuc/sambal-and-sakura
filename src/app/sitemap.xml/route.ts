@@ -2,6 +2,7 @@
 import { SITE_URL } from "@/lib/site-url";
 import { LEGAL_SLUGS } from "@/server/legal";
 import { getCategories, getPublicMenu } from "@/server/config";
+import { getSiteContent } from "@/server/site-content";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,8 @@ const esc = (value: string) =>
     .replace(/'/g, "&apos;");
 
 export async function GET() {
-  const pages = [...PAGES.slice(0, 2), ...(await menuSectionPages()), ...PAGES.slice(2)];
+  const storyOn = (await getSiteContent()).story.show; // only listed while it's switched on
+  const pages = [...PAGES.slice(0, 2), ...(await menuSectionPages()), ...PAGES.slice(2), ...(storyOn ? ["/our-story"] : [])];
   const urls = pages.map((page) => {
     const loc = new URL(page, `${BASE_URL}/`).toString();
 

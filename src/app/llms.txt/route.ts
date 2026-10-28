@@ -12,7 +12,7 @@ const SOCIAL_NAMES = { google: "Google Business Profile", tripadvisor: "Tripadvi
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [{ summary, facts }, { business }] = await Promise.all([buildFacts(), getSiteContent()]);
+  const [{ summary, facts }, { business, story }] = await Promise.all([buildFacts(), getSiteContent()]);
   const social = shownSocial(business);
   const profiles = (Object.keys(SOCIAL_NAMES) as (keyof typeof SOCIAL_NAMES)[]).filter((k) => social[k]).map((k) => `- [${SOCIAL_NAMES[k]}](${social[k]})`);
   const body = [
@@ -33,6 +33,7 @@ export async function GET() {
     `- [Offers](${SITE_URL}/offers): current offers and the Fortune Wheel`,
     `- [Contact and FAQ](${SITE_URL}/contact): address, hours, map, delivery area and frequently asked questions`,
     `- [Careers](${SITE_URL}/careers): current job openings`,
+    ...(story.show ? [`- [Our story](${SITE_URL}/our-story): who we are and how the restaurant started`] : []),
     "",
     "## Official sources",
     "",

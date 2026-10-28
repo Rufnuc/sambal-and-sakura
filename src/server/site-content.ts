@@ -104,6 +104,7 @@ const schemas = {
       text: str(400, 1), dish: str(80).optional(), source: str(40), date: str(12),
     })).max(24),
   }),
+  story: z.object({ show: z.boolean(), heading: str(80, 1), body: str(4000), photo: photoUrl }),
   faqs: z.array(z.object({ q: str(200, 1), a: str(1200, 1), group: z.enum(FAQ_GROUPS) })).max(60),
 } as const;
 

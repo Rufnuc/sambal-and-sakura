@@ -12,13 +12,14 @@ import { Reveal } from "@/components/brand/reveal";
 import { OpenStatus } from "@/components/brand/open-status";
 import type { MenuItem } from "@/lib/data/menu";
 import { getPublicMenu } from "@/server/config";
-import { telHref, averageRating, DEFAULT_SITE_CONTENT, type SiteContent, type ValueIcon } from "@/lib/site-content";
+import { telHref, averageRating, storyParagraphs, DEFAULT_SITE_CONTENT, type SiteContent, type ValueIcon } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
 import { RestaurantJsonLd, WebSiteJsonLd } from "@/components/seo/structured-data";
 import { MapEmbed } from "@/components/brand/map-embed";
 import { HeroSlideshow } from "@/components/brand/hero-slideshow";
 import { realPhoto } from "@/lib/photo";
 import { RESTAURANT } from "@/lib/data/site";
+import { cn } from "@/lib/utils";
 
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -40,6 +41,7 @@ export default async function HomePage() {
       <Hero content={content} menu={menu} />
       <ValueStrip items={content.valueStrip} />
       <SignatureDishes items={signature} />
+      {content.story.show && <StoryTeaser story={content.story} />}
       <Reviews reviews={content.reviews} />
       <VisitUs content={content} />
       <FinalCta cta={content.cta} />
@@ -175,6 +177,27 @@ function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: st
       </div>
       {action}
     </div>
+  );
+}
+
+/* ----------------------------------------------------------------- Our story (only when switched on) */
+function StoryTeaser({ story }: { story: SiteContent["story"] }) {
+  const [first] = storyParagraphs(story.body);
+  return (
+    <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+      <div className={cn("grid items-center gap-8 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-10", story.photo && "lg:grid-cols-[1fr_1.2fr]")}>
+        {story.photo && (
+          // eslint-disable-next-line @next/next/no-img-element -- an uploaded photo or the owner's own link
+          <img src={story.photo} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" loading="lazy" />
+        )}
+        <div>
+          <p className="font-medium uppercase tracking-widest text-gold-ink">About us</p>
+          <h2 className="mt-1 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{story.heading}</h2>
+          {first && <p className="mt-4 text-muted-foreground text-pretty">{first}</p>}
+          <Button asChild variant="outline" className="mt-6 h-11"><Link href="/our-story">Read our story <ArrowRight className="size-4" /></Link></Button>
+        </div>
+      </div>
+    </section>
   );
 }
 

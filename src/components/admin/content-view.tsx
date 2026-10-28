@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Save, Plus, Trash2, ArrowUp, ArrowDown, TriangleAlert, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/admin/ui";
-import { fetchConfig, saveSite } from "@/lib/admin/api";
+import { fetchConfig, saveSite, uploadImage } from "@/lib/admin/api";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent, type SocialKey } from "@/lib/site-content";
 import type { DayHours } from "@/lib/data/site";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const TABS = [
   { id: "hours", label: "Opening hours" },
   { id: "home", label: "Home page" },
   { id: "reviews", label: "Reviews" },
+  { id: "story", label: "Our story" },
   { id: "faq", label: "FAQ" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -105,6 +106,7 @@ export function ContentView() {
       {tab === "hours" && <HoursTab hours={c.business.hours} onChange={(hours) => setBusiness({ hours })} />}
       {tab === "home" && <HomeTab c={c} set={set} menuPhotos={menuPhotos} />}
       {tab === "reviews" && <ReviewsTab c={c} set={set} />}
+      {tab === "story" && <StoryTab c={c} set={set} />}
       {tab === "faq" && <FaqTab c={c} set={set} />}
 
       {dirty && (
@@ -379,6 +381,61 @@ function ReviewsTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>)
 }
 
 /* ---------------------------------------------------------------- FAQ */
+function StoryTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) => void }) {
+  const s = c.story;
+  const setS = (p: Partial<typeof s>) => set({ story: { ...s, ...p } });
+  const [busy, setBusy] = useState(false);
+  const file = useRef<HTMLInputElement | null>(null);
+  const draftLeft = s.body.includes("[Add your own story here");
+  async function upload(f: File | undefined) {
+    if (!f) return;
+    setBusy(true);
+    const res = await uploadImage(f);
+    setBusy(false);
+    if (res.ok && res.url) { setS({ photo: res.url }); toast.success("Photo added - press Save to publish"); }
+    else toast.error(res.error ?? "Upload failed.");
+    if (file.current) file.current.value = "";
+  }
+  return (
+    <>
+      <SectionCard title="Our story">
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={() => {
+            if (!s.show && draftLeft) { toast.error("Replace the [Add your own story here...] line with your own words first."); return; }
+            if (!s.show && !window.confirm("Check every sentence is true before publishing (for example the chef's training and that all food is halal). Show Our story on the website?")) return;
+            setS({ show: !s.show });
+          }} role="switch" aria-checked={s.show} aria-label="Show Our story" className={cn("relative inline-flex h-7 w-12 items-center rounded-full transition", s.show ? "bg-jade" : "bg-muted")}>
+            <span className={cn("inline-block size-5 rounded-full bg-white shadow transition", s.show ? "translate-x-6" : "translate-x-1")} />
+          </button>
+          <span className="text-sm text-muted-foreground">
+            {s.show ? "Shown: its own page (/our-story), a section on the home page and a footer link. Press Save to apply." : "Hidden: nothing about it appears on the website, in Google or the sitemap."}
+          </span>
+        </div>
+        {draftLeft && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg bg-gold/10 px-3 py-2 text-sm"><TriangleAlert className="mt-0.5 size-4 shrink-0 text-gold-ink" /> This is a starting draft. Replace the line in [brackets] with your own story before switching it on.</p>
+        )}
+      </SectionCard>
+      <SectionCard>
+        <div className="flex flex-col gap-4">
+          <Field label="Heading"><Input value={s.heading} onChange={(e) => setS({ heading: e.target.value })} className="h-10" maxLength={80} /></Field>
+          <Field label="Your story" hint="Leave a blank line between paragraphs. The first paragraph is also shown on the home page. Specific, true details (who you are, the chef's background, your best dishes) are what customers, Google and AI assistants quote.">
+            <Textarea value={s.body} onChange={(e) => setS({ body: e.target.value })} rows={12} maxLength={4000} />
+          </Field>
+          <Field label="Photo (optional)" hint="For example the dining room, the team or the chef at work.">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of the uploaded photo */}
+              {s.photo && <img src={s.photo} alt="" className="h-20 w-28 rounded-lg object-cover" />}
+              <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
+              <Button type="button" variant="outline" className="h-10" disabled={busy} onClick={() => file.current?.click()}>{busy ? "Uploading…" : s.photo ? "Change photo" : "Upload photo"}</Button>
+              {s.photo && <Button type="button" variant="ghost" className="h-10" onClick={() => setS({ photo: "" })}>Remove</Button>}
+            </div>
+          </Field>
+        </div>
+      </SectionCard>
+    </>
+  );
+}
+
 function FaqTab({ c, set }: { c: SiteContent; set: (p: Partial<SiteContent>) => void }) {
   const setItem = (i: number, p: Partial<SiteContent["faqs"][number]>) => set({ faqs: c.faqs.map((f, idx) => (idx === i ? { ...f, ...p } : f)) });
   return (

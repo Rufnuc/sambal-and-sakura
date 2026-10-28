@@ -40,6 +40,9 @@ export interface SiteContent {
   valueStrip: ValueItem[];
   cta: { heading: string; subtext: string };
   reviews: { show: boolean; sourceNote: string; items: Testimonial[] };
+  // "Our story": its own page (/our-story) and a short section on the home page. Off until the owner
+  // has checked every sentence is true and switches it on (Admin -> Site content -> Our story).
+  story: { show: boolean; heading: string; body: string; photo: string };
   faqs: Faq[];
 }
 
@@ -91,8 +94,22 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     sourceNote: "",
     items: [],
   },
+  // A starting draft using only what the site already says. Blank lines separate paragraphs.
+  story: {
+    show: false,
+    heading: "Our story",
+    body: [
+      "Sambal & Sakura brings three kitchens together under one roof on Linthorpe Road, Middlesbrough: Chinese, Japanese and Malaysian.",
+      "Our sushi is made by a chef trained in Japan, using traditional Japanese technique and prepared to order. Alongside it you'll find Chinese favourites and Malaysian dishes like nasi lemak, all cooked fresh when you order. All our food is halal.",
+      "[Add your own story here: who runs the restaurant, how it started, the chef's background, and the dishes you're proudest of.]",
+    ].join("\n\n"),
+    photo: "",
+  },
   faqs: FAQS.map((f) => ({ ...f })),
 };
+
+/** The story's paragraphs (blank lines in the admin box separate them). */
+export const storyParagraphs = (body: string): string[] => body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
 /** The number in international form for structured data: "07716 757789" -> "+44 7716 757789". */
 export function intlPhone(phone: string): string {

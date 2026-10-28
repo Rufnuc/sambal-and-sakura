@@ -5,8 +5,9 @@ import { FaqSection } from "@/components/faq/faq-section";
 import { KeyFacts } from "@/components/seo/key-facts";
 import { OpenStatus } from "@/components/brand/open-status";
 import { MapEmbed } from "@/components/brand/map-embed";
-import { ORDERING } from "@/lib/data/site";
 import { getSiteContent } from "@/server/site-content";
+import { getZones } from "@/server/config";
+import { getDisabledZones } from "@/server/settings";
 import { telHref, formatAddress } from "@/lib/site-content";
 import { formatHours } from "@/lib/hours";
 
@@ -20,7 +21,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactPage() {
-  const { business: b } = await getSiteContent();
+  const [{ business: b }, zones, disabled] = await Promise.all([getSiteContent(), getZones(), getDisabledZones()]);
+  // The delivery zones as set in Admin (switched-off zones left out), nearest first.
+  const coverage = zones.filter((z) => !disabled.includes(z.id)).map((z) => z.postcodes.join(", ")).filter(Boolean);
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
       <header className="max-w-2xl">
@@ -38,7 +41,8 @@ export default async function ContactPage() {
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <Bike className="size-5 text-gold-ink" />
               <p className="mt-2 font-semibold">Delivery coverage</p>
-              <p className="text-sm text-muted-foreground">{ORDERING.deliveryZones.map((z) => z.postcodes.join(", ")).join(" · ")}</p>
+              <p className="text-sm text-muted-foreground">{coverage.length ? coverage.join(" · ") : "Collection only for now - call us to ask about delivery."}</p>
+              {coverage.length > 0 && <p className="mt-1 text-xs text-muted-foreground">Enter your postcode at checkout for the fee and time.</p>}
             </div>
           </div>
 
@@ -68,7 +72,7 @@ export default async function ContactPage() {
         </div>
       </div>
 
-      <KeyFacts />
+      <KeyFacts hide={["Delivery"]} />
       <FaqSection />
     </div>
   );

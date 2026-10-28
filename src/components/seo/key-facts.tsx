@@ -5,8 +5,9 @@ import { RESTAURANT } from "@/lib/data/site";
  * Plain-language "at a glance" facts, built from the live admin-edited data. Visible to customers and
  * written as simple sentences so search engines and AI assistants can quote them accurately.
  */
-export async function KeyFacts() {
-  const { summary, facts } = await buildFacts();
+export async function KeyFacts({ hide = [] }: { hide?: string[] } = {}) {
+  const { summary, facts: all } = await buildFacts();
+  const facts = all.filter((f) => !hide.includes(f.label)); // e.g. the contact page shows delivery its own way
   return (
     <section id="key-facts" className="mt-16 scroll-mt-24">
       <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{RESTAURANT.name} at a glance</h2>

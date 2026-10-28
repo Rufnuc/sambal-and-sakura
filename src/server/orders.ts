@@ -17,7 +17,7 @@ import { getCancelPolicy, countCancellations, customerCanCancel } from "@/server
 import { rewardReferrerIfQualified, emailReferralReward } from "@/server/referrals";
 import { getPromotions, rewardUsableUntil, type Promotions } from "@/server/promotions";
 import { printCancellation } from "@/server/print";
-import type { Offer } from "@/lib/data/site";
+import { RESTAURANT, type Offer } from "@/lib/data/site";
 
 export class OrderError extends Error {
   status: number;
@@ -25,7 +25,7 @@ export class OrderError extends Error {
   constructor(message: string, status = 400, extra?: Record<string, unknown>) { super(message); this.status = status; this.extra = extra; }
 }
 
-const REST_LAT = 54.5705, REST_LON = -1.2355;
+const { lat: REST_LAT, lon: REST_LON } = RESTAURANT.geo;
 const LARGE_ORDER_GBP = 150; // printed as "LARGE ORDER - CALL TO CONFIRM" for cash orders
 
 function haversineMiles(lat2: number, lon2: number) {

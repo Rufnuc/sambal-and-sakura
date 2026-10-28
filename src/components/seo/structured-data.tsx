@@ -14,7 +14,7 @@ export function ld(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
 
-const LAT = 54.5705, LON = -1.2355; // 236-238 Linthorpe Road, Middlesbrough
+const { lat: LAT, lon: LON } = RESTAURANT.geo; // the pin on the Google Maps listing
 
 // One name everywhere (the brand as written on the site), plus the way people type it. The domain's
 // run-together spelling is deliberately NOT listed: it reads as "samba land sakura".
@@ -84,7 +84,7 @@ export async function RestaurantJsonLd() {
       postalCode: b.address.postcode,
       addressCountry: "GB",
     },
-    hasMap: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.mapQuery)}`,
+    hasMap: RESTAURANT.mapsUrl, // the Google Maps listing itself, not a search
     geo: { "@type": "GeoCoordinates", latitude: LAT, longitude: LON },
     // Where delivery is available (the admin-set maximum distance), in metres.
     ...(maxMiles > 0

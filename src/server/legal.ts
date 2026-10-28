@@ -347,7 +347,7 @@ function promotions(f: Facts): LegalDoc {
     summary: "The rules for offer codes, first-order discounts, the Fortune Wheel, refer-a-friend rewards and loyalty vouchers.",
     sections: [
       { id: "promoter", h: "Promoter", body: [
-        `All promotions are run by ${COMPANY.name} (trading as ${RESTAURANT.name}), ${COMPANY.registeredOffice}. Company number ${COMPANY.number}.`,
+        `All promotions are run by ${COMPANY.name} (trading as ${RESTAURANT.name}), registered office ${COMPANY.registeredOffice}. Company number ${COMPANY.number}.`,
       ] },
       { id: "general", h: "Rules for all promotions", body: [{ list: [
         "Promotions apply to orders placed on this website for delivery or collection, unless an offer says otherwise.",

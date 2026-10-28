@@ -133,6 +133,11 @@ const OLD_SOCIAL: Record<string, string> = {
   wechat: "SambalSakura",
 };
 const OLD_EMAIL = "hello@sambalandsakura.co.uk";
+// The first address and map details used "236-238"; the restaurant's door and Google listing say 236 (Oct 2026).
+// The Google link was a search for the listing; it's now the listing's own Google Maps address.
+const OLD_LINE1 = "236–238 Linthorpe Road";
+const OLD_MAP_QUERY = "236-238 Linthorpe Rd, Middlesbrough TS1 3QP";
+const OLD_GOOGLE = "https://www.google.com/search?kgmid=/g/11p27mv379&q=Sambal+%26+Sakura";
 // The first phone number on the site, replaced by the restaurant's real one (as on Google) in Oct 2026.
 const OLD_PHONE = "+44 1642 245888";
 // The description written for the previous menu (Chinese & Japanese only, "katsu curry").
@@ -141,10 +146,13 @@ function upgradeContactDefaults(c: SiteContent): SiteContent {
   const b = c.business;
   const social = { ...b.social };
   for (const k of SOCIAL_KEYS) if (social[k] === OLD_SOCIAL[k]) social[k] = "";
+  if (social.google === OLD_GOOGLE) social.google = DEFAULT_SITE_CONTENT.business.social.google;
+  const address = b.address.line1 === OLD_LINE1 ? { ...b.address, line1: DEFAULT_SITE_CONTENT.business.address.line1 } : b.address;
+  const mapQuery = b.mapQuery === OLD_MAP_QUERY ? DEFAULT_SITE_CONTENT.business.mapQuery : b.mapQuery;
   const email = b.email === OLD_EMAIL ? DEFAULT_SITE_CONTENT.business.email : b.email;
   const blurb = b.blurb === OLD_BLURB ? DEFAULT_SITE_CONTENT.business.blurb : b.blurb;
   const phone = b.phone.replace(/\s/g, "") === OLD_PHONE.replace(/\s/g, "") ? DEFAULT_SITE_CONTENT.business.phone : b.phone;
-  return { ...c, business: { ...b, social, email, blurb, phone } };
+  return { ...c, business: { ...b, social, email, blurb, phone, address, mapQuery } };
 }
 
 // Older saves copied the delivery prices into the text ("Free delivery over £25 / From £1.99 across

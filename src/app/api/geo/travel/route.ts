@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import { ORDERING } from "@/lib/data/site";
+import { ORDERING, RESTAURANT } from "@/lib/data/site";
 import { clientIp, limitOr429 } from "@/server/rate-limit";
 
-// Restaurant coordinates (236-238 Linthorpe Rd, Middlesbrough).
-const REST_LAT = 54.5705;
-const REST_LON = -1.2355;
+// The restaurant's pin on Google Maps.
+const { lat: REST_LAT, lon: REST_LON } = RESTAURANT.geo;
 
 function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;

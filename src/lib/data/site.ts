@@ -26,16 +26,20 @@ export const RESTAURANT = {
   phone: "07716 757789", // the restaurant's number, as on its Google Business Profile
   email: "order@sambalandsakura.co.uk",
   address: {
-    line1: "236–238 Linthorpe Road",
+    line1: "236 Linthorpe Road", // as on the door and Google Maps (the registered office above is 236-238)
     line2: "",
     city: "Middlesbrough",
     postcode: "TS1 3QP",
     country: "United Kingdom",
   },
-  mapQuery: "236-238 Linthorpe Rd, Middlesbrough TS1 3QP",
+  mapQuery: "Sambal & Sakura, 236 Linthorpe Rd, Middlesbrough TS1 3QP",
+  // The pin on the restaurant's Google Maps listing (October 2026): used for the structured data, the
+  // delivery-distance check and "how far am I". mapsUrl is that listing's permanent Google Maps address.
+  geo: { lat: 54.5695309, lon: -1.2388349 },
+  mapsUrl: "https://maps.google.com/?cid=11037661416925001811",
   // Each profile is added and switched on in Admin -> Site content once it exists. Tripadvisor and the
   // Google Business Profile (Google's id /g/11p27mv379) are the restaurant's approved listings (October 2026).
-  social: { google: "https://www.google.com/search?kgmid=/g/11p27mv379&q=Sambal+%26+Sakura", instagram: "", tiktok: "", facebook: "", rednote: "", wechat: "", tripadvisor: "https://www.tripadvisor.com/Restaurant_Review-g186340-d34750959-Reviews-Sambal_Sakura-Middlesbrough_North_Yorkshire_England.html" },
+  social: { google: "https://maps.google.com/?cid=11037661416925001811", instagram: "", tiktok: "", facebook: "", rednote: "", wechat: "", tripadvisor: "https://www.tripadvisor.com/Restaurant_Review-g186340-d34750959-Reviews-Sambal_Sakura-Middlesbrough_North_Yorkshire_England.html" },
   // index 0 = Sunday. Real trading hours (split lunch/dinner Tue–Sat).
   hours: [
     { day: "Sun", sessions: [{ open: "11:30", close: "22:00" }] },

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Banknote, Bike, ShoppingBag, Clock, CheckCircle2, MapPin, Tag, Minus, Plus, Trash2, AlertCircle, PartyPopper, Star, Navigation, PauseCircle, Gift,
+  Banknote, Bike, ShoppingBag, Clock, CheckCircle2, MapPin, Tag, Minus, Plus, Trash2, AlertCircle, PartyPopper, Star, Navigation, PauseCircle, Gift, BadgePercent,
 } from "lucide-react";
 import { TravelEstimate } from "@/components/order/travel-estimate";
 import { WeChatPay } from "@/components/order/wechat-pay";
@@ -42,6 +42,8 @@ export interface ApiOrder {
   userId: string | null;
   whenType?: string;
   scheduledTime?: string | null;
+  onlineDiscount?: number;
+  onlineDiscountLabel?: string | null;
 }
 
 export type PayMethod = "cash" | "wechat";
@@ -50,11 +52,13 @@ export type PayMethod = "cash" | "wechat";
 interface Quote {
   lines: { itemId: string; name: string; unitPrice: number; qty: number; free?: boolean }[];
   issues: { itemId: string; name: string; problem: "unavailable" | "invalid-options" }[];
-  subtotal: number; deliveryFee: number; discount: number; total: number;
+  subtotal: number; deliveryFee: number; discount: number; onlineDiscount: number; total: number;
   zone: { label: string; fee: number; etaMins: number } | null;
   minMet: boolean; inArea: boolean; minOrder: number; freeDeliveryThreshold: number | null;
   voucher: { code: string; label: string; minSpend: number; applied: boolean } | null;
   voucherError: string | null;
+  voucherNote: string | null;
+  online: { pctOff: number; label: string; message: string; appliesTo: "all" | "delivery" | "collection"; minSpend: number } | null;
   timing: { paused: boolean; asap: { ok: boolean; reason?: string }; leadHours: number; days: { date: string; label: string; times: string[] }[] };
 }
 
@@ -392,6 +396,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
       <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <h2 className="font-display text-xl font-bold">Order summary</h2>
+          {q?.online && <OnlineDiscountNote online={q.online} fulfilment={fulfilment} subtotal={q.subtotal} applied={q.onlineDiscount > 0} />}
 
           {unavailable.length > 0 && (
             <div className="mt-3 rounded-lg border border-sambal/30 bg-sambal/10 p-3 text-sm">
@@ -436,7 +441,8 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
             <Input value={codeInput} onChange={(e) => setCodeInput(e.target.value)} placeholder="Voucher code" className="h-10 uppercase" aria-label="Voucher code" />
             <Button variant="outline" className="h-10" onClick={() => setAppliedCode(codeInput.trim().toUpperCase())}>Apply</Button>
           </div>
-          {q?.voucher && (
+          {q?.voucher && q.voucherNote && <p className="mt-2 text-sm text-muted-foreground">{q.voucherNote}</p>}
+          {q?.voucher && !q.voucherNote && (
             <div className="mt-2 flex items-center gap-2 text-sm text-jade">
               <Tag className="size-4" /> {q.voucher.label} ({q.voucher.code})
               {!q.voucher.applied && q.voucher.minSpend > 0 && <span className="text-muted-foreground"> - spend {gbp(q.voucher.minSpend)} to use it</span>}
@@ -449,7 +455,8 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
           <dl className="flex flex-col gap-1.5 text-sm">
             <Row label="Subtotal" value={gbp(q?.subtotal ?? localSubtotal)} />
             {fulfilment === "delivery" && <Row label="Delivery" value={!q || !postcodeValid ? "Enter postcode" : q.deliveryFee === 0 ? "Free" : gbp(q.deliveryFee)} />}
-            {!!q?.discount && <Row label="Discount" value={`− ${gbp(q.discount)}`} accent />}
+            {!!q?.onlineDiscount && q.online && <Row label={q.online.label} value={`− ${gbp(q.onlineDiscount)}`} accent />}
+            {!!q && q.discount - q.onlineDiscount > 0.004 && <Row label={q.voucher?.applied ? `Discount (${q.voucher.code})` : "Discount"} value={`− ${gbp(q.discount - q.onlineDiscount)}`} accent />}
             <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
               <span className="font-semibold">Total (cash)</span>
               <span className="font-display text-2xl font-bold">{gbp(total)}</span>
@@ -549,6 +556,11 @@ function Confirmation({ order, method, payToken, trackPath }: { order: ApiOrder;
           </Badge>
           <span className="font-display text-xl font-bold">{gbp(order.total)}</span>
         </div>
+        {!!order.onlineDiscount && (
+          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
+            <BadgePercent className="size-4" /> You saved {gbp(order.onlineDiscount)} by ordering direct on our website{order.onlineDiscountLabel ? ` (${order.onlineDiscountLabel.replace(/^.*\((.*)\)$/, "$1")} off)` : ""}.
+          </p>
+        )}
 
         {method === "wechat" && payToken && (
           <div className="mt-6">
@@ -587,6 +599,21 @@ function Confirmation({ order, method, payToken, trackPath }: { order: ApiOrder;
         {order.userId && <Button asChild variant="outline" className="h-12 px-6"><Link href="/offers?tab=wheel">Spin the Fortune Wheel</Link></Button>}
         <Button asChild variant="outline" className="h-12 px-6"><Link href="/menu">Order more</Link></Button>
       </div>
+    </div>
+  );
+}
+
+/** "Order direct on our website and save 10%." - and whether this basket gets it yet. */
+function OnlineDiscountNote({ online, fulfilment, subtotal, applied }: { online: NonNullable<Quote["online"]>; fulfilment: "delivery" | "collection"; subtotal: number; applied: boolean }) {
+  const wrongType = online.appliesTo !== "all" && online.appliesTo !== fulfilment;
+  const short = !wrongType && subtotal < online.minSpend;
+  return (
+    <div className="mt-3 flex items-start gap-2 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
+      <BadgePercent className="mt-0.5 size-4 shrink-0" />
+      <span>
+        {online.message}
+        {applied ? " Applied below." : wrongType ? ` (${online.appliesTo} orders only)` : short ? ` Spend ${gbp(online.minSpend - subtotal)} more to get it.` : ""}
+      </span>
     </div>
   );
 }

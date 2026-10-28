@@ -95,6 +95,12 @@
     "vi": "Tổng cộng: {total} (đã giảm {discount}).",
     "ja": "合計：{total}（{discount}割引済み）。"
   },
+  "order.onlineSaved": {
+    "en": "You saved {amount} ({pct}% off) by ordering direct on our website.",
+    "zh": "您通过我们的官网直接下单，节省了 {amount}（{pct}% 折扣）。",
+    "vi": "Bạn đã tiết kiệm {amount} (giảm {pct}%) nhờ đặt trực tiếp trên website của chúng tôi.",
+    "ja": "公式サイトからの直接注文で {amount}（{pct}%オフ）お得になりました。"
+  },
   "order.deliverTo": {
     "en": "Delivering to: {address}",
     "zh": "送餐地址：{address}",

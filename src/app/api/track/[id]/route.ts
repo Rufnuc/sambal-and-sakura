@@ -22,6 +22,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       createdAt: o.createdAt, etaMins: o.etaMins, firstName: o.customerName.split(" ")[0],
       lines: o.lines.map((l) => ({ name: l.name, qty: l.qty, unitPrice: l.unitPrice })),
       subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
+      onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, voucherCode: o.voucherCode,
       paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
       cancelKind: o.cancelKind, cancelReason: o.cancelKind === "customer" ? o.cancelReason?.replace(/^Customer: /, "") : null,
     },

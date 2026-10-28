@@ -7,6 +7,7 @@ export interface TicketOrder {
   address: string | null; postcode: string | null; notes: string | null;
   whenType: string; scheduledTime: string | null; etaMins: number;
   subtotal: number; deliveryFee: number; discount: number; total: number; voucherCode: string | null;
+  onlineDiscount?: number; onlineDiscountLabel?: string | null; // the online order discount (part of `discount`)
   paymentMethod: string; paymentStatus: string;
   lines: TicketLine[];
   flags?: string[];
@@ -17,9 +18,20 @@ export interface TicketContext {
   businessName: string; phone: string;
   // for the customer receipt
   tagline?: string; address?: string; website?: string; qrUrl?: string; qrLabel?: string; company?: string;
+  onlinePromo?: string; // the owner's "Order direct on our website and save 10%." while the online discount runs
 }
 
 const money = (n: number) => `£${n.toFixed(2)}`;
+
+/** The discount lines: the online order discount and any code, each on its own line. */
+function discountLines(o: TicketOrder): [string, string][] {
+  const online = o.onlineDiscount ?? 0;
+  const code = Math.round((o.discount - online) * 100) / 100;
+  const out: [string, string][] = [];
+  if (online > 0) out.push([o.onlineDiscountLabel ?? "Online order discount", "-" + money(online)]);
+  if (code > 0) out.push([`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(code)]);
+  return out;
+}
 function mods(s: string): string[] { try { return (JSON.parse(s) as { label: string }[]).map((m) => m.label); } catch { return []; } }
 
 // Warnings printed on the ticket so staff act on them (set when the order is created).
@@ -108,7 +120,7 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
   // --- totals
   e.line(leaderLine("Subtotal", money(o.subtotal)));
   if (o.deliveryFee > 0) e.line(leaderLine("Delivery", money(o.deliveryFee)));
-  if (o.discount > 0) e.line(leaderLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
+  for (const [label, value] of discountLines(o)) e.line(leaderLine(label, value));
   e.bold(true).size(1, 2).line(padLine("TOTAL", money(o.total))).size(1, 1).bold(false);
 
   // --- notes
@@ -166,11 +178,12 @@ export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
   // --- totals and payment
   e.line(leaderLine("Subtotal", money(o.subtotal)));
   if (delivery) e.line(leaderLine("Delivery", o.deliveryFee > 0 ? money(o.deliveryFee) : "FREE"));
-  if (o.discount > 0) e.line(leaderLine(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
+  for (const [label, value] of discountLines(o)) e.line(leaderLine(label, value));
   e.feedDots(6).bandSplit("TOTAL", money(o.total), 2, 2).feedDots(6);
   e.align("center").line(o.paymentMethod === "wechat" && o.paymentStatus === "paid" ? "Paid online - WeChat Pay"
     : o.paymentMethod === "wechat" ? "WeChat Pay - awaiting payment"
     : delivery ? "Cash - paid to the driver" : "Cash - paid on collection");
+  if (o.onlineDiscount && o.onlineDiscount > 0) e.bold(true).line(`You saved ${money(o.onlineDiscount)} by ordering direct`).bold(false);
   if (o.pointsEarned && o.pointsEarned > 0) e.bold(true).line(`* You earned ${o.pointsEarned} reward points *`).bold(false);
   e.hr("double");
 
@@ -180,6 +193,7 @@ export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
   e.feedDots(8).band("THANK YOU FOR ORDERING DIRECT", 1, 2).feedDots(6);
   e.align("center");
   if (ctx.website) e.bold(true).line(`Order again at ${ctx.website}`).bold(false);
+  if (ctx.onlinePromo) for (const l of wrap(ctx.onlinePromo, COLS)) e.line(l);
   e.line(`Allergies or a problem? Call ${ctx.phone}`);
   e.hr("dotted");
   if (ctx.company) for (const l of wrap(ctx.company, COLS)) e.line(l);

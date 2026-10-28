@@ -125,6 +125,9 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
   const items = itemsTable(l, o, dishNames, photos);
   const phone = esc(biz.phone);
   const track = trackUrl ? [`${t(l, "order.trackHint")}<br>${button(trackUrl, t(l, "order.trackButton"))}`] : [];
+  // "You saved £2.50 (10% off) by ordering direct on our website." - the % as it was when they ordered.
+  const pct = o.onlineDiscountLabel?.match(/(\d+(?:\.\d+)?)%/)?.[1];
+  const saved = o.onlineDiscount > 0 && pct ? [t(l, "order.onlineSaved", { amount: b(money(o.onlineDiscount)), pct })] : [];
 
   switch (event) {
     case "received":
@@ -132,15 +135,16 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
         t(l, "order.received.summary", { ref, type, when }),
         items,
         `${o.discount > 0 ? t(l, "order.totalDiscount", { total: b(money(o.total)), discount: money(o.discount) }) : t(l, "order.total", { total: b(money(o.total)) })} ${pay}`,
+        ...saved,
         t(l, o.fulfilment === "delivery" ? "order.deliverTo" : "order.collectFrom", { address }),
         ...track,
         t(l, o.fulfilment === "delivery" ? "order.nextDelivery" : "order.nextCollection", { phone, ref }),
       ]);
     // These two also say "enjoy your meal": there's no separate "completed" email.
     case "out-for-delivery":
-      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), items, pay, ...track, t(l, "order.enjoy")]);
+      return build(l, biz, t(l, "order.onWay.subject", { ref: plainRef }), t(l, "order.onWay.heading"), [t(l, "order.onWay.body", { ref, address }), items, pay, ...saved, ...track, t(l, "order.enjoy")]);
     case "ready-for-collection":
-      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), items, pay, ...track, t(l, "order.enjoy")]);
+      return build(l, biz, t(l, "order.ready.subject", { ref: plainRef }), t(l, "order.ready.heading"), [t(l, "order.ready.body", { ref, address }), items, pay, ...saved, ...track, t(l, "order.enjoy")]);
     case "cancelled":
       return build(l, biz, t(l, "order.cancelled.subject", { ref: plainRef }), t(l, "order.cancelled.heading"), [
         o.cancelReason ? t(l, "order.cancelled.bodyReason", { ref, total: money(o.total), reason: esc(o.cancelReason) }) : t(l, "order.cancelled.body", { ref, total: money(o.total) }),

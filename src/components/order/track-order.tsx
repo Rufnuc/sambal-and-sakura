@@ -14,6 +14,7 @@ interface TrackData {
     createdAt: string; etaMins: number; firstName: string;
     lines: { name: string; qty: number; unitPrice: number }[];
     subtotal: number; deliveryFee: number; discount: number; total: number;
+    onlineDiscount: number; onlineDiscountLabel: string | null; voucherCode: string | null;
     paymentMethod: string; paymentStatus: string; cancelKind: string | null; cancelReason: string | null;
   };
   cancel: { can: true; secondsLeft: number } | { can: false; reason: string };
@@ -172,12 +173,14 @@ export function TrackOrder({ id, token }: { id: string; token: string }) {
         </ul>
         <dl className="mt-3 space-y-1 text-sm">
           {o.deliveryFee > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd>{gbp(o.deliveryFee)}</dd></div>}
-          {o.discount > 0 && <div className="flex justify-between text-jade"><dt>Discount</dt><dd>− {gbp(o.discount)}</dd></div>}
+          {o.onlineDiscount > 0 && <div className="flex justify-between text-jade"><dt>{o.onlineDiscountLabel ?? "Online order discount"}</dt><dd>− {gbp(o.onlineDiscount)}</dd></div>}
+          {o.discount - o.onlineDiscount > 0.004 && <div className="flex justify-between text-jade"><dt>Discount{o.voucherCode ? ` (${o.voucherCode})` : ""}</dt><dd>− {gbp(o.discount - o.onlineDiscount)}</dd></div>}
           <div className="flex justify-between border-t border-border pt-2 font-semibold">
             <dt>{o.paymentMethod === "wechat" ? (o.paymentStatus === "paid" ? "Paid (WeChat Pay)" : "Total (WeChat Pay)") : "Total (pay cash)"}</dt>
             <dd className="font-display text-lg">{gbp(o.total)}</dd>
           </div>
         </dl>
+        {o.onlineDiscount > 0 && <p className="mt-3 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">You saved {gbp(o.onlineDiscount)} by ordering direct on our website.</p>}
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">

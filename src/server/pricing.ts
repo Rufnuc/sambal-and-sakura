@@ -1,6 +1,6 @@
 import type { Offer } from "@/lib/data/site";
 import { type MenuItem } from "@/lib/data/menu";
-import type { ZoneConfig, DeliveryRules } from "@/server/config";
+import type { ZoneConfig, DeliveryRules, OnlineDiscount } from "@/server/config";
 
 /**
  * Server-authoritative pricing. The client sends only item ids + selected modifier option ids +
@@ -116,12 +116,19 @@ export interface Totals {
   issues: LineIssue[];
   subtotal: number;
   deliveryFee: number;
-  discount: number;
+  discount: number;       // everything off: the online discount + any code
+  onlineDiscount: number; // the part of `discount` that is the online order discount
   total: number;
   zone: Zone | null;
   minMet: boolean;
   inArea: boolean;
-  voucherApplied: boolean; // false if the voucher's minimum spend wasn't reached
+  voucherApplied: boolean; // false if the voucher's minimum spend wasn't reached (or the online discount saved more)
+  codeBeaten: boolean;     // the code was valid but the online discount saved more, so that was used instead
+}
+
+/** Does the online discount cover this order (type and minimum spend)? */
+export function onlineDiscountApplies(d: Pick<OnlineDiscount, "appliesTo" | "minSpend">, fulfilment: "delivery" | "collection", subtotal: number): boolean {
+  return subtotal > 0 && (d.appliesTo === "all" || d.appliesTo === fulfilment) && subtotal >= d.minSpend;
 }
 
 export function computeTotals(opts: {
@@ -130,6 +137,7 @@ export function computeTotals(opts: {
   fulfilment: "delivery" | "collection";
   postcode?: string;
   voucher?: Voucher | null;
+  online?: OnlineDiscount | null; // the running online order discount (null = deleted or paused)
   disabledZones: string[];
   menu: MenuItem[];
   zones: ZoneConfig[];
@@ -148,32 +156,57 @@ export function computeTotals(opts: {
   const freeDelivery = opts.delivery.freeDeliveryOver !== null && subtotal >= opts.delivery.freeDeliveryOver;
   const deliveryFee = opts.fulfilment === "collection" || !zone || freeDelivery ? 0 : zone.fee;
 
-  let discount = 0;
-  let voucherApplied = false;
+  // The code's value. A free dish is worth its menu price; it's added only if the code is used.
   const v = opts.voucher;
-  if (v && (!v.minSpend || subtotal >= v.minSpend)) {
-    voucherApplied = true;
-    if (v.pctOff) discount += round2((subtotal * v.pctOff) / 100);
-    if (v.amountOff) discount += Math.min(v.amountOff, subtotal);
+  let codeValue = 0;
+  let freeItem: MenuItem | undefined;
+  let codeOk = !!v && (!v.minSpend || subtotal >= v.minSpend);
+  if (v && codeOk) {
+    if (v.pctOff) codeValue += round2((subtotal * v.pctOff) / 100);
+    if (v.amountOff) codeValue += Math.min(v.amountOff, subtotal);
     if (v.freeItemId) {
-      const freeItem = opts.menu.find((m) => m.id === v.freeItemId && !m.soldOut && !m.phoneOrder);
-      if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free - ${v.code})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
-      else voucherApplied = false; // the free dish is sold out: the offer can't apply
+      freeItem = opts.menu.find((m) => m.id === v.freeItemId && !m.soldOut && !m.phoneOrder);
+      if (freeItem) codeValue += freeItem.price;
+      else codeOk = false; // the free dish is sold out: the offer can't apply
     }
   }
+
+  // The online order discount, and how it goes with a code (the owner's choice in Admin -> Promotions).
+  const on = opts.online;
+  let onlineValue = on && onlineDiscountApplies(on, opts.fulfilment, subtotal) ? round2((subtotal * on.pctOff) / 100) : 0;
+  let codeBeaten = false;
+  if (onlineValue > 0 && codeOk) {
+    // A reward with no money value (one the staff honour by hand) always goes with the online discount.
+    const stack = codeValue === 0 || on!.withCodes === "stack" || (on!.withCodes === "stack-except-first-order" && !v!.firstOrderOnly);
+    if (!stack) {
+      // One or the other: whichever saves more. On a tie the online discount is used and the code is kept.
+      if (onlineValue >= codeValue) { codeOk = false; codeBeaten = true; }
+      else onlineValue = 0;
+    }
+  }
+
+  const voucherApplied = codeOk;
+  let discount = 0;
+  if (v && codeOk) {
+    if (v.pctOff) discount += round2((subtotal * v.pctOff) / 100);
+    if (v.amountOff) discount += Math.min(v.amountOff, subtotal);
+    if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free - ${v.code})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
+  }
+  discount = round2(Math.min(discount, subtotal));
+  const onlineDiscount = round2(Math.min(onlineValue, subtotal - discount)); // never more than the food
+  discount = round2(discount + onlineDiscount);
+
   // The automatic free dish over a spend (if one is set) applies when no other offer is used ("one per order").
   const auto = AUTO_FREE_ITEM;
   if (auto && opts.autoFreeItem !== false && !voucherApplied && subtotal >= auto.minSpend) {
     const freeItem = opts.menu.find((m) => m.id === auto.itemId && !m.soldOut && !m.phoneOrder);
     if (freeItem) priced.push({ itemId: freeItem.id, name: `${freeItem.name} (free over £${auto.minSpend})`, unitPrice: 0, qty: 1, modifiers: [], free: true });
   }
-  discount = round2(Math.min(discount, subtotal));
-
   const total = round2(Math.max(0, subtotal + deliveryFee - discount));
   // The delivery minimum is on the food subtotal before discounts.
   const minMet = opts.fulfilment === "collection" ? subtotal > 0 : subtotal >= opts.delivery.minOrder;
 
-  return { lines: priced, issues, subtotal, deliveryFee, discount, total, zone, minMet, inArea, voucherApplied };
+  return { lines: priced, issues, subtotal, deliveryFee, discount, onlineDiscount, total, zone, minMet, inArea, voucherApplied, codeBeaten };
 }
 
 export const LOYALTY_POINTS_PER_POUND = 10;

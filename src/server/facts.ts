@@ -4,7 +4,7 @@ import { allergensKnown, optionPriceText, type MenuCategoryCfg, type MenuItem } 
 import { formatHours } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
-import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig, getDeliveryRules, getCategories } from "@/server/config";
+import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig, getDeliveryRules, getCategories, getOnlineDiscount, activeOnlineDiscount } from "@/server/config";
 import { getDisabledZones } from "@/server/settings";
 import { getWeChatConfig } from "@/server/wechat";
 import { gbpShort } from "@/lib/format";
@@ -20,9 +20,10 @@ const gbp = gbpShort;
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> {
-  const [{ business: b }, zones, disabled, maxMiles, menu, referral, delivery, cats] = await Promise.all([
-    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(), getDeliveryRules(), getCategories(),
+  const [{ business: b }, zones, disabled, maxMiles, menu, referral, delivery, cats, od] = await Promise.all([
+    getSiteContent(), getZones(), getDisabledZones(), getMaxMiles(), getEffectiveMenu(), getReferralConfig(), getDeliveryRules(), getCategories(), getOnlineDiscount(),
   ]);
+  const online = activeOnlineDiscount(od);
 
   const liveZones = zones.filter((z) => !disabled.includes(z.id));
   const categories = cats
@@ -56,6 +57,13 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
         (delivery.freeDeliveryOver !== null ? `. Free delivery on orders of ${gbp(delivery.freeDeliveryOver)} or more` : "") +
         `. Minimum delivery order ${gbp(delivery.minOrder)}.` +
         (maxMiles > 0 ? ` Delivery is available within about ${maxMiles} miles.` : ""),
+    });
+  }
+
+  if (online) {
+    facts.push({
+      label: "Ordering direct",
+      value: `Orders placed on this website get ${online.pctOff}% off the food${online.appliesTo !== "all" ? ` (${online.appliesTo} orders)` : ""}${online.minSpend > 0 ? ` when the food comes to ${gbp(online.minSpend)} or more` : ""}. No code is needed.`,
     });
   }
 

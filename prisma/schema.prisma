@@ -65,7 +65,9 @@ model Order {
   status        String      @default("received")
   subtotal      Float
   deliveryFee   Float       @default(0)
-  discount      Float       @default(0)
+  discount      Float       @default(0)        // every discount on the order (online discount + any code)
+  onlineDiscount      Float   @default(0)        // the part of `discount` that is the online order discount
+  onlineDiscountLabel String?                    // e.g. "Online order discount (10%)", as it was when ordered
   total         Float
   voucherCode   String?
   address       String?

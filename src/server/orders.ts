@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getBlackouts, getDisabledZones, getOrdersPaused } from "@/server/settings";
-import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules, getWheelPrizes } from "@/server/config";
+import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules, getWheelPrizes, getOnlineDiscount, activeOnlineDiscount, onlineDiscountMessage, type OnlineDiscount } from "@/server/config";
 import { getSiteContent } from "@/server/site-content";
 import { computeTotals, offerVoucher, isValidPostcodeServer, LOYALTY_POINTS_PER_POUND, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
 import { orderTiming, checkWhen, type OrderTiming } from "@/server/order-time";
@@ -63,13 +63,18 @@ export interface Quote extends Omit<Totals, "zone"> {
   freeDeliveryThreshold: number | null; // null = no free delivery
   voucher: { code: string; label: string; minSpend: number; applied: boolean } | null;
   voucherError: string | null;
+  voucherNote: string | null; // e.g. the code wasn't needed because the online discount saved more
+  online: { pctOff: number; label: string; message: string; appliesTo: OnlineDiscount["appliesTo"]; minSpend: number } | null; // null = not running
   timing: OrderTiming;
 }
+
+/** How the online discount is shown on an order line, receipt and email, e.g. "Online order discount (10%)". */
+export const onlineDiscountLabel = (pct: number) => `Online order discount (${pct}%)`;
 
 interface Resolved { quote: Quote; voucher: Voucher | null; ownedRewardId: string | null }
 
 /** Find the voucher: one of the signed-in customer's own rewards, or a public offer code. */
-async function resolveVoucher(code: string | undefined, user: User | null, promos: Promotions, offers: Offer[]): Promise<{ voucher: Voucher | null; ownedRewardId: string | null; error: string | null }> {
+async function resolveVoucher(code: string | undefined, user: User | null, promos: Promotions, offers: Offer[], online: OnlineDiscount | null): Promise<{ voucher: Voucher | null; ownedRewardId: string | null; error: string | null }> {
   const c = code?.toUpperCase().trim();
   if (!c) return { voucher: null, ownedRewardId: null, error: null };
   if (user) {
@@ -96,6 +101,10 @@ async function resolveVoucher(code: string | undefined, user: User | null, promo
   }
   const v = offerVoucher(c, offers); // the owner's live offers (Admin → Promotions)
   if (v && !promos.offers.enabled) return { voucher: null, ownedRewardId: null, error: "That offer has ended for now." };
+  // The owner can pause first-order codes (SAKURA10, WELCOME10) while every web order gets the online discount.
+  if (v?.firstOrderOnly && online?.pauseFirstOrderCodes) {
+    return { voucher: null, ownedRewardId: null, error: `That code is paused for now - every web order already gets ${online.pctOff}% off.` };
+  }
   // A "free dish" code whose dish has left the menu would otherwise be accepted and give nothing.
   if (v?.freeItemId && !(await getEffectiveMenu()).some((m) => m.id === v.freeItemId)) {
     return { voucher: null, ownedRewardId: null, error: "That offer isn't available right now." };
@@ -132,14 +141,15 @@ export async function buildQuote(input: QuoteInput, user: User | null, opts: { c
   const [disabledZones, menu, zones, blackouts, paused, site, promos, offers, delivery] = await Promise.all([
     getDisabledZones(), getEffectiveMenu(), getZones(), getBlackouts(), getOrdersPaused(), getSiteContent(), getPromotions(), getOffers(), getDeliveryRules(),
   ]);
-  const r = await resolveVoucher(input.voucherCode, user, promos, offers);
+  const online = activeOnlineDiscount(await getOnlineDiscount());
+  const r = await resolveVoucher(input.voucherCode, user, promos, offers, online);
   let voucherError = r.error;
   let voucher = r.voucher;
   if (voucher) {
     const problem = await voucherProblem(voucher, opts.checkPhone ? input.phone : user?.phone || undefined, user);
     if (problem) { voucherError = problem; voucher = null; }
   }
-  const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, disabledZones, menu, zones, delivery, autoFreeItem: promos.offers.enabled });
+  const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, online, disabledZones, menu, zones, delivery, autoFreeItem: promos.offers.enabled });
   const leadHours = Math.max(0, ...input.lines.map((l) => menu.find((m) => m.id === l.itemId)?.leadTimeHours ?? 0));
   const timing = orderTiming({ hours: site.business.hours, blackouts, leadHours, paused });
   const v = voucher ?? null;
@@ -152,6 +162,8 @@ export async function buildQuote(input: QuoteInput, user: User | null, opts: { c
       freeDeliveryThreshold: delivery.freeDeliveryOver,
       voucher: v ? { code: v.code, label: v.label, minSpend: v.minSpend ?? 0, applied: totals.voucherApplied } : null,
       voucherError,
+      voucherNote: v && totals.codeBeaten ? `${v.code} isn't needed: the ${online!.pctOff}% online discount saves you more, so we've used that (your code is kept).` : null,
+      online: online ? { pctOff: online.pctOff, label: onlineDiscountLabel(online.pctOff), message: onlineDiscountMessage(online), appliesTo: online.appliesTo, minSpend: online.minSpend } : null,
       timing,
     },
   };
@@ -260,6 +272,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
           customerName: input.name, customerPhone: canonicalPhone(input.phone), customerEmail: input.email,
           fulfilment: input.fulfilment, status: "received",
           subtotal: quote.subtotal, deliveryFee: quote.deliveryFee, discount: quote.discount, total: quote.total,
+          onlineDiscount: quote.onlineDiscount, onlineDiscountLabel: quote.onlineDiscount > 0 && quote.online ? quote.online.label : null,
           voucherCode: voucher && quote.voucherApplied ? voucher.code : null,
           address: input.fulfilment === "delivery" ? input.address : null,
           postcode: input.fulfilment === "delivery" ? input.postcode!.toUpperCase() : null,

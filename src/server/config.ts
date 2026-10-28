@@ -170,6 +170,34 @@ export const getDeal = async (): Promise<DealOfDay> => {
 };
 export const setDeal = (v: DealOfDay) => setJson("dealOfDay", v);
 
+/* ---- Online order discount ("order direct on our website and save 10%") ---- */
+// Everything about it is set by the owner in Admin -> Promotions. `withCodes`: how it combines with offer
+// codes and rewards - "best" (whichever saves more), "stack" (both), or "stack-except-first-order" (both,
+// except a first-order code, where the better one wins). `message` may use {pct} for the percentage.
+export interface OnlineDiscount {
+  enabled: boolean;                 // false = paused (settings kept)
+  pctOff: number;                   // % off the food
+  appliesTo: "all" | "delivery" | "collection";
+  minSpend: number;                 // food total needed (0 = any order)
+  withCodes: "best" | "stack" | "stack-except-first-order";
+  pauseFirstOrderCodes: boolean;    // first-order codes (SAKURA10, WELCOME10) don't work while it runs
+  message: string;                  // what customers are told, e.g. "Order direct on our website and save {pct}%."
+}
+export const DEFAULT_ONLINE_DISCOUNT: OnlineDiscount = {
+  enabled: true, pctOff: 10, appliesTo: "all", minSpend: 0, withCodes: "best", pauseFirstOrderCodes: true,
+  message: "Order direct on our website and save {pct}%.",
+};
+// Never saved: the default (on, 10%). Saved as null: the owner deleted it.
+export const getOnlineDiscount = async (): Promise<OnlineDiscount | null> => {
+  const saved = await getJson<Partial<OnlineDiscount> | null | undefined>("onlineDiscount", undefined);
+  return saved === null ? null : { ...DEFAULT_ONLINE_DISCOUNT, ...(saved ?? {}) };
+};
+export const setOnlineDiscount = (v: OnlineDiscount | null) => setJson("onlineDiscount", v);
+/** The online discount if it is running right now (exists and isn't paused), else null. */
+export const activeOnlineDiscount = (d: OnlineDiscount | null): OnlineDiscount | null => (d && d.enabled && d.pctOff > 0 ? d : null);
+/** The customer-facing message with the percentage filled in. */
+export const onlineDiscountMessage = (d: OnlineDiscount): string => d.message.replace(/\{pct\}/g, String(d.pctOff));
+
 /* ---- Max delivery mileage ---- */
 export const getMaxMiles = () => getJson<number>("maxDeliveryMiles", 6);
 export const setMaxMiles = (v: number) => setJson("maxDeliveryMiles", v);

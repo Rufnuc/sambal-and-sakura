@@ -9,6 +9,7 @@ import { RESTAURANT, COMPANY } from "@/lib/data/site";
 import { formatAddress } from "@/lib/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { getSiteContent } from "@/server/site-content";
+import { getOnlineDiscount, activeOnlineDiscount, onlineDiscountMessage } from "@/server/config";
 import { renderKitchenTicket, renderCancelTicket, renderCustomerReceipt, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
 import { log, alertOwner } from "@/server/log";
 
@@ -64,7 +65,9 @@ function renderText(o: TicketOrder): string {
   out.push(rule);
   out.push(row("Subtotal", money(o.subtotal)));
   if (o.deliveryFee > 0) out.push(row("Delivery", money(o.deliveryFee)));
-  if (o.discount > 0) out.push(row(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount)));
+  const online = o.onlineDiscount ?? 0;
+  if (online > 0) out.push(row((o.onlineDiscountLabel ?? "Online order discount").slice(0, W - 9), "-" + money(online)));
+  if (o.discount - online > 0.004) out.push(row(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount - online)));
   out.push(row("TOTAL", money(o.total)));
   out.push(rule);
   if (o.notes) { out.push("CUSTOMER NOTE (not payment info):"); out.push(o.notes); out.push(rule); }
@@ -117,7 +120,7 @@ async function loadTicket(id: string): Promise<TicketOrder | null> {
     address: o.address, postcode: o.postcode, notes: o.notes,
     whenType: o.whenType, scheduledTime: o.scheduledTime, etaMins: o.etaMins,
     subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
-    voucherCode: o.voucherCode, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
+    voucherCode: o.voucherCode, onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
     flags, createdAt: o.createdAt, pointsEarned: o.pointsEarned,
   };
 }
@@ -207,7 +210,8 @@ const CLOUD_GRACE_MS = 2 * 60_000;     // with a cloud printer, give it 2 minute
 export interface TabletJob { orderId: string; kind: "order" | "cancel"; bytes: string /* base64 ESC/POS */ }
 
 async function ctx() {
-  const { business } = await getSiteContent();
+  const [{ business }, od] = await Promise.all([getSiteContent(), getOnlineDiscount()]);
+  const online = activeOnlineDiscount(od);
   const website = SITE_URL.replace(/^https?:\/\//, "");
   return {
     businessName: RESTAURANT.name, phone: business.phone,
@@ -216,6 +220,7 @@ async function ctx() {
     qrUrl: business.googleReviewUrl ? `${SITE_URL}/review` : SITE_URL,
     qrLabel: business.googleReviewUrl ? "Enjoyed it? Scan to leave us a review" : "Scan to order direct next time",
     company: `${COMPANY.name} `,
+    onlinePromo: online ? onlineDiscountMessage(online) : undefined, // "Order direct on our website and save 10%."
   };
 }
 

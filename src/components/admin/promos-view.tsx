@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SectionCard, StatCard } from "@/components/admin/ui";
-import { fetchConfig, saveConfig, type PromotionsCfg, type ReferralCfg, type OfferCfg, type WheelPrizeCfg, type DealCfg } from "@/lib/admin/api";
+import { fetchConfig, saveConfig, type PromotionsCfg, type ReferralCfg, type OfferCfg, type WheelPrizeCfg, type DealCfg, type OnlineDiscountCfg } from "@/lib/admin/api";
 import { fetchStats, fetchAnalytics } from "@/lib/admin/api";
 import { EmailCampaigns } from "@/components/admin/email-campaigns";
 import { ReferralsList } from "@/components/admin/referrals-list";
 import { CampaignsCard } from "@/components/admin/campaigns-card";
+import { OnlineDiscountCard } from "@/components/admin/online-discount-card";
 import { OfferCodeSettings } from "@/components/admin/offer-code-settings";
 import { useMenu } from "@/lib/use-menu";
 import { cn } from "@/lib/utils";
@@ -27,10 +28,11 @@ export function PromosView() {
   const [spins, setSpins] = useState(0);
   const [ready, setReady] = useState(false);
   const [promotions, setPromotions] = useState<PromotionsCfg | null>(null);
+  const [onlineDiscount, setOnlineDiscount] = useState<OnlineDiscountCfg | null>(null);
 
   useEffect(() => {
     Promise.all([fetchConfig(), fetchStats(), fetchAnalytics(14)]).then(([c, stats, analytics]) => {
-      setReferral(c.referral); setOffers(c.offers); setPrizes(c.wheelPrizes); setDeal(c.deal); setPromotions(c.promotions);
+      setReferral(c.referral); setOffers(c.offers); setPrizes(c.wheelPrizes); setDeal(c.deal); setPromotions(c.promotions); setOnlineDiscount(c.onlineDiscount);
       setDiscountedOrders(stats ? Math.round((stats.kpis.voucherRedemptionPct / 100) * stats.kpis.orders) : 0);
       setSpins(analytics?.counts.spin_wheel_played ?? 0);
       setReady(true);
@@ -67,6 +69,8 @@ export function PromosView() {
         <StatCard label="Wheel spins" value={String(spins)} sub="last 14 days" accent="sakura" />
         <StatCard label="Referral" value={`${gbpShort(referral.give)}/${gbpShort(referral.get)}`} sub={promotions.referral.enabled ? "give / get" : "ended"} accent="sambal" />
       </div>
+
+      <OnlineDiscountCard initial={onlineDiscount} />
 
       <CampaignsCard initial={promotions} onSaved={(p) => { setPromotions(p); setReferral({ ...referral, enabled: p.referral.enabled }); }} />
 

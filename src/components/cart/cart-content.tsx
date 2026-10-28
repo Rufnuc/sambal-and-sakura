@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Minus, Plus, ShoppingBag, Trash2, Tag, Banknote } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Trash2, Tag, Banknote, BadgePercent } from "lucide-react";
 import {
   SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription,
 } from "@/components/ui/sheet";
@@ -31,10 +31,12 @@ export function CartContent({ onClose }: { onClose: () => void }) {
   // The free gyoza offer is live only while the owner has Offers switched on (null = no offer).
   const [freeOver, setFreeOver] = useState<number | null>(null);
   const [delivery, setDelivery] = useState<DeliveryHint | null>(null);
+  const [online, setOnline] = useState<{ pctOff: number; message: string; appliesTo: "all" | "delivery" | "collection"; minSpend: number } | null>(null);
   useEffect(() => {
     fetch("/api/public-config").then((r) => r.json()).then((d) => {
       setFreeOver(typeof d.freeItemOver === "number" ? d.freeItemOver : null);
       if (d.delivery) setDelivery(d.delivery as DeliveryHint);
+      setOnline(d.onlineDiscount ?? null);
     }).catch(() => {});
   }, []);
   const freeGyoza = freeOver !== null && subtotal >= freeOver;
@@ -143,6 +145,16 @@ export function CartContent({ onClose }: { onClose: () => void }) {
             ) : (
               <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
                 <Tag className="size-4" /> Spend {gbp(freeOver - subtotal)} more for free Chicken Gyoza
+              </div>
+            )}
+            {online && (
+              <div className="flex items-start gap-2 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
+                <BadgePercent className="mt-0.5 size-4 shrink-0" />
+                <span>
+                  {online.message}
+                  {online.appliesTo !== "all" ? ` (${online.appliesTo} orders)` : ""}
+                  {subtotal < online.minSpend ? ` Spend ${gbp(online.minSpend - subtotal)} more to get it.` : online.appliesTo === "all" ? ` About ${gbp(Math.round(subtotal * online.pctOff) / 100)} off at checkout.` : ""}
+                </span>
               </div>
             )}
             <div className="flex items-center justify-between">

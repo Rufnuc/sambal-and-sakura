@@ -229,3 +229,14 @@ export function firstIssue(e: z.ZodError, section: string): string {
   const where = i?.path.length ? ` (${i.path.join(" › ")})` : "";
   return `${section}: ${i?.message ?? "invalid"}${where}`;
 }
+
+// The online order discount (Admin -> Promotions). null = deleted.
+export const onlineDiscountSchema = z.object({
+  enabled: z.boolean(),
+  pctOff: z.number().finite().min(1, "The online discount must be at least 1%.").max(50, "The online discount can be at most 50%."),
+  appliesTo: z.enum(["all", "delivery", "collection"]),
+  minSpend: z.number().finite().min(0).max(500),
+  withCodes: z.enum(["best", "stack", "stack-except-first-order"]),
+  pauseFirstOrderCodes: z.boolean(),
+  message: z.string().trim().min(5, "Write the message customers see (at least a few words).").max(160).transform((v) => v.replace(/[<>]/g, "")),
+}).strict().nullable();

@@ -233,12 +233,18 @@ export interface JobCfg { id: string; title: string; type: string; location: str
 export interface DealCfg { active: boolean; title: string; description: string; itemId?: string; price?: number; badge: string }
 // Delivery prices: minimum food for delivery, and free delivery from this food total (null = never free).
 export interface DeliveryCfg { minOrder: number; freeDeliveryOver: number | null }
+// "Order direct on our website and save 10%" (null = deleted).
+export interface OnlineDiscountCfg {
+  enabled: boolean; pctOff: number; appliesTo: "all" | "delivery" | "collection"; minSpend: number;
+  withCodes: "best" | "stack" | "stack-except-first-order"; pauseFirstOrderCodes: boolean; message: string;
+}
 export interface AdminConfig {
   referral: ReferralCfg; zones: ZoneCfg[]; offers: OfferCfg[];
   wheelPrizes: WheelPrizeCfg[]; menuOverrides: Record<string, MenuOverrideCfg>;
   careers: JobCfg[]; deal: DealCfg; maxMiles: number; site: SiteContent; siteVersion: string;
   promotions: PromotionsCfg; delivery: DeliveryCfg;
   categories: MenuCategoryCfg[]; customDishes: MenuItem[]; menuVersion: string;
+  onlineDiscount: OnlineDiscountCfg | null;
 }
 export type PromoKey = "offers" | "wheel" | "referral";
 export interface PromoCfg { enabled: boolean; message: string; graceDays: number; pausedAt?: string | null }

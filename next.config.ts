@@ -41,6 +41,8 @@ const nextConfig: NextConfig = {
     const crawlerFile = [{ key: "Cache-Control", value: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400" }];
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Our own font files never change under the same name (a new version gets a new name), so browsers keep them.
+      { source: "/fonts/:file*.woff2", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
       { source: "/robots.txt", headers: crawlerFile },
       { source: "/sitemap.xml", headers: crawlerFile },
       { source: "/llms.txt", headers: crawlerFile },

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { preconnect } from "react-dom";
-import { Playfair_Display, Karla } from "next/font/google";
+import { preconnect, preload } from "react-dom";
+import "./fonts.css";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "@/components/ui/sonner";
@@ -9,19 +9,9 @@ import { getSiteContent } from "@/server/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { fitDescription } from "@/lib/seo";
 
-const display = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
-
-const body = Karla({
-  subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
+// Fonts are our own files (src/app/fonts.css + public/fonts): nothing is fetched from Google, ever.
+// The two used on every page start downloading straight away.
+const PRELOAD_FONTS = ["/fonts/playfair-display-latin-v1.woff2", "/fonts/karla-latin-v1.woff2"];
 
 // Pages render on request (each section sets dynamic = "force-dynamic"): the site shows admin-editable
 // content (offers, hours, FAQ...), so nothing may be frozen at build time. The menu pages are the one
@@ -56,11 +46,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   // Menu photos come from Cloudinary: open the connection while the page loads, not at the first photo.
   if (process.env.CLOUDINARY_CLOUD_NAME) preconnect("https://res.cloudinary.com", { crossOrigin: "anonymous" });
+  for (const href of PRELOAD_FONTS) preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${display.variable} ${body.variable} h-full`}
+      className="h-full"
     >
       <body className="min-h-full flex flex-col">
         <Providers>

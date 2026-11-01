@@ -30,6 +30,9 @@ const CHUNK = 512;   // small pieces with a short pause, so a Bluetooth printer'
 const PAUSE_MS = 15;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Has this browser been given a serial/Bluetooth printer before? (No prompt.) */
+export const hasGrantedSerial = async () => { try { return ((await serial()?.getPorts()) ?? []).length > 0; } catch { return false; } };
+
 const noSubscribe = () => () => {};
 export const useSerialSupported = () => useSyncExternalStore(noSubscribe, () => !!serial(), () => false);
 
@@ -69,14 +72,16 @@ export function useSerialPrinter(enabled: boolean) {
   }, [attach, enabled]);
 
   /** Ask the browser for the printer (must be called from a tap). */
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (): Promise<boolean> => {
     const s = serial();
-    if (!s) return;
+    if (!s) return false;
     try {
       const p = await s.requestPort({ allowedBluetoothServiceClassIds: [SPP] });
       await attach(p);
+      return true;
     } catch (e) {
       if ((e as Error).name !== "NotFoundError") setError((e as Error).message); // NotFoundError = closed the list
+      return false;
     }
   }, [attach]);
 

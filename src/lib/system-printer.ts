@@ -39,3 +39,18 @@ export function printPage(path: string): Promise<void> {
 
 /** Is this computer running Windows? (Used to explain the Windows printer route.) */
 export const onWindows = () => typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);
+
+export type Platform = "android" | "ios" | "windows" | "mac" | "other";
+/** What kind of device this is, to pick the printer route automatically. */
+export function detectPlatform(): Platform {
+  if (typeof navigator === "undefined") return "other";
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return "android";
+  if (/iPad|iPhone|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return "ios"; // iPadOS says "Macintosh"
+  if (/Windows/i.test(ua)) return "windows";
+  if (/Macintosh/i.test(ua)) return "mac";
+  return "other";
+}
+
+/** The computer's own printer, in plain words. */
+export const systemPrinterName = (p: Platform) => (p === "windows" ? "Windows printer" : p === "mac" ? "Mac printer" : p === "ios" ? "iPad/iPhone printer" : "This device's printer");

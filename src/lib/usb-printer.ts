@@ -48,6 +48,9 @@ async function prepare(device: USBDevice): Promise<number> {
   return found.out.endpointNumber;
 }
 
+/** Has this browser been given a USB printer before? (No prompt; used to pick the route automatically.) */
+export const hasGrantedUsb = async () => { try { return ((await usb()?.getDevices()) ?? []).length > 0; } catch { return false; } };
+
 const noSubscribe = () => () => {};
 export const useUsbSupported = () => useSyncExternalStore(noSubscribe, () => !!usb(), () => false);
 
@@ -89,14 +92,16 @@ export function useUsbPrinter(enabled = true) {
   }, [attach, enabled]);
 
   /** Ask the browser for the printer (must be called from a tap). */
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (): Promise<boolean> => {
     const u = usb();
-    if (!u) return;
+    if (!u) return false;
     try {
       const d = await u.requestDevice({ filters: [] }); // show every USB device: some printers don't announce the printer class
       await attach(d);
+      return true;
     } catch (e) {
       if ((e as Error).name !== "NotFoundError") setError((e as Error).message); // NotFoundError = closed the picker
+      return false;
     }
   }, [attach]);
 

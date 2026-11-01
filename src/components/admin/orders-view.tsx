@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
 import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, deleteTestOrders, type CancelKind } from "@/lib/admin/api";
-import { usePrintStation, type PrintMode } from "@/components/admin/print-station";
+import { usePrintStation, type PrintChoice } from "@/components/admin/print-station";
 import { type PlacedOrder } from "@/lib/order";
 import { type OrderStatus } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
@@ -559,45 +559,34 @@ function Banner({ tone, children }: { tone: "sambal" | "gold"; children: React.R
   );
 }
 
-const MODE_LABEL: Record<PrintMode, string> = { usb: "USB cable", serial: "Bluetooth", system: "Windows printer" };
+const CHOICE_LABEL: Record<PrintChoice, string> = { auto: "Automatic (recommended)", usb: "USB cable", serial: "Bluetooth", system: "Computer's printer" };
 
-/** How this device reaches the kitchen printer, its status, and the controls. */
+/** The kitchen printer for this device: found automatically, with plain-English help if it isn't printing. */
 function TabletPrinterBar({ station }: { station: NonNullable<ReturnType<typeof usePrintStation>> }) {
-  const { printer, modes, setMode, autoPrint, toggleAutoPrint, receipt, toggleReceipt, testPrint } = station;
+  const { printer, platform, modes, choice, setChoice, connectDirect, autoPrint, toggleAutoPrint, receipt, toggleReceipt, testPrint } = station;
   const [help, setHelp] = useState(false);
   const connected = printer.state === "connected";
-  const howTo: Record<PrintMode, string> = {
-    usb: "Plug the printer in by USB, tap Connect printer and pick it (first time only: after that it reconnects by itself). On Windows, use \"Windows printer\" instead.",
-    serial: "Pair the printer in Windows (Settings → Bluetooth & devices), then tap Connect printer and pick it: \"Standard Serial over Bluetooth link (COM…)\" or the printer's name.",
-    system: "Prints through the printer Windows has installed (USB or Bluetooth). Make it the default printer in Windows. For printing with no pop-up, see \"How to set up\".",
-  };
+  const system = printer.mode === "system";
+  // What to do when nothing is connected yet, in plain words.
+  const todo = printer.mode === "usb"
+    ? "Plug the printer into this tablet with its USB cable, then tap Connect printer and choose it. You only do this once."
+    : "Switch the printer on, then tap Connect printer and choose it from the list. You only do this once.";
   return (
-    <div className={cn("flex flex-col gap-2 rounded-xl border px-3 py-2 text-sm", connected ? "border-jade/40 bg-jade/5" : "border-border bg-muted/30")}>
+    <div className={cn("flex flex-col gap-2 rounded-xl border px-3 py-2 text-sm", connected ? "border-jade/40 bg-jade/5" : "border-gold/50 bg-gold/10")}>
       <div className="flex flex-wrap items-center gap-2">
-        <Printer className={cn("size-4 shrink-0", connected ? "text-jade" : "text-muted-foreground")} />
-        <span className="text-xs text-muted-foreground">Printer connected by:</span>
-        <div className="flex gap-1 rounded-lg bg-muted p-0.5" role="radiogroup" aria-label="How the printer is connected">
-          {modes.map((m) => (
-            <button key={m} role="radio" aria-checked={printer.mode === m} onClick={() => setMode(m)}
-              className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition", printer.mode === m ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-              {MODE_LABEL[m]}
-            </button>
-          ))}
-        </div>
-        {printer.mode === "system" && <button className="text-xs underline" onClick={() => setHelp((v) => !v)}>{help ? "Hide" : "How to set up"}</button>}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
+        <Printer className={cn("size-4 shrink-0", connected ? "text-jade" : "text-gold-ink")} />
         <span className="mr-auto min-w-0">
           {connected
-            ? <><span className="font-medium">{printer.name}</span> {printer.mode === "system" ? "ready" : "connected"}{autoPrint ? " - new orders print here automatically" : " - automatic printing is off"}</>
-            : <>No printer connected{printer.error ? ` (${printer.error})` : ""}. {howTo[printer.mode]}</>}
+            ? <><span className="font-medium">Kitchen printer: {printer.name}</span>{printer.auto ? " (found automatically)" : ""}{autoPrint ? ". New orders print by themselves." : ". Automatic printing is off."}</>
+            : printer.error ? <><span className="font-medium">The printer isn&apos;t connected</span> ({printer.error}). {todo}</>
+            : <><span className="font-medium">Kitchen printer not connected yet.</span> {todo}</>}
         </span>
         {connected ? (
           <>
             <button onClick={toggleAutoPrint} role="switch" aria-checked={autoPrint} aria-label="Print new orders automatically on this device" className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition", autoPrint ? "bg-jade" : "bg-muted")}>
               <span className={cn("inline-block size-4 rounded-full bg-white shadow transition", autoPrint ? "translate-x-6" : "translate-x-1")} />
             </button>
-            <label className="flex items-center gap-1.5 text-xs" title="Print the branded customer copy after each kitchen ticket">
+            <label className="flex items-center gap-1.5 text-xs" title="Print the customer's copy after each kitchen ticket">
               <input type="checkbox" className="size-4" checked={receipt} onChange={toggleReceipt} /> Customer receipt
             </label>
             <Button size="sm" variant="outline" className="h-8" onClick={() => void testPrint()}>Test print</Button>
@@ -605,13 +594,42 @@ function TabletPrinterBar({ station }: { station: NonNullable<ReturnType<typeof 
         ) : printer.state !== "unsupported" && (
           <Button size="sm" className="h-8 gap-1.5" onClick={() => void printer.connect()}><Printer className="size-4" /> Connect printer</Button>
         )}
+        <button className="text-xs underline" onClick={() => setHelp((v) => !v)}>{help ? "Close help" : "Not printing?"}</button>
       </div>
-      {printer.mode === "system" && help && (
-        <ol className="list-decimal space-y-1 rounded-lg bg-background p-3 pl-7 text-xs text-muted-foreground">
-          <li>In Windows: Settings → Bluetooth &amp; devices → Printers &amp; scanners. Click the receipt printer → <b>Set as default</b> (switch off &ldquo;Let Windows manage my default printer&rdquo; if it&apos;s on). In its <b>Printing preferences</b>, choose the 80 mm (or 72 mm) paper size.</li>
-          <li>Without any setup, each ticket opens the print window: press <b>Print</b>. To print with no pop-up, make a desktop shortcut for Chrome: right-click it → <b>Properties</b> → in <b>Target</b>, after the closing quote, add a space and <code className="rounded bg-muted px-1">--kiosk-printing</code> → OK. Close every Chrome window, then open Chrome from that shortcut and sign in to Admin. (Edge works the same way.)</li>
-          <li>Leave this Admin page open on that computer. Press <b>Test print</b> to check.</li>
-        </ol>
+
+      {help && (
+        <div className="flex flex-col gap-3 rounded-lg bg-background p-3 text-xs text-muted-foreground">
+          {system ? (
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>Check the printer is switched on, has paper and the lid is closed.</li>
+              {platform === "windows" && <li>In Windows: <b>Settings → Bluetooth &amp; devices → Printers &amp; scanners</b>. The receipt printer must be listed there. Click it → <b>Set as default</b>, then <b>Print test page</b>. If that page doesn&apos;t print, Windows can&apos;t reach the printer yet: install the printer&apos;s driver from the maker&apos;s website first.</li>}
+              {platform === "mac" && <li>On the Mac: <b>System Settings → Printers &amp; Scanners</b>. The receipt printer must be listed and set as the default.</li>}
+              <li>Each ticket opens a print window: press <b>Print</b>. (To print with no window at all, ask whoever set up this computer to add <code className="rounded bg-muted px-1">--kiosk-printing</code> to the Chrome shortcut: a one-time step.)</li>
+              <li>Press <b>Test print</b> above to check.</li>
+            </ol>
+          ) : (
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>Check the printer is switched on, has paper and the lid is closed.</li>
+              <li>{printer.mode === "usb" ? "Unplug the USB cable and plug it back in: it reconnects by itself." : "Switch the printer off and on again, and keep it near this device: it reconnects by itself."}</li>
+              <li>If it still isn&apos;t connected, tap <b>Connect printer</b> and choose it again.</li>
+            </ol>
+          )}
+          {system && connectDirect && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span>Printer connected by Bluetooth or cable but not set up in the computer?</span>
+              <Button size="sm" variant="outline" className="h-8" onClick={() => void connectDirect()}>Connect the printer directly</Button>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <span>Connection:</span>
+            {(["auto", ...modes] as PrintChoice[]).map((c) => (
+              <button key={c} onClick={() => setChoice(c)} aria-pressed={choice === c}
+                className={cn("rounded-full border px-2.5 py-1 font-medium transition", choice === c ? "border-foreground bg-foreground text-background" : "border-border hover:bg-muted")}>
+                {CHOICE_LABEL[c]}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

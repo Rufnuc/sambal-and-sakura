@@ -1,26 +1,30 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useUsbPrinter, base64ToBytes, useUsbSupported, type UsbPrinterState } from "@/lib/usb-printer";
-import { useSerialPrinter, useSerialSupported } from "@/lib/serial-printer";
-import { printPage, onWindows } from "@/lib/system-printer";
+import { useUsbPrinter, base64ToBytes, useUsbSupported, hasGrantedUsb, type UsbPrinterState } from "@/lib/usb-printer";
+import { useSerialPrinter, useSerialSupported, hasGrantedSerial } from "@/lib/serial-printer";
+import { printPage, detectPlatform, systemPrinterName, type Platform } from "@/lib/system-printer";
 import { claimPrintJobs, reportPrintFailure, fetchTicketBytes } from "@/lib/admin/api";
 
 // The kitchen printer for this device. It lives here, around every admin page, so new orders (and STOP
-// tickets) print automatically whichever admin screen is open, not only on Orders. Three free ways to reach it,
-// chosen per device in Admin -> Orders:
+// tickets) print automatically whichever admin screen is open, not only on Orders. Three free ways to reach it:
 //  - "usb":    plugged in by USB, driven by Chrome directly (the Android tablet);
 //  - "serial": Bluetooth (paired in Windows, or picked in the browser) or a COM port, driven by Chrome directly;
-//  - "system": the printer installed in Windows (USB or Bluetooth), through its normal driver.
+//  - "system": the printer installed in the computer (Windows/Mac/iPad, USB or Bluetooth), through its driver.
 // The first two send the exact kitchen ticket; "system" prints the same ticket as a page.
+// Staff don't choose: the route is picked from the device ("auto"). A printer already linked directly wins;
+// an Android tablet uses USB; everything else uses the computer's own printer. If Windows refuses the browser
+// the USB printer (its driver holds it), it switches to the Windows printer by itself.
 
 export type PrintMode = "usb" | "serial" | "system";
+export type PrintChoice = "auto" | PrintMode;
 export type TicketRequest = { orderId: string; kind: "order" | "cancel" | "receipt" } | { test: true };
 export interface StationPrinter {
   mode: PrintMode;
+  auto: boolean;                  // picked automatically from the device
   state: UsbPrinterState;
   name: string;
   error: string;
@@ -29,8 +33,11 @@ export interface StationPrinter {
 
 type Station = {
   printer: StationPrinter;
+  platform: Platform;
   modes: PrintMode[];             // the ways this browser can print
-  setMode: (m: PrintMode) => void;
+  choice: PrintChoice;
+  setChoice: (c: PrintChoice) => void;
+  connectDirect: (() => Promise<void>) | null; // link the printer straight to the browser (Bluetooth / cable), if possible here
   printTicket: (t: TicketRequest) => Promise<void>;
   autoPrint: boolean;
   toggleAutoPrint: () => void;
@@ -45,30 +52,69 @@ const POLL_MS = 10_000;
 const AUTO_KEY = "ss_tablet_print";   // "0" = automatic printing switched off on this device
 const STATION_KEY = "ss_print_station"; // "1" = this device has had the printer connected before
 const RECEIPT_KEY = "ss_tablet_receipt"; // "0" = don't print the customer receipt on this device
-const MODE_KEY = "ss_print_mode";      // usb | serial | system
+const MODE_KEY = "ss_print_mode";      // auto (default) | usb | serial | system
+const USB_BLOCKED_KEY = "ss_usb_blocked"; // "1" = Windows wouldn't let the browser use the USB printer
 
 const read = (k: string) => { try { return typeof window === "undefined" ? null : localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* ignore */ } };
 
+const noSubscribe = () => () => {};
+const BLOCKED = /claim|access denied|security|unable to open|denied/i; // Windows' driver is holding the USB printer
+
 export function PrintStation({ canPrint, children }: { canPrint: boolean; children: React.ReactNode }) {
   const usbOk = useUsbSupported(), serialOk = useSerialSupported();
+  const platform = useSyncExternalStore(noSubscribe, detectPlatform, () => "other" as Platform);
   const modes: PrintMode[] = [...(usbOk ? ["usb" as const] : []), ...(serialOk ? ["serial" as const] : []), "system"];
-  const [savedMode, setSavedMode] = useState<PrintMode | null>(() => { const m = read(MODE_KEY); return m === "usb" || m === "serial" || m === "system" ? m : null; });
-  // Until staff choose: USB where the browser can do it (the Android tablet), else the Windows printer.
-  const mode: PrintMode = savedMode && modes.includes(savedMode) ? savedMode : usbOk ? "usb" : "system";
+  const [choice, setChoiceState] = useState<PrintChoice>(() => { const m = read(MODE_KEY); return m === "usb" || m === "serial" || m === "system" ? m : "auto"; });
+  const [usbBlocked, setUsbBlocked] = useState(() => read(USB_BLOCKED_KEY) === "1");
+  // Printers this browser has been given before (checked without any prompt). null = still checking.
+  const [granted, setGranted] = useState<{ usb: boolean; serial: boolean } | null>(null);
+  useEffect(() => {
+    let live = true;
+    Promise.all([hasGrantedUsb(), hasGrantedSerial()]).then(([usb, serial]) => { if (live) setGranted({ usb, serial }); });
+    return () => { live = false; };
+  }, []);
 
-  const usb = useUsbPrinter(mode === "usb");
-  const ser = useSerialPrinter(mode === "serial");
+  const autoMode: PrintMode = granted?.serial && serialOk ? "serial"
+    : usbOk && !usbBlocked && (granted?.usb || platform === "android") ? "usb"
+    : "system";
+  const auto = choice === "auto" || !modes.includes(choice as PrintMode);
+  const mode: PrintMode = auto ? autoMode : (choice as PrintMode);
+
+  const usb = useUsbPrinter(granted !== null && mode === "usb");
+  const ser = useSerialPrinter(granted !== null && mode === "serial");
   const direct = mode === "usb" ? usb : mode === "serial" ? ser : null;
-  let error = direct?.error ?? "";
-  // On Windows the USB route usually fails because Windows' own printer driver holds the printer.
-  if (mode === "usb" && error && onWindows() && /claim|access denied|security|unable to open/i.test(error)) {
-    error = "Windows is using this printer: choose \"Windows printer\" (or Bluetooth) above instead";
-  }
-  const printer: StationPrinter = direct
-    ? { mode, state: direct.state, name: direct.name, error, connect: direct.connect }
-    : { mode, state: "connected", name: "Windows printer", error: "", connect: async () => {} };
+
+  // Windows won't hand the USB printer to the browser: print through the Windows printer instead, by itself.
+  const usbError = usb.error;
+  useEffect(() => {
+    if (mode !== "usb" || platform !== "windows" || !usbError || !BLOCKED.test(usbError)) return;
+    write(USB_BLOCKED_KEY, "1");
+    const t = setTimeout(() => {
+      setUsbBlocked(true);
+      if (auto) toast.info("Windows is using this printer, so tickets will print through the Windows printer.");
+    }, 0);
+    return () => clearTimeout(t);
+  }, [mode, platform, usbError, auto]);
+
+  const error = mode === "usb" && platform === "windows" && BLOCKED.test(direct?.error ?? "")
+    ? "Windows is using this printer: choose \"Windows printer\" under Not printing?"
+    : direct?.error ?? "";
+  const printer: StationPrinter = granted === null
+    ? { mode, auto, state: "none", name: "", error: "", connect: async () => {} } // still checking this device
+    : direct
+      ? { mode, auto, state: direct.state, name: direct.name, error, connect: async () => { if (await direct.connect()) setGranted((g) => ({ usb: g?.usb ?? false, serial: g?.serial ?? false, [mode]: true })); } }
+      : { mode, auto, state: "connected", name: systemPrinterName(platform), error: "", connect: async () => {} };
   const connected = printer.state === "connected";
+
+  // Link the printer straight to the browser instead of the computer's printer: USB on Android,
+  // Bluetooth/COM elsewhere. Once linked, "auto" uses it from then on.
+  const usbConnect = usb.connect, serConnect = ser.connect;
+  const connectDirect = platform === "android" && usbOk
+    ? async () => { if (await usbConnect()) { setGranted((g) => ({ usb: true, serial: g?.serial ?? false })); setChoiceState("auto"); write(MODE_KEY, "auto"); } }
+    : serialOk
+      ? async () => { if (await serConnect()) { setGranted((g) => ({ usb: g?.usb ?? false, serial: true })); setChoiceState("auto"); write(MODE_KEY, "auto"); } }
+      : null;
 
   const [autoPrint, setAutoPrint] = useState(() => read(AUTO_KEY) !== "0");
   const [receipt, setReceipt] = useState(() => read(RECEIPT_KEY) !== "0");
@@ -138,7 +184,10 @@ export function PrintStation({ canPrint, children }: { canPrint: boolean; childr
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("online", now); };
   }, [canPrint, connected, autoPrint, drain]);
 
-  const setMode = useCallback((m: PrintMode) => { write(MODE_KEY, m); setSavedMode(m); }, []);
+  const setChoice = useCallback((c: PrintChoice) => {
+    write(MODE_KEY, c); setChoiceState(c);
+    if (c === "usb") { write(USB_BLOCKED_KEY, "0"); setUsbBlocked(false); } // trying USB again on purpose
+  }, []);
   const toggleAutoPrint = useCallback(() => setAutoPrint((v) => { write(AUTO_KEY, v ? "0" : "1"); return !v; }), []);
   const toggleReceipt = useCallback(() => setReceipt((v) => { write(RECEIPT_KEY, v ? "0" : "1"); return !v; }), []);
 
@@ -148,7 +197,7 @@ export function PrintStation({ canPrint, children }: { canPrint: boolean; childr
   }, [printTicket]);
 
   return (
-    <Ctx.Provider value={{ printer, modes, setMode, printTicket, autoPrint, toggleAutoPrint, receipt, toggleReceipt, testPrint }}>
+    <Ctx.Provider value={{ printer, platform, modes, choice, setChoice, connectDirect, printTicket, autoPrint, toggleAutoPrint, receipt, toggleReceipt, testPrint }}>
       {canPrint && wasStation && !connected && printer.state !== "unsupported" && (
         <div role="alert" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-sambal/40 bg-sambal/10 px-3 py-2 text-sm text-sambal">
           <Printer className="size-4 shrink-0" />

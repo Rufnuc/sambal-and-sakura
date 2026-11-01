@@ -15,11 +15,17 @@ export const metadata: Metadata = { title: "Order ticket", robots: { index: fals
 type Mod = { groupId: string; optionId: string; label: string };
 function parseMods(s: string): Mod[] { try { return JSON.parse(s); } catch { return []; } }
 
-export default async function OrderTicketPage({ params }: { params: Promise<{ id: string }> }) {
+// ?copy=kitchen (default) | receipt (the customer's copy: no handover code or contact details) | cancel (STOP ticket).
+// ?embed=1: opened inside the admin's "Windows printer" mode, which prints it itself (no toolbar, no auto print).
+type Copy = "kitchen" | "receipt" | "cancel";
+
+export default async function OrderTicketPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ copy?: string; embed?: string }> }) {
   if (!(await currentUser())) redirect("/staff/login");
   if (!(await staffFor("orders"))) redirect("/admin");
 
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const copy: Copy = sp.copy === "receipt" || sp.copy === "cancel" ? sp.copy : "kitchen";
+  const staffCopy = copy !== "receipt";
   const { business: b } = await getSiteContent();
   const order = await prisma.order.findUnique({ where: { id }, include: { lines: true } });
   if (!order) notFound();
@@ -30,7 +36,17 @@ export default async function OrderTicketPage({ params }: { params: Promise<{ id
 
   return (
     <div className="mx-auto max-w-[80mm] bg-white p-4 font-mono text-[13px] leading-snug text-black print:max-w-none print:p-0">
-      <AutoPrint />
+      {/* The receipt printer's own paper size; no browser margins, headers or footers. */}
+      <style>{"@page { margin: 0; }"}</style>
+      {sp.embed !== "1" && <AutoPrint />}
+
+      {copy === "cancel" && (
+        <div className="mb-2 border-4 border-black p-2 text-center">
+          <p className="text-2xl font-extrabold">CANCELLED</p>
+          <p className="text-lg font-extrabold">STOP PREPARING</p>
+          {order.cancelReason && <p className="mt-1 text-[11px]">{order.cancelReason}</p>}
+        </div>
+      )}
 
       {/* Header */}
       <div className="text-center">
@@ -51,16 +67,16 @@ export default async function OrderTicketPage({ params }: { params: Promise<{ id
           {" · "}{order.status.replace(/-/g, " ")}
         </p>
         {/* Staff copy only: the customer gives this code before the food is handed over. */}
-        {order.handoverCode && <p className="mt-1 border-2 border-black p-1 text-lg font-extrabold">ASK FOR CODE: {order.handoverCode}</p>}
+        {copy === "kitchen" && order.handoverCode && <p className="mt-1 border-2 border-black p-1 text-lg font-extrabold">ASK FOR CODE: {order.handoverCode}</p>}
       </div>
 
       <Hr />
 
-      {/* Customer */}
+      {/* Customer (the customer's own copy just says thank you) */}
       <div className="space-y-0.5">
-        <p className="font-bold">{order.customerName}</p>
-        <p>{order.customerPhone}</p>
-        {isDelivery && order.address && <p className="font-bold">{order.address}{order.postcode ? `, ${order.postcode}` : ""}</p>}
+        <p className="font-bold">{staffCopy ? order.customerName : `Thank you, ${order.customerName.split(" ")[0]}!`}</p>
+        {staffCopy && <p>{order.customerPhone}</p>}
+        {staffCopy && isDelivery && order.address && <p className="font-bold">{order.address}{order.postcode ? `, ${order.postcode}` : ""}</p>}
       </div>
 
       <Hr />
@@ -89,7 +105,8 @@ export default async function OrderTicketPage({ params }: { params: Promise<{ id
       <div className="space-y-0.5">
         <Row label={`Subtotal (${itemCount} item${itemCount === 1 ? "" : "s"})`} value={gbp(order.subtotal)} />
         {order.deliveryFee > 0 && <Row label="Delivery" value={gbp(order.deliveryFee)} />}
-        {order.discount > 0 && <Row label={`Discount${order.voucherCode ? ` ${order.voucherCode}` : ""}`} value={`- ${gbp(order.discount)}`} />}
+        {order.onlineDiscount > 0 && <Row label={order.onlineDiscountLabel ?? "Online order discount"} value={`- ${gbp(order.onlineDiscount)}`} />}
+        {order.discount - order.onlineDiscount > 0.004 && <Row label={`Discount${order.voucherCode ? ` ${order.voucherCode}` : ""}`} value={`- ${gbp(order.discount - order.onlineDiscount)}`} />}
         <div className="mt-1 flex justify-between border-t border-dashed border-black pt-1 text-base font-extrabold">
           <span>{order.paymentMethod === "wechat" ? "TOTAL" : "TOTAL — CASH"}</span><span>{gbp(order.total)}</span>
         </div>
@@ -102,8 +119,10 @@ export default async function OrderTicketPage({ params }: { params: Promise<{ id
 
       <Hr />
 
+      {!staffCopy && order.onlineDiscount > 0 && <p className="text-center font-bold">You saved {gbp(order.onlineDiscount)} by ordering direct</p>}
+
       {/* Notes */}
-      {order.notes && (
+      {staffCopy && order.notes && (
         <>
           <p className="text-[11px] font-bold uppercase">Notes</p>
           <p className="mb-1">{order.notes}</p>

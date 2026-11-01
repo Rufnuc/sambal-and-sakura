@@ -12,13 +12,17 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   `connect-src 'self' https://challenges.cloudflare.com${PROD ? "" : " ws: wss:"}`,
-  "frame-src https://www.google.com https://challenges.cloudflare.com",
+  "frame-src 'self' https://www.google.com https://challenges.cloudflare.com", // 'self': the admin prints our own ticket pages in a hidden frame
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
   ...(PROD ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
+
+// The ticket pages (/print/...) may be framed by our own admin, which prints them in a hidden frame in the
+// "Windows printer" mode. Still never by another site.
+const printCsp = csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
 
 const securityHeaders = [
   { key: "Content-Security-Policy", value: csp },
@@ -41,6 +45,8 @@ const nextConfig: NextConfig = {
     const crawlerFile = [{ key: "Cache-Control", value: "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400" }];
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Later rules override earlier ones for the same header.
+      { source: "/print/:path*", headers: [{ key: "Content-Security-Policy", value: printCsp }, { key: "X-Frame-Options", value: "SAMEORIGIN" }] },
       // Our own font files never change under the same name (a new version gets a new name), so browsers keep them.
       { source: "/fonts/:file*.woff2", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
       { source: "/robots.txt", headers: crawlerFile },

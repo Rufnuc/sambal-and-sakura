@@ -54,7 +54,7 @@ export const useUsbSupported = () => useSyncExternalStore(noSubscribe, () => !!u
 export type UsbPrinterState = "unsupported" | "none" | "connected" | "error";
 
 /** The tablet's USB printer: status, connect, print. */
-export function useUsbPrinter() {
+export function useUsbPrinter(enabled = true) {
   const supported = useUsbSupported();
   const [device, setDevice] = useState<USBDevice | null>(null);
   const [error, setError] = useState("");
@@ -74,7 +74,7 @@ export function useUsbPrinter() {
   // Reconnect to a printer this browser was given before, now and whenever one is plugged in.
   useEffect(() => {
     const u = usb();
-    if (!u) return;
+    if (!u || !enabled) return;
     let live = true;
     u.getDevices().then((list) => { if (live && list[0]) void attach(list[0]); }).catch(() => {});
     const onConnect = (e: Event) => { const d = (e as Event & { device: USBDevice }).device; if (d) void attach(d); };
@@ -86,7 +86,7 @@ export function useUsbPrinter() {
     u.addEventListener("connect", onConnect);
     u.addEventListener("disconnect", onDisconnect);
     return () => { live = false; u.removeEventListener("connect", onConnect); u.removeEventListener("disconnect", onDisconnect); };
-  }, [attach]);
+  }, [attach, enabled]);
 
   /** Ask the browser for the printer (must be called from a tap). */
   const connect = useCallback(async () => {

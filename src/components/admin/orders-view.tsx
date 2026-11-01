@@ -9,9 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
-import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, fetchTicketBytes, deleteTestOrders, type CancelKind } from "@/lib/admin/api";
-import { base64ToBytes, type useUsbPrinter } from "@/lib/usb-printer";
-import { usePrintStation } from "@/components/admin/print-station";
+import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, deleteTestOrders, type CancelKind } from "@/lib/admin/api";
+import { usePrintStation, type PrintMode } from "@/components/admin/print-station";
 import { type PlacedOrder } from "@/lib/order";
 import { type OrderStatus } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
@@ -313,7 +312,7 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
         </div>
       ))}
       {paused && <Banner tone="sambal">Online ordering is PAUSED. Customers see a message asking them to phone.</Banner>}
-      {station && <TabletPrinterBar printer={station.printer} autoPrint={station.autoPrint} onToggleAuto={station.toggleAutoPrint} receipt={station.receipt} onToggleReceipt={station.toggleReceipt} onTest={() => void station.testPrint()} />}
+      {station && <TabletPrinterBar station={station} />}
 
       {sound && soundLocked && <Banner tone="sambal">Tap anywhere on this page to switch the order alarm on (the browser needs one tap after the page opens).</Banner>}
       {newWaiting && <Banner tone="sambal">New order waiting: the alarm repeats every 15 seconds until it&apos;s accepted (moved to Preparing).</Banner>}
@@ -491,12 +490,9 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
                   variant="outline"
                   className="h-9 w-fit gap-1.5"
                   onClick={async () => {
-                    const printer = station?.printer;
-                    if (printer?.state === "connected") {
-                      // Tablet printer: reprint here.
-                      const b64 = await fetchTicketBytes({ orderId: detail.id, kind: detail.status === "cancelled" ? "cancel" : "order" });
-                      if (!b64) { toast.error("Couldn't get the ticket."); return; }
-                      try { await printer.print(base64ToBytes(b64)); toast.success("Printed on this tablet's printer"); } catch (e) { toast.error((e as Error).message); }
+                    if (station?.printer.state === "connected") {
+                      // This device's printer: reprint here.
+                      try { await station.printTicket({ orderId: detail.id, kind: detail.status === "cancelled" ? "cancel" : "order" }); toast.success("Printed on this device's printer"); } catch (e) { toast.error((e as Error).message); }
                       return;
                     }
                     const r = await reprintOrder(detail.id);
@@ -507,9 +503,7 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
                 </Button>
                 {station?.printer.state === "connected" && (
                   <Button variant="outline" className="h-9 w-fit gap-1.5" onClick={async () => {
-                    const b64 = await fetchTicketBytes({ orderId: detail.id, kind: "receipt" });
-                    if (!b64) { toast.error("Couldn't get the receipt."); return; }
-                    try { await station.printer.print(base64ToBytes(b64)); toast.success("Customer receipt printed"); } catch (e) { toast.error((e as Error).message); }
+                    try { await station.printTicket({ orderId: detail.id, kind: "receipt" }); toast.success("Customer receipt printed"); } catch (e) { toast.error((e as Error).message); }
                   }}>
                     <Printer className="size-4" /> Print customer receipt
                   </Button>
@@ -565,34 +559,59 @@ function Banner({ tone, children }: { tone: "sambal" | "gold"; children: React.R
   );
 }
 
-/** Status + controls for a printer plugged into this tablet by USB. */
-function TabletPrinterBar({ printer, autoPrint, onToggleAuto, receipt, onToggleReceipt, onTest }: {
-  printer: ReturnType<typeof useUsbPrinter>; autoPrint: boolean; onToggleAuto: () => void; receipt: boolean; onToggleReceipt: () => void; onTest: () => void;
-}) {
-  if (printer.state === "unsupported") {
-    return <p className="-mt-2 text-xs text-muted-foreground">USB kitchen printer: not available on this device. Use Chrome on the Android tablet the printer is plugged into.</p>;
-  }
+const MODE_LABEL: Record<PrintMode, string> = { usb: "USB cable", serial: "Bluetooth", system: "Windows printer" };
+
+/** How this device reaches the kitchen printer, its status, and the controls. */
+function TabletPrinterBar({ station }: { station: NonNullable<ReturnType<typeof usePrintStation>> }) {
+  const { printer, modes, setMode, autoPrint, toggleAutoPrint, receipt, toggleReceipt, testPrint } = station;
+  const [help, setHelp] = useState(false);
   const connected = printer.state === "connected";
+  const howTo: Record<PrintMode, string> = {
+    usb: "Plug the printer in by USB, tap Connect printer and pick it (first time only: after that it reconnects by itself). On Windows, use \"Windows printer\" instead.",
+    serial: "Pair the printer in Windows (Settings → Bluetooth & devices), then tap Connect printer and pick it: \"Standard Serial over Bluetooth link (COM…)\" or the printer's name.",
+    system: "Prints through the printer Windows has installed (USB or Bluetooth). Make it the default printer in Windows. For printing with no pop-up, see \"How to set up\".",
+  };
   return (
-    <div className={cn("flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm", connected ? "border-jade/40 bg-jade/5" : "border-border bg-muted/30")}>
-      <Printer className={cn("size-4 shrink-0", connected ? "text-jade" : "text-muted-foreground")} />
-      <span className="mr-auto min-w-0">
-        {connected
-          ? <><span className="font-medium">{printer.name}</span> connected{autoPrint ? " - new orders print here automatically" : " - automatic printing is off"}</>
-          : <>No printer connected to this tablet{printer.error ? ` (${printer.error})` : ""}. Plug the printer in by USB, then tap Connect printer (only needed the first time: after that it reconnects by itself).</>}
-      </span>
-      {connected ? (
-        <>
-          <button onClick={onToggleAuto} role="switch" aria-checked={autoPrint} aria-label="Print new orders automatically on this tablet" className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition", autoPrint ? "bg-jade" : "bg-muted")}>
-            <span className={cn("inline-block size-4 rounded-full bg-white shadow transition", autoPrint ? "translate-x-6" : "translate-x-1")} />
-          </button>
-          <label className="flex items-center gap-1.5 text-xs" title="Print the branded customer copy after each kitchen ticket">
-            <input type="checkbox" className="size-4" checked={receipt} onChange={onToggleReceipt} /> Customer receipt
-          </label>
-          <Button size="sm" variant="outline" className="h-8" onClick={onTest}>Test print</Button>
-        </>
-      ) : (
-        <Button size="sm" className="h-8 gap-1.5" onClick={() => void printer.connect()}><Printer className="size-4" /> Connect printer</Button>
+    <div className={cn("flex flex-col gap-2 rounded-xl border px-3 py-2 text-sm", connected ? "border-jade/40 bg-jade/5" : "border-border bg-muted/30")}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Printer className={cn("size-4 shrink-0", connected ? "text-jade" : "text-muted-foreground")} />
+        <span className="text-xs text-muted-foreground">Printer connected by:</span>
+        <div className="flex gap-1 rounded-lg bg-muted p-0.5" role="radiogroup" aria-label="How the printer is connected">
+          {modes.map((m) => (
+            <button key={m} role="radio" aria-checked={printer.mode === m} onClick={() => setMode(m)}
+              className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition", printer.mode === m ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              {MODE_LABEL[m]}
+            </button>
+          ))}
+        </div>
+        {printer.mode === "system" && <button className="text-xs underline" onClick={() => setHelp((v) => !v)}>{help ? "Hide" : "How to set up"}</button>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-auto min-w-0">
+          {connected
+            ? <><span className="font-medium">{printer.name}</span> {printer.mode === "system" ? "ready" : "connected"}{autoPrint ? " - new orders print here automatically" : " - automatic printing is off"}</>
+            : <>No printer connected{printer.error ? ` (${printer.error})` : ""}. {howTo[printer.mode]}</>}
+        </span>
+        {connected ? (
+          <>
+            <button onClick={toggleAutoPrint} role="switch" aria-checked={autoPrint} aria-label="Print new orders automatically on this device" className={cn("relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition", autoPrint ? "bg-jade" : "bg-muted")}>
+              <span className={cn("inline-block size-4 rounded-full bg-white shadow transition", autoPrint ? "translate-x-6" : "translate-x-1")} />
+            </button>
+            <label className="flex items-center gap-1.5 text-xs" title="Print the branded customer copy after each kitchen ticket">
+              <input type="checkbox" className="size-4" checked={receipt} onChange={toggleReceipt} /> Customer receipt
+            </label>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => void testPrint()}>Test print</Button>
+          </>
+        ) : printer.state !== "unsupported" && (
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => void printer.connect()}><Printer className="size-4" /> Connect printer</Button>
+        )}
+      </div>
+      {printer.mode === "system" && help && (
+        <ol className="list-decimal space-y-1 rounded-lg bg-background p-3 pl-7 text-xs text-muted-foreground">
+          <li>In Windows: Settings → Bluetooth &amp; devices → Printers &amp; scanners. Click the receipt printer → <b>Set as default</b> (switch off &ldquo;Let Windows manage my default printer&rdquo; if it&apos;s on). In its <b>Printing preferences</b>, choose the 80 mm (or 72 mm) paper size.</li>
+          <li>Without any setup, each ticket opens the print window: press <b>Print</b>. To print with no pop-up, make a desktop shortcut for Chrome: right-click it → <b>Properties</b> → in <b>Target</b>, after the closing quote, add a space and <code className="rounded bg-muted px-1">--kiosk-printing</code> → OK. Close every Chrome window, then open Chrome from that shortcut and sign in to Admin. (Edge works the same way.)</li>
+          <li>Leave this Admin page open on that computer. Press <b>Test print</b> to check.</li>
+        </ol>
       )}
     </div>
   );

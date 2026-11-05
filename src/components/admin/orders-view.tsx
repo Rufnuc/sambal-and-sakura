@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SectionCard, OrderStatusPill } from "@/components/admin/ui";
 import { fetchOrdersFeed, patchOrderStatus, reprintOrder, setOrdersPaused, fetchCancelCount, resetCancelCount, deleteTestOrders, type CancelKind } from "@/lib/admin/api";
 import { usePrintStation, type PrintChoice } from "@/components/admin/print-station";
-import { playAlarm, unlockAudio, audioLocked, ALARM_SOUNDS, type AlarmSound } from "@/lib/order-alarm";
+import { playAlarm, unlockAudio, audioLocked, ALARM_SOUNDS, isAlarmSound, type AlarmSound } from "@/lib/order-alarm";
 import { type PlacedOrder } from "@/lib/order";
 import { type OrderStatus } from "@/lib/data/site";
 import { gbp } from "@/lib/format";
@@ -87,7 +87,7 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
   const [custCancels, setCustCancels] = useState<{ count: number; windowDays: number; flagAt: number } | null>(null);
   // The order alarm is on unless staff switch it off on this device.
   const [sound, setSound] = useState(() => { try { return typeof window === "undefined" || localStorage.getItem("ss_admin_sound") !== "0"; } catch { return true; } });
-  const [alarmSound, setAlarmSound] = useState<AlarmSound>(() => { try { const v = localStorage.getItem("ss_admin_alarm"); return v === "bell" || v === "chime" ? v : "alarm"; } catch { return "alarm"; } });
+  const [alarmSound, setAlarmSound] = useState<AlarmSound>(() => { try { const v = localStorage.getItem("ss_admin_alarm"); return isAlarmSound(v) ? v : "alarm"; } catch { return "alarm"; } });
   const [volume, setVolume] = useState(() => { try { const v = Number(localStorage.getItem("ss_admin_volume")); return v > 0 && v <= 1 ? v : 1; } catch { return 1; } });
   const chime = useCallback(() => playAlarm(alarmSound, volume), [alarmSound, volume]);
   const [now, setNow] = useState(() => Date.now());

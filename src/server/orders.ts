@@ -151,7 +151,7 @@ export async function buildQuote(input: QuoteInput, user: User | null, opts: { c
   }
   const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, online, disabledZones, menu, zones, delivery, autoFreeItem: promos.offers.enabled });
   const leadHours = Math.max(0, ...input.lines.map((l) => menu.find((m) => m.id === l.itemId)?.leadTimeHours ?? 0));
-  const timing = orderTiming({ hours: site.business.hours, blackouts, leadHours, paused });
+  const timing = orderTiming({ hours: site.business.hours, blackouts, leadHours, paused, fulfilment: input.fulfilment });
   const v = voucher ?? null;
   return {
     voucher: v,

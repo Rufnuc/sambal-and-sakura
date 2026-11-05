@@ -293,10 +293,10 @@ function VisitUs({ content }: { content: SiteContent }) {
           <div className="flex items-start gap-3">
             <Clock className="mt-0.5 size-5 text-gold-ink" />
             <ul className="w-full space-y-1 text-sm">
-              {b.hours.map((h) => (
+              {b.hours.map((h, i) => (
                 <li key={h.day} className="flex justify-between gap-3">
                   <span className="text-muted-foreground">{h.day}</span>
-                  <span className="text-right">{formatHours(h)}</span>
+                  <span className="text-right">{formatHours(h, i)}</span>
                 </li>
               ))}
             </ul>

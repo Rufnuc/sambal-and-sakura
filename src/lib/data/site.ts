@@ -2,7 +2,9 @@
 // These are the built-in defaults. Everything customers see (phone, email, address, hours, social
 // profiles) is edited in Admin -> Site content, which is saved in the database and wins over this file.
 
-export interface HoursSession { open: string; close: string }
+// delivery: does this session take delivery orders (collection always can)? Left out = the usual rule in
+// lib/hours.ts: no delivery at lunchtime (sessions ending by 16:00) Monday-Saturday. Set per session in Admin.
+export interface HoursSession { open: string; close: string; delivery?: boolean }
 export interface DayHours { day: string; sessions: HoursSession[] }
 
 // The legal entity behind the site (Companies House). A limited company's website must show its
@@ -40,15 +42,16 @@ export const RESTAURANT = {
   // Each profile is added and switched on in Admin -> Site content once it exists. Tripadvisor and the
   // Google Business Profile (Google's id /g/11p27mv379) are the restaurant's approved listings (October 2026).
   social: { google: "https://maps.google.com/?cid=11037661416925001811", instagram: "", tiktok: "", facebook: "", rednote: "", wechat: "", tripadvisor: "https://www.tripadvisor.com/Restaurant_Review-g186340-d34750959-Reviews-Sambal_Sakura-Middlesbrough_North_Yorkshire_England.html" },
-  // index 0 = Sunday. Real trading hours (split lunch/dinner Tue–Sat).
+  // index 0 = Sunday. Real trading hours (split lunch/dinner Tue–Sat). No delivery at lunch Tue–Sat;
+  // Sunday is one session with delivery all day.
   hours: [
     { day: "Sun", sessions: [{ open: "11:30", close: "22:00" }] },
     { day: "Mon", sessions: [] }, // closed
-    { day: "Tue", sessions: [{ open: "11:30", close: "14:00" }, { open: "17:00", close: "22:00" }] },
-    { day: "Wed", sessions: [{ open: "11:30", close: "14:00" }, { open: "17:00", close: "22:00" }] },
-    { day: "Thu", sessions: [{ open: "11:30", close: "14:00" }, { open: "17:00", close: "22:00" }] },
-    { day: "Fri", sessions: [{ open: "11:30", close: "14:00" }, { open: "17:00", close: "22:30" }] },
-    { day: "Sat", sessions: [{ open: "11:30", close: "14:00" }, { open: "17:00", close: "22:30" }] },
+    { day: "Tue", sessions: [{ open: "11:30", close: "14:00", delivery: false }, { open: "17:00", close: "22:00" }] },
+    { day: "Wed", sessions: [{ open: "11:30", close: "14:00", delivery: false }, { open: "17:00", close: "22:00" }] },
+    { day: "Thu", sessions: [{ open: "11:30", close: "14:00", delivery: false }, { open: "17:00", close: "22:00" }] },
+    { day: "Fri", sessions: [{ open: "11:30", close: "14:00", delivery: false }, { open: "17:00", close: "22:30" }] },
+    { day: "Sat", sessions: [{ open: "11:30", close: "14:00", delivery: false }, { open: "17:00", close: "22:30" }] },
   ] as DayHours[],
 };
 

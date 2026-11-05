@@ -11,6 +11,7 @@ import { SectionCard } from "@/components/admin/ui";
 import { fetchConfig, saveSite, uploadImage } from "@/lib/admin/api";
 import { DEFAULT_SITE_CONTENT, VALUE_ICONS, FAQ_GROUPS, type SiteContent, type SocialKey } from "@/lib/site-content";
 import type { DayHours } from "@/lib/data/site";
+import { sessionDelivers } from "@/lib/hours";
 import { cn } from "@/lib/utils";
 import { HeroImagesEditor, SignatureEditor } from "@/components/admin/home-dishes-editor";
 
@@ -225,6 +226,7 @@ function HoursTab({ hours, onChange }: { hours: DayHours[]; onChange: (h: DayHou
     <SectionCard title="Opening hours">
       <p className="mb-4 text-sm text-muted-foreground">
         These drive the "Open now" badge, the hours shown on the site, Google, <strong>and the times customers can book online</strong>. Use 24-hour times. Add a second session for a split lunch / dinner service.
+        Untick <strong>Delivery</strong> on a session to take collection orders only then (e.g. at lunchtime): customers can&apos;t choose delivery for those times.
       </p>
       <div className="flex flex-col gap-3">
         {DAY_ORDER.map((idx) => {
@@ -247,6 +249,9 @@ function HoursTab({ hours, onChange }: { hours: DayHours[]; onChange: (h: DayHou
                       <Input type="time" value={s.open} onChange={(e) => setDay(idx, { sessions: d.sessions.map((x, i) => (i === si ? { ...x, open: e.target.value } : x)) })} className="h-9 w-28" />
                       <span className="text-muted-foreground">to</span>
                       <Input type="time" value={s.close} onChange={(e) => setDay(idx, { sessions: d.sessions.map((x, i) => (i === si ? { ...x, close: e.target.value } : x)) })} className="h-9 w-28" />
+                      <label className="ml-1 flex items-center gap-1 text-xs" title="Untick for collection only during this session">
+                        <input type="checkbox" className="size-4" checked={sessionDelivers(s, idx)} onChange={(e) => setDay(idx, { sessions: d.sessions.map((x, i) => (i === si ? { ...x, delivery: e.target.checked } : x)) })} /> Delivery
+                      </label>
                       {d.sessions.length > 1 && (
                         <button aria-label="Remove session" onClick={() => setDay(idx, { sessions: d.sessions.filter((_, i) => i !== si) })} className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:text-sambal"><Trash2 className="size-4" /></button>
                       )}

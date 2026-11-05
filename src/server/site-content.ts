@@ -53,7 +53,7 @@ const reviewUrl = z
   }, "Use the https link Google gives you (it starts with https://g.page/ or https://www.google.com/)")
   .default("");
 
-const sessionSchema = z.object({ open: hhmm, close: hhmm }).refine((s) => s.open < s.close, "Closing time must be after opening time");
+const sessionSchema = z.object({ open: hhmm, close: hhmm, delivery: z.boolean().optional() }).refine((s) => s.open < s.close, "Closing time must be after opening time");
 const daySchema = z.object({ day: str(10, 1), sessions: z.array(sessionSchema).max(4) });
 
 const schemas = {

@@ -1,7 +1,7 @@
 import { RESTAURANT, ORDERING, COMPANY } from "@/lib/data/site";
 import { MAX_ONLINE_PARTY } from "@/lib/data/tables";
 import { allergensKnown, optionPriceText, type MenuCategoryCfg, type MenuItem } from "@/lib/data/menu";
-import { formatHours } from "@/lib/hours";
+import { formatHours, sessionDelivers } from "@/lib/hours";
 import { formatAddress } from "@/lib/site-content";
 import { getSiteContent } from "@/server/site-content";
 import { getZones, getMaxMiles, getEffectiveMenu, getReferralConfig, getDeliveryRules, getCategories, getOnlineDiscount, activeOnlineDiscount } from "@/server/config";
@@ -40,7 +40,7 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
     { label: "Email", value: b.email },
     {
       label: "Opening hours",
-      value: DAY_ORDER.map((i) => `${b.hours[i].day}: ${formatHours(b.hours[i])}`).join("; "),
+      value: DAY_ORDER.map((i) => `${b.hours[i].day}: ${formatHours(b.hours[i], i)}`).join("; "),
     },
     { label: "Ways to order", value: "Delivery or collection online, or book a table." },
     {
@@ -56,6 +56,11 @@ export async function buildFacts(): Promise<{ summary: string; facts: Fact[] }> 
         liveZones.map((z) => `${z.label.replace(/^Zone \d+ - /, "")} (${z.postcodes.join(", ")}): ${gbp(z.fee)}, about ${z.etaMins} minutes`).join("; ") +
         (delivery.freeDeliveryOver !== null ? `. Free delivery on orders of ${gbp(delivery.freeDeliveryOver)} or more` : "") +
         `. Minimum delivery order ${gbp(delivery.minOrder)}.` +
+        // e.g. "No delivery at lunchtime on Tue, Wed, Thu, Fri, Sat (11:30-14:00): collection only then."
+        (() => {
+          const off = DAY_ORDER.flatMap((i) => b.hours[i].sessions.filter((s) => !sessionDelivers(s, i)).map((s) => ({ day: b.hours[i].day, s })));
+          return off.length ? ` No delivery on ${[...new Set(off.map((o) => o.day))].join(", ")} during ${[...new Set(off.map((o) => `${o.s.open}-${o.s.close}`))].join(" / ")}: collection only then.` : "";
+        })() +
         (maxMiles > 0 ? ` Delivery is available within about ${maxMiles} miles.` : ""),
     });
   }

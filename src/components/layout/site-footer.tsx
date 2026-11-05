@@ -94,10 +94,10 @@ export async function SiteFooter() {
           <div className="flex items-start gap-3">
             <Clock className="mt-0.5 size-4 shrink-0 text-gold-ink" />
             <ul className="space-y-0.5">
-              {b.hours.map((h) => (
+              {b.hours.map((h, i) => (
                 <li key={h.day} className="flex justify-between gap-4">
                   <span>{h.day}</span>
-                  <span className="text-right">{formatHours(h)}</span>
+                  <span className="text-right">{formatHours(h, i)}</span>
                 </li>
               ))}
             </ul>

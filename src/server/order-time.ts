@@ -1,5 +1,6 @@
 import type { DayHours } from "@/lib/data/site";
 import { ORDERING } from "@/lib/data/site";
+import { sessionDelivers } from "@/lib/hours";
 
 // All ordering times are UK local time (Europe/London), whatever timezone the server runs in
 // (Render runs in UTC). Handles the clock changes in March and October.
@@ -82,8 +83,11 @@ export interface OrderTiming {
  * scheduled times inside opening hours, after prep time and any pre-order notice, never on a
  * blackout date, up to a week ahead.
  */
-export function orderTiming(opts: { hours: DayHours[]; blackouts: string[]; leadHours: number; paused: boolean; now?: Date }): OrderTiming {
+export function orderTiming(opts: { hours: DayHours[]; blackouts: string[]; leadHours: number; paused: boolean; now?: Date; fulfilment?: "delivery" | "collection" }): OrderTiming {
   const now = opts.now ?? new Date();
+  // Delivery orders only in sessions that take deliveries (e.g. not at lunchtime); collection in any session.
+  const delivery = opts.fulfilment === "delivery";
+  const takes = (s: DayHours["sessions"][number], dow: number) => !delivery || sessionDelivers(s, dow);
   const today = ukParts(now);
   const leadMins = Math.max(0, opts.leadHours) * 60;
   const earliest = now.getTime() + Math.max(ORDERING.prepTimeMin, leadMins) * 60_000;
@@ -94,7 +98,9 @@ export function orderTiming(opts: { hours: DayHours[]; blackouts: string[]; lead
   else if (leadMins > 0) asap = { ok: false, reason: `Your basket has a dish that needs ${opts.leadHours} hours' notice, so please pick a time.` };
   else {
     const session = (opts.hours[today.dow]?.sessions ?? []).find((s) => today.minutes >= toMin(s.open) && today.minutes < toMin(s.close));
+    const laterDelivery = (opts.hours[today.dow]?.sessions ?? []).find((s) => toMin(s.open) > today.minutes && takes(s, today.dow));
     if (!session) asap = { ok: false, reason: "We're closed right now - you can schedule an order for later." };
+    else if (!takes(session, today.dow)) asap = { ok: false, reason: `We don't deliver at this time of day (${session.open}–${session.close}): choose Collection, or schedule a delivery${laterDelivery ? ` from ${laterDelivery.open}` : " for later"}.` };
     else if (today.minutes > toMin(session.close) - ORDERING.asapCutoffBeforeCloseMins) asap = { ok: false, reason: "We've stopped taking ASAP orders for this session - please pick a later time." };
     else asap = { ok: true };
   }
@@ -105,7 +111,7 @@ export function orderTiming(opts: { hours: DayHours[]; blackouts: string[]; lead
       const date = addDays(today.dateKey, i);
       if (opts.blackouts.includes(date)) continue;
       const times: string[] = [];
-      for (const s of opts.hours[dayOfWeek(date)]?.sessions ?? []) {
+      for (const s of (opts.hours[dayOfWeek(date)]?.sessions ?? []).filter((x) => takes(x, dayOfWeek(date)))) {
         const first = Math.ceil((toMin(s.open) + ORDERING.prepTimeMin) / STEP_MINS) * STEP_MINS;
         const last = toMin(s.close) - STEP_MINS;
         for (let t = first; t <= last; t += STEP_MINS) {

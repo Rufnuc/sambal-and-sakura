@@ -1,4 +1,4 @@
-import { RESTAURANT, type DayHours } from "@/lib/data/site";
+import { RESTAURANT, type DayHours, type HoursSession } from "@/lib/data/site";
 
 export interface OpenState {
   open: boolean;
@@ -13,10 +13,22 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
-/** Human-readable hours for a day, e.g. "11:30–14:00, 17:00–22:00" or "Closed". */
-export function formatHours(day: DayHours): string {
+/**
+ * Does this session take delivery orders? Collection always can. A session the owner hasn't set follows the
+ * usual rule: no delivery at lunchtime (a session ending by 16:00) Monday-Saturday; Sunday delivers all day.
+ * `dow`: 0 = Sunday.
+ */
+export function sessionDelivers(s: HoursSession, dow: number): boolean {
+  return s.delivery ?? (dow === 0 || toMinutes(s.close) > 16 * 60);
+}
+
+/**
+ * Human-readable hours for a day, e.g. "11:30–14:00, 17:00–22:00" or "Closed". With `dow` (0 = Sunday),
+ * sessions without delivery say so: "11:30–14:00 (collection only), 17:00–22:00".
+ */
+export function formatHours(day: DayHours, dow?: number): string {
   if (!day.sessions.length) return "Closed";
-  return day.sessions.map((s) => `${s.open}–${s.close}`).join(", ");
+  return day.sessions.map((s) => `${s.open}–${s.close}${dow !== undefined && !sessionDelivers(s, dow) ? " (collection only)" : ""}`).join(", ");
 }
 
 /**

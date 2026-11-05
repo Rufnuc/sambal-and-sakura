@@ -52,10 +52,10 @@ export default async function ContactPage() {
               <OpenStatus compact />
             </div>
             <ul className="space-y-1 text-sm">
-              {b.hours.map((h) => (
+              {b.hours.map((h, i) => (
                 <li key={h.day} className="flex justify-between border-b border-border/60 py-1 last:border-0">
                   <span className="text-muted-foreground">{h.day}</span>
-                  <span className={h.sessions.length ? "" : "text-muted-foreground"}>{formatHours(h)}</span>
+                  <span className={h.sessions.length ? "" : "text-muted-foreground"}>{formatHours(h, i)}</span>
                 </li>
               ))}
             </ul>

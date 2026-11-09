@@ -21,7 +21,7 @@ export function AuthDialog({
   onOpenChange: (o: boolean) => void;
   defaultMode?: "signin" | "signup";
 }) {
-  const { login, register, reactivate } = useAuth();
+  const { login, register, reactivate, loyalty } = useAuth();
   const { locale } = useLocale();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(defaultMode);
   const [forgotSent, setForgotSent] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export function AuthDialog({
     if (mode === "signup" && !res.ok) { setHumanToken(""); setResetKey((n) => n + 1); }
     if (res.ok) {
       if (mode === "signup") clearRef();
-      toast.success(mode === "signin" ? "Welcome back!" : referral && refCode ? `Account created - your friend's ${gbpShort(referral.give)} off is in your rewards (food ${gbpShort(referral.minSpend)}+, first order).` : "Account created - welcome! Your 50 bonus points unlock with your first completed order.");
+      toast.success(mode === "signin" ? "Welcome back!" : referral && refCode ? `Account created - your friend's ${gbpShort(referral.give)} off is in your rewards (food ${gbpShort(referral.minSpend)}+, first order).` : loyalty.welcomePoints > 0 ? `Account created - welcome! Your ${loyalty.welcomePoints} bonus points unlock with your first completed order.` : "Account created - welcome!");
       onOpenChange(false);
       setName(""); setEmail(""); setPhone(""); setPassword("");
     } else {
@@ -159,7 +159,7 @@ export function AuthDialog({
             {busy ? "Please wait…" : mode === "signin" ? "Sign in" : mode === "forgot" ? (forgotSent ? "Send again" : "Email me a reset link") : "Create account"}
           </Button>
           {mode === "forgot" && <button type="button" className="text-center text-sm text-muted-foreground underline" onClick={() => setMode("signin")}>Back to sign in</button>}
-          {mode === "signup" && <p className="text-center text-xs text-muted-foreground">Includes 50 bonus points, added when your first order is completed.</p>}
+          {mode === "signup" && loyalty.welcomePoints > 0 && <p className="text-center text-xs text-muted-foreground">Includes {loyalty.welcomePoints} bonus points, added when your first order is completed.</p>}
           {mode === "signup" && <p className="text-center text-xs text-muted-foreground">By creating an account you agree to our <Link href="/legal/terms" className="underline hover:text-gold-ink">Terms</Link> and <Link href="/legal/promotions" className="underline hover:text-gold-ink">Promotion Terms</Link>. See our <Link href="/legal/privacy" className="underline hover:text-gold-ink">Privacy Policy</Link>.</p>}
         </form>
       </DialogContent>

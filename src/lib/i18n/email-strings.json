@@ -53,6 +53,18 @@
     "vi": "Vui lòng chuẩn bị sẵn {total} tiền mặt.",
     "ja": "現金で{total}をご用意ください。"
   },
+  "pay.balance": {
+    "en": "Paid from your prepaid balance ({paid}). Nothing to pay on {type}.",
+    "zh": "已从您的预付余额中支付（{paid}）。{type}时无需再付款。",
+    "vi": "Đã thanh toán bằng số dư trả trước ({paid}). Không cần trả thêm khi {type}.",
+    "ja": "プリペイド残高からお支払い済みです（{paid}）。{type}時のお支払いはありません。"
+  },
+  "pay.balancePart": {
+    "en": "{paid} was paid from your prepaid balance. Please have the remaining {cash} in cash ready.",
+    "zh": "已从您的预付余额中支付 {paid}。请准备好剩余的现金 {cash}。",
+    "vi": "{paid} đã được trả bằng số dư trả trước. Vui lòng chuẩn bị sẵn {cash} tiền mặt còn lại.",
+    "ja": "{paid}はプリペイド残高からお支払い済みです。残りの{cash}を現金でご用意ください。"
+  },
   "pay.wechatPaid": {
     "en": "Paid by WeChat Pay.",
     "zh": "已通过微信支付付款。",

@@ -5,13 +5,11 @@ import { gbpShort } from "@/lib/format";
 import { getSiteContent } from "@/server/site-content";
 import { getCancelPolicy } from "@/server/cancellations";
 import { getPromotions } from "@/server/promotions";
-import { getReferralConfig, getMaxMiles, getDeliveryRules } from "@/server/config";
+import { getReferralConfig, getMaxMiles, getDeliveryRules, getLoyalty } from "@/server/config";
 import { wechatAvailable } from "@/server/wechat";
 import { ORDER_PII_DAYS, BOOKING_PII_DAYS, EVENT_DAYS } from "@/server/retention";
 import { CUSTOMER_SESSION_DAYS, STAFF_SESSION_HOURS } from "@/server/auth";
 import { REACTIVATE_DAYS } from "@/server/accounts";
-import { WELCOME_POINTS, REDEEM_STEP, REDEEM_VALUE, REDEEM_DAYS } from "@/server/points";
-import { LOYALTY_POINTS_PER_POUND } from "@/server/pricing";
 import { REFERRAL_REWARD_DAYS, QUALIFY_DAYS } from "@/server/referrals";
 
 // The website's legal pages (privacy, terms, cookies, promotions, accessibility).
@@ -35,15 +33,15 @@ const days = (n: number) => (n % 365 === 0 ? `${n / 365} year${n === 365 ? "" : 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 async function facts() {
-  const [{ business: b }, cancel, promos, referral, maxMiles, delivery] = await Promise.all([
-    getSiteContent(), getCancelPolicy(), getPromotions(), getReferralConfig(), getMaxMiles(), getDeliveryRules(),
+  const [{ business: b }, cancel, promos, referral, maxMiles, delivery, loyalty] = await Promise.all([
+    getSiteContent(), getCancelPolicy(), getPromotions(), getReferralConfig(), getMaxMiles(), getDeliveryRules(), getLoyalty(),
   ]);
   const env = process.env;
   return {
     phone: b.phone,
     email: b.email,
     address: formatAddress(b.address),
-    cancel, promos, referral, maxMiles, delivery,
+    cancel, promos, referral, maxMiles, delivery, loyalty,
     wechat: wechatAvailable(),
     // Which outside services are switched on (keys set), so the privacy policy lists only real recipients.
     on: {
@@ -271,9 +269,9 @@ function terms(f: Facts): LegalDoc {
         `You can deactivate your account (and restore it within ${REACTIVATE_DAYS} days) or close it permanently from the account page. Closing removes your personal details and unused points and rewards. The same email can't be used to sign up again.`,
       ] }] },
       { id: "points", h: "Loyalty points", body: [{ list: [
-        `When you order while signed in, you earn ${LOYALTY_POINTS_PER_POUND} points for every £1 of food (after discounts). Delivery fees don't earn points. New accounts also get ${WELCOME_POINTS} welcome points, which become usable after your first completed order.`,
+        `When you order while signed in, you earn ${f.loyalty.pointsPerPound} points for every £1 of food (after discounts). Delivery fees don't earn points.${f.loyalty.welcomePoints > 0 ? ` New accounts also get ${f.loyalty.welcomePoints} welcome points, which become usable after your first completed order.` : ""}`,
         "Points are pending until your order is completed. Points from a cancelled order are removed.",
-        `${REDEEM_STEP} points can be swapped for a ${gbpShort(REDEEM_VALUE)} voucher, which must be used within ${REDEEM_DAYS} days.`,
+        `${f.loyalty.redeemPoints} points can be swapped for a ${gbpShort(f.loyalty.redeemValue)} voucher, which must be used within ${f.loyalty.voucherDays} days.`,
         "Points and vouchers have no cash value and can't be transferred or sold.",
         "We may change or end the points scheme. We'll give account holders at least 30 days' notice by email first, so you can use your confirmed points.",
       ] }] },
@@ -384,7 +382,7 @@ function promotions(f: Facts): LegalDoc {
           : "Refer-a-friend isn't running at the moment. Rewards already given out can still be used until they expire.",
       ] },
       { id: "points", h: "Loyalty vouchers", body: [
-        `Points and points vouchers are explained in our [Terms & Conditions](/legal/terms#points). In short: ${REDEEM_STEP} points make a ${gbpShort(REDEEM_VALUE)} voucher, valid for ${REDEEM_DAYS} days.`,
+        `Points and points vouchers are explained in our [Terms & Conditions](/legal/terms#points). In short: ${f.loyalty.redeemPoints} points make a ${gbpShort(f.loyalty.redeemValue)} voucher, valid for ${f.loyalty.voucherDays} days.`,
       ] },
       { id: "contact", h: "Questions", body: [
         `Questions about a promotion: call ${f.phone} or email [${f.email}](mailto:${f.email}).`,

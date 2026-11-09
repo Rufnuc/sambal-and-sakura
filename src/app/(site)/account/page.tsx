@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { CopyCode } from "@/components/copy-code";
+import { PrepaidBalance } from "@/components/account/prepaid-balance";
 import { LazyAuthDialog as AuthDialog } from "@/components/account/lazy-auth-dialog";
 import { useAuth, LOYALTY, tierFor } from "@/lib/store/auth";
 import { OrderStatusPill } from "@/components/admin/ui";
@@ -34,6 +35,7 @@ export default function AccountPage() {
 }
 
 function SignedOut() {
+  const loyalty = useAuth((s) => s.loyalty);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   return (
@@ -41,7 +43,7 @@ function SignedOut() {
       <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-gold-ink"><UserIcon className="size-8" /></div>
       <h1 className="mt-5 font-display text-4xl font-extrabold tracking-tight">Your account</h1>
       <p className="mt-3 text-muted-foreground text-pretty">
-        Sign in to earn {LOYALTY.pointsPerPound} points per £1 on completed orders, save your rewards, and track your orders and bookings.
+        Sign in to earn {loyalty.pointsPerPound} points per £1 on completed orders, save your rewards, and track your orders and bookings.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button className="h-12 px-6 font-semibold" onClick={() => { setMode("signup"); setOpen(true); }}>Create account</Button>
@@ -57,7 +59,7 @@ function Card({ children, className, id }: { children: React.ReactNode; classNam
 }
 
 function Dashboard() {
-  const { user, rewards, logout, redeemPoints, updateProfile } = useAuth();
+  const { user, rewards, logout, redeemPoints, updateProfile, loyalty } = useAuth();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [bookings, setBookings] = useState<ApiBooking[]>([]);
   const [editing, setEditing] = useState(false);
@@ -75,11 +77,11 @@ function Dashboard() {
   const { current, next } = tierFor(user.points);
   const progress = next ? Math.min(100, ((user.points - current.min) / (next.min - current.min)) * 100) : 100;
   const activeRewards = rewards.filter((r) => r.active ?? !r.used); // the server leaves out expired ones and ended campaigns
-  const canRedeem = user.points >= LOYALTY.redeemStep;
+  const canRedeem = user.points >= loyalty.redeemStep;
 
   async function redeem() {
     const res = await redeemPoints();
-    if (res.ok) toast.success(`Redeemed ${LOYALTY.redeemStep} points for ${gbp(LOYALTY.redeemValue)} off!`);
+    if (res.ok) toast.success(`Redeemed ${loyalty.redeemStep} points for ${gbp(loyalty.redeemValue)} off!`);
     else toast.error(res.error ?? "Could not redeem.");
   }
   async function saveProfile() {
@@ -122,17 +124,19 @@ function Dashboard() {
             </div>
           </div>
           <Button className="h-11 gap-2" disabled={!canRedeem} onClick={redeem}>
-            <Gift className="size-4" /> Redeem {LOYALTY.redeemStep} pts → {gbp(LOYALTY.redeemValue)} off
+            <Gift className="size-4" /> Redeem {loyalty.redeemStep} pts → {gbp(loyalty.redeemValue)} off
           </Button>
         </div>
         <div className="mt-5">
           <Progress value={progress} className="h-2" />
           <p className="mt-2 text-sm text-muted-foreground">
             {next ? <>{next.min - user.points} points to <span className="font-medium text-foreground">{next.name}</span></> : <>You've reached the top tier - {current.name}!</>}
-            {" · "}Earn {LOYALTY.pointsPerPound} pts per £1 on completed orders.
+            {" · "}Earn {loyalty.pointsPerPound} pts per £1 on completed orders.
           </p>
         </div>
       </Card>
+
+      <PrepaidBalance />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card id="rewards">

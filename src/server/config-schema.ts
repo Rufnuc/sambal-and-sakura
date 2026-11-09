@@ -240,3 +240,12 @@ export const onlineDiscountSchema = z.object({
   pauseFirstOrderCodes: z.boolean(),
   message: z.string().trim().min(5, "Write the message customers see (at least a few words).").max(160).transform((v) => v.replace(/[<>]/g, "")),
 }).strict().nullable();
+
+// Loyalty points (Admin -> Promotions).
+export const loyaltySchema = z.object({
+  pointsPerPound: z.number().finite().min(0, "Points per £1 can't be negative.").max(100),
+  redeemPoints: z.number().int("Points to redeem must be a whole number.").min(1).max(100000),
+  redeemValue: z.number().finite().min(0.5, "A points voucher must be worth at least £0.50.").max(500),
+  voucherDays: z.number().int().min(1).max(730),
+  welcomePoints: z.number().int().min(0).max(100000),
+}).strict();

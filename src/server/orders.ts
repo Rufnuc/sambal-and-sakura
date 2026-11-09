@@ -2,9 +2,9 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import type { User } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { getBlackouts, getDisabledZones, getOrdersPaused } from "@/server/settings";
-import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules, getWheelPrizes, getOnlineDiscount, activeOnlineDiscount, onlineDiscountMessage, type OnlineDiscount } from "@/server/config";
+import { getEffectiveMenu, getZones, getMaxMiles, getOffers, getDeliveryRules, getWheelPrizes, getLoyalty, getOnlineDiscount, activeOnlineDiscount, onlineDiscountMessage, type OnlineDiscount } from "@/server/config";
 import { getSiteContent } from "@/server/site-content";
-import { computeTotals, offerVoucher, isValidPostcodeServer, LOYALTY_POINTS_PER_POUND, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
+import { computeTotals, offerVoucher, isValidPostcodeServer, type IncomingLine, type Totals, type Voucher } from "@/server/pricing";
 import { orderTiming, checkWhen, type OrderTiming } from "@/server/order-time";
 import { phoneKey, canonicalPhone } from "@/server/phone";
 import { orderRef, withFreshIds, isUniqueViolation } from "@/server/ids";
@@ -17,6 +17,7 @@ import { getCancelPolicy, countCancellations, customerCanCancel } from "@/server
 import { rewardReferrerIfQualified, emailReferralReward } from "@/server/referrals";
 import { getPromotions, rewardUsableUntil, type Promotions } from "@/server/promotions";
 import { printCancellation } from "@/server/print";
+import { balanceUsable, changeBalance, toPence, toPounds, BalanceError } from "@/server/balance";
 import { RESTAURANT, type Offer } from "@/lib/data/site";
 
 export class OrderError extends Error {
@@ -55,6 +56,7 @@ export interface QuoteInput {
   postcode?: string;
   voucherCode?: string;
   phone?: string;
+  useBalance?: boolean;
 }
 
 export interface Quote extends Omit<Totals, "zone"> {
@@ -65,6 +67,11 @@ export interface Quote extends Omit<Totals, "zone"> {
   voucherError: string | null;
   voucherNote: string | null; // e.g. the code wasn't needed because the online discount saved more
   online: { pctOff: number; label: string; message: string; appliesTo: OnlineDiscount["appliesTo"]; minSpend: number } | null; // null = not running
+  // The signed-in customer's prepaid balance, if they can use it (null otherwise: nothing is shown).
+  balance: { available: number; pct: number } | null;
+  balanceDiscount: number; // the customer's balance % (part of `discount`), only when paying from the balance
+  balancePaid: number;     // taken from the balance
+  cashDue: number;         // what's left to pay on delivery / collection (total - balancePaid)
   timing: OrderTiming;
 }
 
@@ -150,6 +157,16 @@ export async function buildQuote(input: QuoteInput, user: User | null, opts: { c
     if (problem) { voucherError = problem; voucher = null; }
   }
   const totals = computeTotals({ lines: input.lines, fulfilment: input.fulfilment, postcode: input.postcode, voucher, online, disabledZones, menu, zones, delivery, autoFreeItem: promos.offers.enabled });
+  // Paying from the prepaid balance (only customers who accepted its terms): their % comes off the food
+  // (after other discounts), then as much of the total as the balance covers; the rest is paid as normal.
+  const canUseBalance = !!user && balanceUsable(user) && user.balancePence > 0;
+  let balanceDiscount = 0, balancePaid = 0;
+  if (canUseBalance && input.useBalance && totals.subtotal > 0) {
+    balanceDiscount = Math.round((totals.subtotal - totals.discount) * user!.balanceDiscountPct) / 100;
+    totals.discount = Math.round((totals.discount + balanceDiscount) * 100) / 100;
+    totals.total = Math.round(Math.max(0, totals.subtotal + totals.deliveryFee - totals.discount) * 100) / 100;
+    balancePaid = Math.min(toPounds(user!.balancePence), totals.total);
+  }
   const leadHours = Math.max(0, ...input.lines.map((l) => menu.find((m) => m.id === l.itemId)?.leadTimeHours ?? 0));
   const timing = orderTiming({ hours: site.business.hours, blackouts, leadHours, paused, fulfilment: input.fulfilment });
   const v = voucher ?? null;
@@ -164,6 +181,9 @@ export async function buildQuote(input: QuoteInput, user: User | null, opts: { c
       voucherError,
       voucherNote: v && totals.codeBeaten ? `${v.code} isn't needed: the ${online!.pctOff}% online discount saves you more, so we've used that (your code is kept).` : null,
       online: online ? { pctOff: online.pctOff, label: onlineDiscountLabel(online.pctOff), message: onlineDiscountMessage(online), appliesTo: online.appliesTo, minSpend: online.minSpend } : null,
+      balance: canUseBalance ? { available: toPounds(user!.balancePence), pct: user!.balanceDiscountPct } : null,
+      balanceDiscount, balancePaid,
+      cashDue: Math.round((totals.total - balancePaid) * 100) / 100,
       timing,
     },
   };
@@ -216,6 +236,10 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
     throw new OrderError(`Your basket changed: ${names} ${quote.issues.length === 1 ? "is" : "are"} no longer available as chosen. Please review your basket.`, 409, { quote });
   }
   if (input.voucherCode && quote.voucherError) throw new OrderError(quote.voucherError, 400, { quote });
+  if (input.useBalance && !quote.balance) throw new OrderError("Your prepaid balance can't be used right now. Please refresh and check your order.", 409, { quote });
+  if (input.useBalance && input.payMethod === "wechat") throw new OrderError("When paying from your balance, any amount left is paid in cash.", 400, { quote });
+  const paidByBalance = quote.balancePaid > 0;
+  const fullyPaid = paidByBalance && quote.cashDue <= 0;
   if (quote.lines.length === 0) throw new OrderError("No valid items in your order.");
   if (!quote.minMet) throw new OrderError(`The minimum for delivery is £${quote.minOrder.toFixed(2)} of food.`);
 
@@ -251,16 +275,16 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
   }
 
   // (No "new customer - call to confirm" flag: the owner chose not to phone first-time customers.)
-  if (input.payMethod === "cash" && quote.total >= LARGE_ORDER_GBP) flags.push("large-order");
+  if (input.payMethod === "cash" && quote.cashDue >= LARGE_ORDER_GBP) flags.push("large-order");
 
   // People who often cancel or don't collect: flag the ticket, and (if the owner chose it) no cash delivery.
   if (cancels >= policy.flagAt) flags.push("frequent-canceller");
-  if (cancels >= policy.restrictAt && policy.restrictAction === "block-cash-delivery" && input.payMethod === "cash" && delivery) {
+  if (cancels >= policy.restrictAt && policy.restrictAction === "block-cash-delivery" && input.payMethod === "cash" && !fullyPaid && delivery) {
     throw new OrderError("Because of recent cancelled or uncollected orders, we can't take a cash delivery order right now. Please choose collection, or call us.", 409);
   }
 
   // Points: earned on the food you paid for (not delivery), pending until the order is completed.
-  const pointsEarned = user ? Math.max(0, Math.round((quote.subtotal - quote.discount) * LOYALTY_POINTS_PER_POUND)) : 0;
+  const pointsEarned = user ? Math.max(0, Math.round((quote.subtotal - quote.discount) * (await getLoyalty()).pointsPerPound)) : 0;
   const payToken = input.payMethod === "wechat" ? randomBytes(24).toString("hex") : null;
 
   try {
@@ -280,7 +304,9 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
           notes: input.notes || null,
           whenType: when.whenType, scheduledTime: when.label, scheduledAt: when.scheduledAt,
           etaMins: quote.zone?.etaMins ?? 25, pointsEarned,
-          paymentMethod: input.payMethod, paymentStatus: "unpaid",
+          // Fully paid from the prepaid balance: nothing to collect. Part-paid: the rest is cash.
+          paymentMethod: fullyPaid ? "balance" : input.payMethod, paymentStatus: fullyPaid ? "paid" : "unpaid",
+          balanceDiscount: quote.balanceDiscount, balancePaid: quote.balancePaid,
           payToken: payToken ? sha256(payToken) : null,
           idempotencyKey: input.idempotencyKey || null,
           printStatus: "pending", // WeChat orders print once paid (see the WeChat notify route)
@@ -290,6 +316,8 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
         },
         include: { lines: true },
       });
+      // Take it off the prepaid balance in the same transaction: if the balance changed meanwhile, nothing is saved.
+      if (paidByBalance) await changeBalance(tx, user!.id, -toPence(quote.balancePaid), { kind: "order", orderId: created.id });
       if (voucher && quote.voucherApplied) {
         if (ownedRewardId) {
           // Guarded: if two checkouts race with the same reward, only one can flip it to used.
@@ -315,6 +343,7 @@ export async function createOrder(input: CreateOrderInput, user: User | null) {
     return { order, payToken, replay: false };
   } catch (e) {
     if (e instanceof OrderError) throw e;
+    if (e instanceof BalanceError) throw new OrderError("Your balance has changed since you started. Please check your order and place it again.", 409);
     if (isUniqueViolation(e, "group")) throw new OrderError("That offer has already been used with this phone number.", 409);
     if (isUniqueViolation(e, "idempotencyKey") && input.idempotencyKey) {
       const existing = await prisma.order.findUnique({ where: { idempotencyKey: input.idempotencyKey }, include: { lines: true } });
@@ -366,10 +395,14 @@ export async function changeOrderStatus(orderId: string, to: string, actor: Audi
       await reverseOrderPoints(tx, orderId, order.userId);
       await tx.reward.updateMany({ where: { orderId }, data: { used: false, usedAt: null, orderId: null } });
       await tx.voucherRedemption.deleteMany({ where: { orderId } });
+      // Paid (partly) from the prepaid balance: the money goes back onto it (once).
+      if (order.balancePaid > 0 && order.userId && !(await tx.balanceEntry.findFirst({ where: { orderId, kind: "reversal" } }))) {
+        await changeBalance(tx, order.userId, toPence(order.balancePaid), { kind: "reversal", orderId });
+      }
     }
     await audit({ actor, action: "order.status", entity: "order", entityId: orderId, detail: { from: order.status, to, reason: opts.reason, cancelKind: to === "cancelled" ? opts.cancelKind ?? "staff" : undefined }, ip: opts.ip }, tx);
 
-    if (to === "cancelled" && order.paymentStatus === "paid") {
+    if (to === "cancelled" && order.paymentMethod === "wechat" && order.paymentStatus === "paid") {
       void alertOwner(`refund:${orderId}`, `Order ${orderId} was cancelled but was paid by WeChat (£${order.total.toFixed(2)}). Refund it in the WeChat Pay merchant platform.`);
     }
     return { updated: await tx.order.findUnique({ where: { id: orderId }, include: { lines: true } }), before: order, referralRewarded };

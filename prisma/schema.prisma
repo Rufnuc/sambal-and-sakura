@@ -33,6 +33,13 @@ model User {
   // Set when they click the link in the sign-up email (or complete a password reset, which proves the same).
   // Ordering never waits for it; marketing emails do.
   emailVerifiedAt  DateTime?
+  // Prepaid balance: only for customers the owner offers it to, and usable only once they've accepted
+  // the separate prepaid-balance terms (server/balance.ts). Money is kept in pence so it never drifts.
+  balanceStatus          String    @default("none") // none | offered | active | declined
+  balancePence           Int       @default(0)
+  balanceDiscountPct     Float     @default(0)      // % off the food on orders paid from the balance (set per customer)
+  balanceTermsVersion    String?                    // the version of the prepaid-balance terms they accepted
+  balanceTermsAcceptedAt DateTime?
 
   orders        Order[]
   bookings      Booking[]
@@ -43,6 +50,24 @@ model User {
   referralsMade Referral[]  @relation("referralsMade")
   referredBy    Referral?   @relation("referredBy")
   authTokens    AuthToken[]
+  balanceEntries BalanceEntry[]
+}
+
+// Every change to a customer's prepaid balance: money added, spent on an order or eat-in bill, refunded.
+model BalanceEntry {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountPence       Int      // + money in, - money out
+  kind              String   // topup | order | dine-in | refund | reversal
+  orderId           String?
+  method            String?  // how money came in or went back: cash | card | bank
+  note              String?
+  staffEmail        String?  // who did it (staff actions)
+  balanceAfterPence Int
+  createdAt         DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // One-time links emailed to a customer: "confirm your email" and "reset your password".
@@ -87,6 +112,8 @@ model Order {
   discount      Float       @default(0)        // every discount on the order (online discount + any code)
   onlineDiscount      Float   @default(0)        // the part of `discount` that is the online order discount
   onlineDiscountLabel String?                    // e.g. "Online order discount (10%)", as it was when ordered
+  balanceDiscount Float   @default(0)              // the customer's prepaid-balance % (part of `discount`)
+  balancePaid   Float     @default(0)              // taken from the prepaid balance; the rest of `total` is paid as normal
   handoverCode  String?                          // 4 digits the customer gives the driver / counter (kitchen ticket only, never the bag receipt)
   total         Float
   voucherCode   String?

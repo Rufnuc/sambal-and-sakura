@@ -20,6 +20,8 @@ export interface Account {
   emailVerified?: boolean; // clicked the link in the sign-up email
 }
 
+// pointsPerPound / redeemStep / redeemValue are only the starting values: the live ones are set in
+// Admin -> Promotions and arrive with /api/auth/me (useAuth().loyalty).
 export const LOYALTY = {
   pointsPerPound: 10,
   redeemStep: 100,
@@ -44,8 +46,11 @@ export function tierFor(points: number) {
 
 type Result = { ok: boolean; error?: string; deactivated?: boolean; reactivateBy?: string };
 
+export interface LoyaltyValues { pointsPerPound: number; redeemStep: number; redeemValue: number; welcomePoints: number }
+
 interface AuthState {
   user: Account | null;
+  loyalty: LoyaltyValues;
   rewards: Reward[];
   loaded: boolean;
   refresh: () => Promise<void>;
@@ -69,6 +74,7 @@ async function postJson(url: string, body?: unknown) {
 
 export const useAuth = create<AuthState>()((set, get) => ({
   user: null,
+  loyalty: { pointsPerPound: LOYALTY.pointsPerPound, redeemStep: LOYALTY.redeemStep, redeemValue: LOYALTY.redeemValue, welcomePoints: 50 },
   rewards: [],
   loaded: false,
 
@@ -76,7 +82,7 @@ export const useAuth = create<AuthState>()((set, get) => ({
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       const data = await res.json();
-      set({ user: data.user ?? null, rewards: data.rewards ?? [], loaded: true });
+      set({ user: data.user ?? null, rewards: data.rewards ?? [], loaded: true, ...(data.loyalty ? { loyalty: data.loyalty } : {}) });
     } catch {
       set({ loaded: true });
     }

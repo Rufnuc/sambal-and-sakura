@@ -10,7 +10,7 @@ import { formatAddress } from "@/lib/site-content";
 import { SITE_URL } from "@/lib/site-url";
 import { getSiteContent } from "@/server/site-content";
 import { getOnlineDiscount, activeOnlineDiscount, onlineDiscountMessage } from "@/server/config";
-import { renderKitchenTicket, renderCancelTicket, renderCustomerReceipt, sampleTicketOrder, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
+import { renderKitchenTicket, renderCancelTicket, renderCustomerReceipt, sampleTicketOrder, cashDue, FLAG_TEXT, type TicketOrder } from "@/server/ticket";
 import { log, alertOwner } from "@/server/log";
 
 export type { TicketOrder };
@@ -48,6 +48,8 @@ function renderText(o: TicketOrder): string {
   out.push("#".repeat(W));
   if (wechatFirst && o.paymentStatus === "paid") { out.push(center("PAID - WECHAT PAY")); out.push(center("DO NOT COLLECT CASH")); }
   else if (wechatFirst) { out.push(center("WECHAT - NOT PAID YET")); out.push(center("Check before handing over")); }
+  else if ((o.balancePaid ?? 0) > 0 && cashDue(o) === 0) { out.push(center("PAID FROM BALANCE")); out.push(center("DO NOT COLLECT CASH")); }
+  else if ((o.balancePaid ?? 0) > 0) { out.push(center(`CASH ${money(cashDue(o))}`)); out.push(center(`${money(o.balancePaid!)} PAID FROM BALANCE`)); out.push(center(isDelivery ? "COLLECT ONLY THE CASH ABOVE" : "TAKE ONLY THE CASH ABOVE")); }
   else { out.push(center(`CASH ${money(o.total)}`)); out.push(center(isDelivery ? "COLLECT ON DELIVERY" : "PAY ON COLLECTION")); }
   out.push("#".repeat(W));
   if (o.handoverCode) { out.push(center("ASK THE CUSTOMER FOR THEIR CODE")); out.push(center(`CODE ${o.handoverCode}`)); out.push("#".repeat(W)); }
@@ -68,8 +70,11 @@ function renderText(o: TicketOrder): string {
   if (o.deliveryFee > 0) out.push(row("Delivery", money(o.deliveryFee)));
   const online = o.onlineDiscount ?? 0;
   if (online > 0) out.push(row((o.onlineDiscountLabel ?? "Online order discount").slice(0, W - 9), "-" + money(online)));
-  if (o.discount - online > 0.004) out.push(row(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount - online)));
+  const bal = o.balanceDiscount ?? 0;
+  if (bal > 0) out.push(row("Balance discount", "-" + money(bal)));
+  if (o.discount - online - bal > 0.004) out.push(row(`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(o.discount - online - bal)));
   out.push(row("TOTAL", money(o.total)));
+  if ((o.balancePaid ?? 0) > 0) { out.push(row("Paid from balance", "-" + money(o.balancePaid!))); out.push(row("CASH TO COLLECT", money(cashDue(o)))); }
   out.push(rule);
   if (o.notes) { out.push("CUSTOMER NOTE (not payment info):"); out.push(o.notes); out.push(rule); }
   out.push(center(`Prep approx ${o.etaMins} min`));
@@ -121,7 +126,8 @@ async function loadTicket(id: string): Promise<TicketOrder | null> {
     address: o.address, postcode: o.postcode, notes: o.notes,
     whenType: o.whenType, scheduledTime: o.scheduledTime, etaMins: o.etaMins,
     subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
-    voucherCode: o.voucherCode, onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, handoverCode: o.handoverCode, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
+    voucherCode: o.voucherCode, onlineDiscount: o.onlineDiscount, onlineDiscountLabel: o.onlineDiscountLabel, handoverCode: o.handoverCode,
+    balanceDiscount: o.balanceDiscount, balancePaid: o.balancePaid, paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus, lines: o.lines,
     flags, createdAt: o.createdAt, pointsEarned: o.pointsEarned,
   };
 }

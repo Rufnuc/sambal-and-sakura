@@ -14,6 +14,7 @@ import {
   getCategories, setCategories,
   getCustomDishes, setCustomDishes, getMenuVersion,
   getOnlineDiscount, setOnlineDiscount, type OnlineDiscount,
+  getLoyalty, setLoyalty, type LoyaltyConfig,
   type MenuOverrides, type ZoneConfig, type JobPosting, type DealOfDay, type ReferralConfig, type DeliveryRules,
 } from "@/server/config";
 import { TESTIMONIALS, type Offer, type WheelPrize } from "@/lib/data/site";
@@ -22,7 +23,7 @@ import { MENU, categoryLabel, type MenuCategoryCfg, type MenuItem } from "@/lib/
 const SAMPLE_REVIEW_TEXTS = new Set(TESTIMONIALS.map((t) => t.text.trim()));
 import { getSiteContent, getSiteContentVersion, setSiteContent } from "@/server/site-content";
 import {
-  menuOverridesSchema, categoriesSchema, customDishesSchema, zonesSchema, offersSchema, wheelPrizesSchema, careersSchema, dealSchema, referralSchema, deliveryRulesSchema, onlineDiscountSchema, firstIssue,
+  menuOverridesSchema, categoriesSchema, customDishesSchema, zonesSchema, offersSchema, wheelPrizesSchema, careersSchema, dealSchema, referralSchema, deliveryRulesSchema, onlineDiscountSchema, loyaltySchema, firstIssue,
 } from "@/server/config-schema";
 import { audit } from "@/server/audit";
 import { refreshMenuPages } from "@/server/menu-pages";
@@ -33,12 +34,12 @@ import { getPromotions, setPromotions, promotionsSchema, type PromotionsInput } 
 // Owner-only: prices, menu, offers, wheel, careers, zones and site content.
 export async function GET() {
   if (!(await adminUser())) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const [referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, promotions, delivery, categories, customDishes, onlineDiscount] = await Promise.all([
+  const [referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, promotions, delivery, categories, customDishes, onlineDiscount, loyalty] = await Promise.all([
     getReferralConfig(), getZones(), getOffers(), getWheelPrizes(), getMenuOverrides(),
-    getCareers(), getDeal(), getMaxMiles(), getSiteContent(), getPromotions(), getDeliveryRules(), getCategories(), getCustomDishes(), getOnlineDiscount(),
+    getCareers(), getDeal(), getMaxMiles(), getSiteContent(), getPromotions(), getDeliveryRules(), getCategories(), getCustomDishes(), getOnlineDiscount(), getLoyalty(),
   ]);
   const [siteVersion, menuVersion] = await Promise.all([getSiteContentVersion(), getMenuVersion()]);
-  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions, delivery, categories, customDishes, menuVersion, onlineDiscount });
+  return NextResponse.json({ referral, zones, offers, wheelPrizes, menuOverrides, careers, deal, maxMiles, site, siteVersion, promotions, delivery, categories, customDishes, menuVersion, onlineDiscount, loyalty });
 }
 
 type Block = { key: string; label: string; schema: z.ZodType; save: (v: never) => Promise<void> };
@@ -54,6 +55,7 @@ const BLOCKS: Block[] = [
   { key: "menuOverrides", label: "Menu", schema: menuOverridesSchema, save: (v: MenuOverrides) => setMenuOverrides(v) },
   { key: "careers", label: "Careers", schema: careersSchema, save: (v: JobPosting[]) => setCareers(v) },
   { key: "deal", label: "Deal of the Day", schema: dealSchema, save: (v: DealOfDay) => setDeal(v) },
+  { key: "loyalty", label: "Loyalty points", schema: loyaltySchema, save: (v: LoyaltyConfig) => setLoyalty(v) },
   { key: "onlineDiscount", label: "Online order discount", schema: onlineDiscountSchema, save: (v: OnlineDiscount | null) => setOnlineDiscount(v) },
   { key: "promotions", label: "Campaigns", schema: promotionsSchema, save: async (v: PromotionsInput) => { await setPromotions(v); } },
 ] as Block[];

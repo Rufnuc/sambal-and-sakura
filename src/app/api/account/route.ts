@@ -43,12 +43,19 @@ export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (new URL(req.url).searchParams.get("export") !== "1") return NextResponse.json({ user: publicUser(user) });
-  const [orders, bookings, rewards, points] = await Promise.all([
+  const [orders, bookings, rewards, points, balance] = await Promise.all([
     prisma.order.findMany({ where: { userId: user.id }, include: { lines: true }, orderBy: { createdAt: "desc" } }),
     prisma.booking.findMany({ where: { userId: user.id }, orderBy: { date: "desc" } }),
     prisma.reward.findMany({ where: { userId: user.id } }),
     prisma.pointsEntry.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+    prisma.balanceEntry.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
   ]);
+  // Prepaid balance (only if it was ever offered): status, amount and every change, in pounds.
+  const prepaidBalance = user.balanceStatus === "none" && balance.length === 0 ? undefined : {
+    status: user.balanceStatus, balance: user.balancePence / 100, discountPct: user.balanceDiscountPct,
+    termsVersion: user.balanceTermsVersion, termsAcceptedAt: user.balanceTermsAcceptedAt,
+    history: balance.map((e) => ({ at: e.createdAt, kind: e.kind, amount: e.amountPence / 100, balanceAfter: e.balanceAfterPence / 100, orderId: e.orderId, method: e.method, note: e.note })),
+  };
   // ?export=1&format=pdf: the same, as a readable PDF (the account page's main "Download my data" button).
   if (new URL(req.url).searchParams.get("format") === "pdf") {
     const pdf = await dataExportPdf({ account: user, orders, bookings, rewards, points });
@@ -57,7 +64,7 @@ export async function GET(req: Request) {
     });
   }
   const strip = <T extends Record<string, unknown>>(o: T) => { const { payToken: _a, idempotencyKey: _b, flags: _c, printError: _d, ...r } = o; return r; };
-  return new NextResponse(JSON.stringify({ exportedAt: new Date().toISOString(), account: publicUser(user), orders: orders.map(strip), bookings, rewards, points }, null, 2), {
+  return new NextResponse(JSON.stringify({ exportedAt: new Date().toISOString(), account: publicUser(user), orders: orders.map(strip), bookings, rewards, points, prepaidBalance }, null, 2), {
     headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="sambal-sakura-my-data.json"`, "Cache-Control": "no-store" },
   });
 }
@@ -74,6 +81,10 @@ export async function DELETE(req: Request) {
   if (limited) return limited;
   if (!password || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.json({ error: "Password is incorrect." }, { status: 400 });
+  }
+  // Money still held on a prepaid balance must be refunded before the account (and its records) close.
+  if (user.balancePence > 0) {
+    return NextResponse.json({ error: `You still have £${(user.balancePence / 100).toFixed(2)} on your prepaid balance. Please ask the restaurant to refund it before closing your account.` }, { status: 409 });
   }
   await closeAccount(user, "deleted");
   await destroySession();

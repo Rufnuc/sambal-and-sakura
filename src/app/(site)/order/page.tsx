@@ -26,7 +26,7 @@ import { telHref } from "@/lib/site-content";
 import { isValidPostcode, deliveryHintText, type DeliveryHint } from "@/lib/order";
 import { gbp } from "@/lib/format";
 import { track } from "@/lib/analytics";
-import { useAuth, LOYALTY } from "@/lib/store/auth";
+import { useAuth } from "@/lib/store/auth";
 import { cn } from "@/lib/utils";
 
 export interface ApiOrder {
@@ -45,6 +45,7 @@ export interface ApiOrder {
   onlineDiscount?: number;
   onlineDiscountLabel?: string | null;
   handoverCode?: string | null;
+  balancePaid?: number;
 }
 
 export type PayMethod = "cash" | "wechat";
@@ -60,6 +61,8 @@ interface Quote {
   voucherError: string | null;
   voucherNote: string | null;
   online: { pctOff: number; label: string; message: string; appliesTo: "all" | "delivery" | "collection"; minSpend: number } | null;
+  balance: { available: number; pct: number } | null; // only for customers who accepted the prepaid-balance terms
+  balanceDiscount: number; balancePaid: number; cashDue: number;
   timing: { paused: boolean; asap: { ok: boolean; reason?: string }; leadHours: number; days: { date: string; label: string; times: string[] }[] };
 }
 
@@ -93,9 +96,10 @@ function newKey() {
 function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, payToken: string | null, trackPath: string | null) => void }) {
   const { lines, fulfilment, setFulfilment, postcode, setPostcode, setQty, removeLine, clear } = useCart();
   const { menu } = useMenu();
-  const { user, refresh } = useAuth();
+  const { user, refresh, loyalty } = useAuth();
   const { locale } = useLocale();
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
+  const [useBalance, setUseBalance] = useState(true); // pay from the prepaid balance, when the customer has one
   const [wechatOk, setWechatOk] = useState(false);
   const [deliveryHint, setDeliveryHint] = useState<DeliveryHint | null>(null);
   useEffect(() => {
@@ -145,7 +149,8 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
     postcode: fulfilment === "delivery" && postcodeValid ? postcode : undefined,
     voucherCode: appliedCode || undefined,
     phone: appliedCode && phone.trim().length >= 7 ? phone.trim() : undefined,
-  }), [lines, fulfilment, postcode, postcodeValid, appliedCode, phone]);
+    useBalance: useBalance || undefined,
+  }), [lines, fulfilment, postcode, postcodeValid, appliedCode, phone, useBalance]);
 
   useEffect(() => {
     if (lines.length === 0) return;
@@ -240,7 +245,8 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
       whenType: when.kind,
       scheduledFor: when.kind === "scheduled" ? `${when.date} ${when.time}` : undefined,
       voucherCode: q.voucher?.code,
-      payMethod: effectiveMethod,
+      payMethod: q.balancePaid > 0 ? "cash" : effectiveMethod, // any amount the balance doesn't cover is cash
+      useBalance: q.balancePaid > 0 || undefined,
       expectedTotal: q.total,
       idempotencyKey: idempotencyKey.current,
       locale, // emails come in the language they're using
@@ -387,7 +393,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
           </div>
           {!user && (
             <p className="mt-3 rounded-lg bg-gold/10 px-3 py-2 text-xs text-foreground">
-              <Star className="mr-1 inline size-3.5 text-gold-ink" /> Create an account to earn {LOYALTY.pointsPerPound} points per £1 on completed orders and save rewards.
+              <Star className="mr-1 inline size-3.5 text-gold-ink" /> Create an account to earn {loyalty.pointsPerPound} points per £1 on completed orders and save rewards.
             </p>
           )}
         </Card>
@@ -457,12 +463,31 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
             <Row label="Subtotal" value={gbp(q?.subtotal ?? localSubtotal)} />
             {fulfilment === "delivery" && <Row label="Delivery" value={!q || !postcodeValid ? "Enter postcode" : q.deliveryFee === 0 ? "Free" : gbp(q.deliveryFee)} />}
             {!!q?.onlineDiscount && q.online && <Row label={q.online.label} value={`− ${gbp(q.onlineDiscount)}`} accent />}
-            {!!q && q.discount - q.onlineDiscount > 0.004 && <Row label={q.voucher?.applied ? `Discount (${q.voucher.code})` : "Discount"} value={`− ${gbp(q.discount - q.onlineDiscount)}`} accent />}
+            {!!q?.balanceDiscount && <Row label={`Prepaid balance discount (${q.balance?.pct ?? 0}%)`} value={`− ${gbp(q.balanceDiscount)}`} accent />}
+            {!!q && q.discount - q.onlineDiscount - q.balanceDiscount > 0.004 && <Row label={q.voucher?.applied ? `Discount (${q.voucher.code})` : "Discount"} value={`− ${gbp(q.discount - q.onlineDiscount - q.balanceDiscount)}`} accent />}
             <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
-              <span className="font-semibold">Total (cash)</span>
+              <span className="font-semibold">{q?.balancePaid ? "Total" : "Total (cash)"}</span>
               <span className="font-display text-2xl font-bold">{gbp(total)}</span>
             </div>
+            {!!q?.balancePaid && (
+              <>
+                <Row label="Paid from your balance" value={`− ${gbp(q.balancePaid)}`} accent />
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">{q.cashDue > 0 ? "To pay in cash" : "Nothing to pay"}</span>
+                  <span className="font-display text-xl font-bold">{gbp(q.cashDue)}</span>
+                </div>
+              </>
+            )}
           </dl>
+          {q?.balance && (
+            <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-jade/40 bg-jade/5 px-3 py-2 text-sm">
+              <input type="checkbox" className="mt-0.5 size-4" checked={useBalance} onChange={(e) => setUseBalance(e.target.checked)} />
+              <span>
+                <span className="font-medium">Pay from my balance</span> ({gbp(q.balance.available)} available{q.balance.pct > 0 ? `, ${q.balance.pct}% off the food` : ""}).
+                {useBalance && q.cashDue > 0 && q.balancePaid > 0 ? " Your balance doesn't cover it all: the rest is paid in cash." : ""}
+              </span>
+            </label>
+          )}
           {quoteFailed && <p className="mt-2 text-xs text-sambal">Couldn&apos;t refresh prices - check your connection.</p>}
 
           {q && !q.minMet && fulfilment === "delivery" && (
@@ -470,7 +495,7 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
           )}
 
           {/* Payment method — WeChat Pay is offered automatically to Chinese-language guests. */}
-          {wechatShown && (
+          {wechatShown && !q?.balancePaid && (
             <div className="mt-4">
               <p className="mb-2 text-sm font-medium">Payment method</p>
               <div className="grid grid-cols-2 gap-2">
@@ -489,14 +514,14 @@ function Checkout({ onPlaced }: { onPlaced: (o: ApiOrder, method: PayMethod, pay
 
           {effectiveMethod === "cash" && (
             <div className="mt-4 rounded-lg bg-jade/10 px-3 py-2 text-xs text-jade">
-              <Banknote className="mr-1.5 inline size-4" /> Please have {gbp(total)} in cash ready for {fulfilment}.
+              <Banknote className="mr-1.5 inline size-4" /> {q?.balancePaid ? (q.cashDue > 0 ? <>{gbp(q.balancePaid)} comes off your balance. Please have {gbp(q.cashDue)} in cash ready for {fulfilment}.</> : <>Paid from your balance: nothing to pay on {fulfilment}.</>) : <>Please have {gbp(total)} in cash ready for {fulfilment}.</>}
             </div>
           )}
 
           {needsHuman && <Turnstile siteKey={siteKey} onToken={setHumanToken} resetKey={turnstileReset} />}
 
           <Button className="mt-4 h-13 w-full text-base font-semibold" disabled={!canPlace || submitting} onClick={placeOrder}>
-            {submitting ? "Placing…" : paused ? "Online ordering paused" : `Place order · ${gbp(total)}`}
+            {submitting ? "Placing…" : paused ? "Online ordering paused" : q?.balancePaid ? (q.cashDue > 0 ? `Place order · ${gbp(q.cashDue)} cash` : "Place order · paid from balance") : `Place order · ${gbp(total)}`}
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">Guest checkout · no account needed</p>
           <p className="mt-1 text-center text-xs text-muted-foreground">By placing your order you agree to our <Link href="/legal/terms" className="underline hover:text-gold-ink">Terms</Link>. See how we use your details in our <Link href="/legal/privacy" className="underline hover:text-gold-ink">Privacy Policy</Link>.</p>
@@ -589,7 +614,9 @@ function Confirmation({ order, method, payToken, trackPath }: { order: ApiOrder;
         </ol>
 
         <div className="mt-6 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">
-          <Banknote className="mr-1.5 inline size-4" /> {method === "cash" ? `Have ${gbp(order.total)} in cash ready.` : "Your order will be prepared once payment is confirmed."} Prep is usually {ORDERING.prepTimeMin}-{ORDERING.prepTimeMax} min.{order.customerEmail ? <> We&apos;ve emailed your confirmation to <span className="notranslate" translate="no">{order.customerEmail}</span> and will email you as your order progresses.</> : null} If there&apos;s a problem we&apos;ll phone <span className="notranslate" translate="no">{order.customerPhone}</span>.
+          <Banknote className="mr-1.5 inline size-4" /> {(order.balancePaid ?? 0) > 0
+            ? (order.total - (order.balancePaid ?? 0) <= 0.004 ? `Paid from your prepaid balance (${gbp(order.balancePaid ?? 0)}): nothing to pay.` : `${gbp(order.balancePaid ?? 0)} paid from your balance. Have ${gbp(order.total - (order.balancePaid ?? 0))} in cash ready.`)
+            : method === "cash" ? `Have ${gbp(order.total)} in cash ready.` : "Your order will be prepared once payment is confirmed."} Prep is usually {ORDERING.prepTimeMin}-{ORDERING.prepTimeMax} min.{order.customerEmail ? <> We&apos;ve emailed your confirmation to <span className="notranslate" translate="no">{order.customerEmail}</span> and will email you as your order progresses.</> : null} If there&apos;s a problem we&apos;ll phone <span className="notranslate" translate="no">{order.customerPhone}</span>.
         </div>
         {order.userId && order.pointsEarned > 0 && (
           <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-gold/10 px-3 py-2 text-sm text-foreground">

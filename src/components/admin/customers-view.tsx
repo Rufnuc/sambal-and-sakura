@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Crown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Crown, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { CustomerBalance } from "@/components/admin/customer-balance";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +23,13 @@ export function CustomersView() {
   const [debounced, setDebounced] = useState("");
   const [sort, setSort] = useState<"spend" | "points" | "orders" | "name" | "recent">("recent");
   const [ready, setReady] = useState(false);
+  const [balanceFor, setBalanceFor] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => { const t = setTimeout(() => { setDebounced(query.trim()); setPage(0); }, 350); return () => clearTimeout(t); }, [query]);
   useEffect(() => {
     fetchCustomers(debounced, page).then((r) => { setCustomers(r.customers); setTotal(r.total); setPageSize(r.pageSize); setReady(true); });
-  }, [debounced, page]);
+  }, [debounced, page, reload]); // reload: refetch after a balance change
 
   const rows = useMemo(() => {
     const list = customers.map((c) => ({ ...c, tier: tierFor(c.points).current.name }));
@@ -86,6 +89,7 @@ export function CustomersView() {
                 <TableHead>Orders</TableHead>
                 <TableHead>Spend</TableHead>
                 <TableHead className="hidden sm:table-cell">Joined</TableHead>
+                <TableHead>Prepaid balance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -101,6 +105,12 @@ export function CustomersView() {
                   <TableCell>{c.orders}</TableCell>
                   <TableCell className="font-semibold">{gbp(c.spend)}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">{new Date(c.createdAt).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setBalanceFor(c.id)}>
+                      <Wallet className="size-3.5" />
+                      {c.balanceStatus === "active" ? gbp(c.balance ?? 0) : c.balanceStatus === "offered" ? `Waiting · ${gbp(c.balance ?? 0)}` : c.balanceStatus === "declined" ? `Declined${c.balance ? ` · refund ${gbp(c.balance)}` : ""}` : "Balance"}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -116,6 +126,7 @@ export function CustomersView() {
       </SectionCard>
 
       <UnblockEmail />
+      <CustomerBalance customerId={balanceFor} open={!!balanceFor} onOpenChange={(o) => { if (!o) setBalanceFor(null); }} onChanged={() => setReload((n) => n + 1)} />
     </div>
   );
 }

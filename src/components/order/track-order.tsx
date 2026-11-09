@@ -15,6 +15,7 @@ interface TrackData {
     lines: { name: string; qty: number; unitPrice: number }[];
     subtotal: number; deliveryFee: number; discount: number; total: number;
     onlineDiscount: number; onlineDiscountLabel: string | null; voucherCode: string | null; handoverCode: string | null;
+    balanceDiscount: number; balancePaid: number;
     paymentMethod: string; paymentStatus: string; cancelKind: string | null; cancelReason: string | null;
   };
   cancel: { can: true; secondsLeft: number } | { can: false; reason: string };
@@ -182,11 +183,18 @@ export function TrackOrder({ id, token }: { id: string; token: string }) {
         <dl className="mt-3 space-y-1 text-sm">
           {o.deliveryFee > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd>{gbp(o.deliveryFee)}</dd></div>}
           {o.onlineDiscount > 0 && <div className="flex justify-between text-jade"><dt>{o.onlineDiscountLabel ?? "Online order discount"}</dt><dd>− {gbp(o.onlineDiscount)}</dd></div>}
-          {o.discount - o.onlineDiscount > 0.004 && <div className="flex justify-between text-jade"><dt>Discount{o.voucherCode ? ` (${o.voucherCode})` : ""}</dt><dd>− {gbp(o.discount - o.onlineDiscount)}</dd></div>}
+          {o.balanceDiscount > 0 && <div className="flex justify-between text-jade"><dt>Prepaid balance discount</dt><dd>− {gbp(o.balanceDiscount)}</dd></div>}
+          {o.discount - o.onlineDiscount - o.balanceDiscount > 0.004 && <div className="flex justify-between text-jade"><dt>Discount{o.voucherCode ? ` (${o.voucherCode})` : ""}</dt><dd>− {gbp(o.discount - o.onlineDiscount - o.balanceDiscount)}</dd></div>}
           <div className="flex justify-between border-t border-border pt-2 font-semibold">
-            <dt>{o.paymentMethod === "wechat" ? (o.paymentStatus === "paid" ? "Paid (WeChat Pay)" : "Total (WeChat Pay)") : "Total (pay cash)"}</dt>
+            <dt>{o.paymentMethod === "wechat" ? (o.paymentStatus === "paid" ? "Paid (WeChat Pay)" : "Total (WeChat Pay)") : o.balancePaid > 0 ? "Total" : "Total (pay cash)"}</dt>
             <dd className="font-display text-lg">{gbp(o.total)}</dd>
           </div>
+          {o.balancePaid > 0 && (
+            <>
+              <div className="flex justify-between text-jade"><dt>Paid from your balance</dt><dd>− {gbp(o.balancePaid)}</dd></div>
+              <div className="flex justify-between font-semibold"><dt>To pay in cash</dt><dd>{gbp(Math.max(0, o.total - o.balancePaid))}</dd></div>
+            </>
+          )}
         </dl>
         {o.onlineDiscount > 0 && <p className="mt-3 rounded-lg bg-jade/10 px-3 py-2 text-sm text-jade">You saved {gbp(o.onlineDiscount)} by ordering direct on our website.</p>}
       </div>

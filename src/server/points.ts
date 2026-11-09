@@ -8,11 +8,8 @@ import type { Prisma } from "@prisma/client";
 
 type Tx = Prisma.TransactionClient;
 
-export const WELCOME_POINTS = 50;
-// Redeeming: this many confirmed points -> a £REDEEM_VALUE voucher, usable for REDEEM_DAYS days.
-export const REDEEM_STEP = 100;
-export const REDEEM_VALUE = 5;
-export const REDEEM_DAYS = 60;
+// How many points are earned, what they're worth and the sign-up bonus are set in Admin -> Promotions
+// (getLoyalty in server/config.ts).
 
 export async function addPendingOrderPoints(tx: Tx, userId: string, orderId: string, points: number) {
   if (points <= 0) return;

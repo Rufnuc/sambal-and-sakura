@@ -106,10 +106,19 @@ export default async function OrderTicketPage({ params, searchParams }: { params
         <Row label={`Subtotal (${itemCount} item${itemCount === 1 ? "" : "s"})`} value={gbp(order.subtotal)} />
         {order.deliveryFee > 0 && <Row label="Delivery" value={gbp(order.deliveryFee)} />}
         {order.onlineDiscount > 0 && <Row label={order.onlineDiscountLabel ?? "Online order discount"} value={`- ${gbp(order.onlineDiscount)}`} />}
-        {order.discount - order.onlineDiscount > 0.004 && <Row label={`Discount${order.voucherCode ? ` ${order.voucherCode}` : ""}`} value={`- ${gbp(order.discount - order.onlineDiscount)}`} />}
+        {order.balanceDiscount > 0 && <Row label="Prepaid balance discount" value={`- ${gbp(order.balanceDiscount)}`} />}
+        {order.discount - order.onlineDiscount - order.balanceDiscount > 0.004 && <Row label={`Discount${order.voucherCode ? ` ${order.voucherCode}` : ""}`} value={`- ${gbp(order.discount - order.onlineDiscount - order.balanceDiscount)}`} />}
         <div className="mt-1 flex justify-between border-t border-dashed border-black pt-1 text-base font-extrabold">
-          <span>{order.paymentMethod === "wechat" ? "TOTAL" : "TOTAL — CASH"}</span><span>{gbp(order.total)}</span>
+          <span>{order.paymentMethod === "wechat" || order.balancePaid > 0 ? "TOTAL" : "TOTAL — CASH"}</span><span>{gbp(order.total)}</span>
         </div>
+        {order.balancePaid > 0 && (
+          <>
+            <Row label="Paid from balance" value={`- ${gbp(order.balancePaid)}`} />
+            <p className="mt-1 border border-black p-1 text-center text-sm font-extrabold">
+              {order.total - order.balancePaid <= 0.004 ? "PAID FROM BALANCE · DO NOT COLLECT CASH" : `CASH TO COLLECT: ${gbp(order.total - order.balancePaid)}`}
+            </p>
+          </>
+        )}
         {order.paymentMethod === "wechat" && (
           <p className="mt-1 border border-black p-1 text-center text-sm font-extrabold">
             {order.paymentStatus === "paid" ? "PAID - WECHAT PAY · DO NOT COLLECT CASH" : "WECHAT PAY - AWAITING PAYMENT"}
@@ -128,7 +137,7 @@ export default async function OrderTicketPage({ params, searchParams }: { params
           <p className="mb-1">{order.notes}</p>
         </>
       )}
-      <p className="text-center text-[11px]">Prep approx {order.etaMins} min{order.paymentMethod === "wechat" ? "" : ` · payment: CASH on ${isDelivery ? "delivery" : "collection"}`}</p>
+      <p className="text-center text-[11px]">Prep approx {order.etaMins} min{order.paymentMethod === "wechat" || order.paymentMethod === "balance" ? "" : ` · payment: CASH on ${isDelivery ? "delivery" : "collection"}`}</p>
       <p className="text-center text-[10px]">Allergy query? Customer to phone {b.phone}.</p>
 
       <Hr />

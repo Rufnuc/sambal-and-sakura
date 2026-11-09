@@ -9,6 +9,7 @@ export interface TicketOrder {
   subtotal: number; deliveryFee: number; discount: number; total: number; voucherCode: string | null;
   onlineDiscount?: number; onlineDiscountLabel?: string | null; // the online order discount (part of `discount`)
   handoverCode?: string | null; // kitchen ticket only: the customer gives it at the door / counter
+  balanceDiscount?: number; balancePaid?: number; // prepaid balance: its % (part of `discount`) and the amount taken from it
   paymentMethod: string; paymentStatus: string;
   lines: TicketLine[];
   flags?: string[];
@@ -24,15 +25,19 @@ export interface TicketContext {
 
 const money = (n: number) => `£${n.toFixed(2)}`;
 
-/** The discount lines: the online order discount and any code, each on its own line. */
+/** The discount lines: the online order discount, the prepaid-balance discount and any code, each on its own line. */
 function discountLines(o: TicketOrder): [string, string][] {
-  const online = o.onlineDiscount ?? 0;
-  const code = Math.round((o.discount - online) * 100) / 100;
+  const online = o.onlineDiscount ?? 0, bal = o.balanceDiscount ?? 0;
+  const code = Math.round((o.discount - online - bal) * 100) / 100;
   const out: [string, string][] = [];
   if (online > 0) out.push([o.onlineDiscountLabel ?? "Online order discount", "-" + money(online)]);
+  if (bal > 0) out.push(["Prepaid balance discount", "-" + money(bal)]);
   if (code > 0) out.push([`Discount${o.voucherCode ? " " + o.voucherCode : ""}`, "-" + money(code)]);
   return out;
 }
+
+/** Cash still to collect: the total minus anything paid from the prepaid balance. */
+export const cashDue = (o: Pick<TicketOrder, "total" | "balancePaid">) => Math.max(0, Math.round((o.total - (o.balancePaid ?? 0)) * 100) / 100);
 function mods(s: string): string[] { try { return (JSON.parse(s) as { label: string }[]).map((m) => m.label); } catch { return []; } }
 
 // Warnings printed on the ticket so staff act on them (set when the order is created).
@@ -74,8 +79,13 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
 
   // --- payment block: the line a rider must not get wrong
   e.hr("thick");
+  const fromBalance = o.balancePaid ?? 0;
   if (wechat && o.paymentStatus === "paid") {
     e.band("PAID - WECHAT PAY", 1, 2).band("DO NOT COLLECT CASH");
+  } else if (fromBalance > 0 && cashDue(o) === 0) {
+    e.band("PAID FROM BALANCE", 1, 2).band("DO NOT COLLECT CASH");
+  } else if (fromBalance > 0) {
+    e.band(`CASH ${money(cashDue(o))}`, 2, 2).band(`${money(fromBalance)} PAID FROM BALANCE`).band(delivery ? "COLLECT ONLY THE CASH ABOVE" : "TAKE ONLY THE CASH ABOVE");
   } else if (wechat) {
     e.band("WECHAT - NOT PAID YET", 1, 2).band("Check payment before handing over");
   } else {
@@ -130,6 +140,7 @@ export function renderKitchenTicket(o: TicketOrder, ctx: TicketContext, opts: { 
   if (o.deliveryFee > 0) e.line(leaderLine("Delivery", money(o.deliveryFee)));
   for (const [label, value] of discountLines(o)) e.line(leaderLine(label, value));
   e.bold(true).size(1, 2).line(padLine("TOTAL", money(o.total))).size(1, 1).bold(false);
+  if ((o.balancePaid ?? 0) > 0) e.line(leaderLine("Paid from balance", "-" + money(o.balancePaid!))).bold(true).line(leaderLine("CASH TO COLLECT", money(cashDue(o)))).bold(false);
 
   // --- notes
   if (o.notes) {
@@ -188,8 +199,11 @@ export function renderCustomerReceipt(o: TicketOrder, ctx: TicketContext): Esc {
   if (delivery) e.line(leaderLine("Delivery", o.deliveryFee > 0 ? money(o.deliveryFee) : "FREE"));
   for (const [label, value] of discountLines(o)) e.line(leaderLine(label, value));
   e.feedDots(6).bandSplit("TOTAL", money(o.total), 2, 2).feedDots(6);
+  if ((o.balancePaid ?? 0) > 0) e.line(leaderLine("Paid from your balance", "-" + money(o.balancePaid!)));
   e.align("center").line(o.paymentMethod === "wechat" && o.paymentStatus === "paid" ? "Paid online - WeChat Pay"
     : o.paymentMethod === "wechat" ? "WeChat Pay - awaiting payment"
+    : (o.balancePaid ?? 0) > 0 && cashDue(o) === 0 ? "Paid from your prepaid balance"
+    : (o.balancePaid ?? 0) > 0 ? `${money(cashDue(o))} cash - ${delivery ? "paid to the driver" : "paid on collection"}`
     : delivery ? "Cash - paid to the driver" : "Cash - paid on collection");
   if (o.onlineDiscount && o.onlineDiscount > 0) e.bold(true).line(`You saved ${money(o.onlineDiscount)} by ordering direct`).bold(false);
   if (o.pointsEarned && o.pointsEarned > 0) e.bold(true).line(`* You earned ${o.pointsEarned} reward points *`).bold(false);

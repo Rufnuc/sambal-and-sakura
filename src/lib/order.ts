@@ -29,6 +29,7 @@ export interface PlacedOrder {
   total: number;
   voucherCode?: string;
   handoverCode?: string; // the customer gives it to the driver / counter
+  balancePaid?: number;  // taken from the customer's prepaid balance (the rest is paid as normal)
   when: "asap" | "scheduled";
   scheduledTime?: string; // e.g. "Sat 11 Oct 19:00"
   etaMins: number;

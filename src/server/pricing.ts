@@ -209,4 +209,3 @@ export function computeTotals(opts: {
   return { lines: priced, issues, subtotal, deliveryFee, discount, onlineDiscount, total, zone, minMet, inArea, voucherApplied, codeBeaten };
 }
 
-export const LOYALTY_POINTS_PER_POUND = 10;

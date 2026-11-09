@@ -544,7 +544,13 @@ export function OrdersView({ isOwner = false }: { isOwner?: boolean }) {
                   <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{gbp(detail.subtotal)}</dd></div>
                   {detail.deliveryFee > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd>{gbp(detail.deliveryFee)}</dd></div>}
                   {detail.discount > 0 && <div className="flex justify-between text-jade"><dt>Discount{detail.voucherCode ? ` (${detail.voucherCode})` : ""}</dt><dd>− {gbp(detail.discount)}</dd></div>}
-                  <div className="flex justify-between border-t border-border pt-2 font-semibold"><dt>{detail.paymentMethod === "wechat" ? `Total (WeChat · ${detail.paymentStatus === "paid" ? "PAID" : "awaiting payment"})` : "Total (cash)"}</dt><dd className="font-display text-lg">{gbp(detail.total)}</dd></div>
+                  <div className="flex justify-between border-t border-border pt-2 font-semibold"><dt>{detail.paymentMethod === "wechat" ? `Total (WeChat · ${detail.paymentStatus === "paid" ? "PAID" : "awaiting payment"})` : detail.balancePaid ? "Total" : "Total (cash)"}</dt><dd className="font-display text-lg">{gbp(detail.total)}</dd></div>
+                  {!!detail.balancePaid && (
+                    <>
+                      <div className="flex justify-between text-jade"><dt>Paid from prepaid balance</dt><dd>− {gbp(detail.balancePaid)}</dd></div>
+                      <div className="flex justify-between font-semibold"><dt>{detail.total - detail.balancePaid <= 0.004 ? "Nothing to collect" : "Cash to collect"}</dt><dd>{gbp(Math.max(0, detail.total - detail.balancePaid))}</dd></div>
+                    </>
+                  )}
                 </dl>
               </div>
             </>

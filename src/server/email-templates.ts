@@ -118,8 +118,11 @@ export function orderEmail(event: OrderEvent, o: Order & { lines: OrderLine[] },
   const plainRef = esc(o.id);
   const type = t(l, o.fulfilment === "delivery" ? "word.delivery" : "word.collection");
   const when = o.whenType === "scheduled" && o.scheduledAt ? t(l, "when.scheduled", { time: b(esc(dateTime(l, o.scheduledAt))) }) : t(l, "when.asap", { mins: o.etaMins });
+  const cash = Math.max(0, Math.round((o.total - o.balancePaid) * 100) / 100); // after anything paid from the prepaid balance
   const pay = o.paymentMethod === "wechat"
     ? t(l, o.paymentStatus === "paid" ? "pay.wechatPaid" : "pay.wechatPending")
+    : o.balancePaid > 0 && cash === 0 ? t(l, "pay.balance", { paid: b(money(o.balancePaid)), type })
+    : o.balancePaid > 0 ? t(l, "pay.balancePart", { paid: money(o.balancePaid), cash: b(money(cash)) })
     : t(l, "pay.cash", { total: b(money(o.total)) });
   const address = o.fulfilment === "delivery" ? `${esc(o.address)}${o.postcode ? `, ${esc(o.postcode)}` : ""}` : `${esc(biz.address.line1)}, ${esc(biz.address.city)} ${esc(biz.address.postcode)}`;
   const items = itemsTable(l, o, dishNames, photos);

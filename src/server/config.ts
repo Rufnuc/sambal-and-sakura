@@ -170,6 +170,20 @@ export const getDeal = async (): Promise<DealOfDay> => {
 };
 export const setDeal = (v: DealOfDay) => setJson("dealOfDay", v);
 
+/* ---- Loyalty points (Admin -> Promotions) ---- */
+// What a point is worth and how they're earned. Changes apply from then on: points customers already have
+// keep their count and are worth the new value when redeemed.
+export interface LoyaltyConfig {
+  pointsPerPound: number; // points earned per £1 of food (after discounts)
+  redeemPoints: number;   // this many confirmed points...
+  redeemValue: number;    // ...swap for a voucher worth this many £
+  voucherDays: number;    // how long that voucher lasts
+  welcomePoints: number;  // sign-up bonus (usable after the first completed order)
+}
+export const DEFAULT_LOYALTY: LoyaltyConfig = { pointsPerPound: 10, redeemPoints: 100, redeemValue: 5, voucherDays: 60, welcomePoints: 50 };
+export const getLoyalty = async (): Promise<LoyaltyConfig> => ({ ...DEFAULT_LOYALTY, ...(await getJson<Partial<LoyaltyConfig>>("loyalty", {})) });
+export const setLoyalty = (v: LoyaltyConfig) => setJson("loyalty", v);
+
 /* ---- Online order discount ("order direct on our website and save 10%") ---- */
 // Everything about it is set by the owner in Admin -> Promotions. `withCodes`: how it combines with offer
 // codes and rewards - "best" (whichever saves more), "stack" (both), or "stack-except-first-order" (both,

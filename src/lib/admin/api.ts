@@ -11,6 +11,7 @@ export interface AdminCustomer {
   id: string; name: string; email: string; phone: string;
   points: number; createdAt: string; orders: number; spend: number;
   status?: string; marketingOptIn?: boolean;
+  balanceStatus?: string; balance?: number; // prepaid balance (none | offered | active | declined)
 }
 
 interface RawLine { id: string; itemId: string; name: string; unitPrice: number; qty: number; modifiers: string }
@@ -20,6 +21,7 @@ interface RawOrder {
   customerName: string; customerPhone: string; customerEmail: string | null; userId: string | null;
   address: string | null; postcode: string | null; notes: string | null; whenType: string; etaMins: number;
   scheduledTime?: string | null; voucherCode?: string | null; handoverCode?: string | null;
+  balancePaid?: number;
   paymentMethod?: string; paymentStatus?: string;
   printStatus?: string; printError?: string | null; flags?: string[]; cancelReason?: string | null;
   cancelKind?: string | null; cancelledAt?: string | null;
@@ -49,7 +51,7 @@ function normOrder(o: RawOrder): PlacedOrder {
     })),
     subtotal: o.subtotal, deliveryFee: o.deliveryFee, discount: o.discount, total: o.total,
     when: o.whenType === "asap" ? "asap" : "scheduled", etaMins: o.etaMins,
-    scheduledTime: o.scheduledTime ?? undefined, voucherCode: o.voucherCode ?? undefined, handoverCode: o.handoverCode ?? undefined,
+    scheduledTime: o.scheduledTime ?? undefined, voucherCode: o.voucherCode ?? undefined, handoverCode: o.handoverCode ?? undefined, balancePaid: o.balancePaid ?? 0,
     paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus,
     printStatus: o.printStatus, printError: o.printError ?? undefined, flags: o.flags ?? [], cancelReason: o.cancelReason ?? undefined,
     cancelKind: o.cancelKind ?? undefined, cancelledAt: o.cancelledAt ? Date.parse(o.cancelledAt) : undefined,
@@ -233,6 +235,8 @@ export interface JobCfg { id: string; title: string; type: string; location: str
 export interface DealCfg { active: boolean; title: string; description: string; itemId?: string; price?: number; badge: string }
 // Delivery prices: minimum food for delivery, and free delivery from this food total (null = never free).
 export interface DeliveryCfg { minOrder: number; freeDeliveryOver: number | null }
+// Loyalty points: earn rate, what they're worth, voucher length, sign-up bonus.
+export interface LoyaltyCfg { pointsPerPound: number; redeemPoints: number; redeemValue: number; voucherDays: number; welcomePoints: number }
 // "Order direct on our website and save 10%" (null = deleted).
 export interface OnlineDiscountCfg {
   enabled: boolean; pctOff: number; appliesTo: "all" | "delivery" | "collection"; minSpend: number;
@@ -245,6 +249,7 @@ export interface AdminConfig {
   promotions: PromotionsCfg; delivery: DeliveryCfg;
   categories: MenuCategoryCfg[]; customDishes: MenuItem[]; menuVersion: string;
   onlineDiscount: OnlineDiscountCfg | null;
+  loyalty: LoyaltyCfg;
 }
 export type PromoKey = "offers" | "wheel" | "referral";
 export interface PromoCfg { enabled: boolean; message: string; graceDays: number; pausedAt?: string | null }

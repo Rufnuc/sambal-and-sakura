@@ -6,7 +6,7 @@ import { hashPassword } from "@/server/auth";
 import { getSiteContent } from "@/server/site-content";
 import { sendTransactional } from "@/server/email";
 import { accountEmail } from "@/server/email-templates";
-import { log } from "@/server/log";
+import { log, alertOwner } from "@/server/log";
 import { ukParts } from "@/server/order-time";
 
 // Customer account lifecycle:
@@ -93,6 +93,12 @@ export async function closeAccount(u: User, reason: "deleted" | "deactivation-ex
 /** Daily job: close accounts whose 14-day reactivation window has passed. */
 export async function closeExpiredDeactivations(): Promise<number> {
   const expired = await prisma.user.findMany({ where: { status: "deactivated", deactivatedAt: { lt: new Date(Date.now() - REACTIVATE_DAYS * DAY) } } });
-  for (const u of expired) await closeAccount(u, "deactivation-expired");
-  return expired.length;
+  let closed = 0;
+  for (const u of expired) {
+    // Never close an account still holding prepaid money: the owner refunds it first.
+    if (u.balancePence > 0) { void alertOwner(`balance-refund:${u.id}`, `${u.name} (${u.email}) deactivated their account but still has £${(u.balancePence / 100).toFixed(2)} on their prepaid balance. Refund it in Admin → Customers.`); continue; }
+    await closeAccount(u, "deactivation-expired");
+    closed++;
+  }
+  return closed;
 }

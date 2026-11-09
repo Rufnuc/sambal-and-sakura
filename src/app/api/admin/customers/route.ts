@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
-    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: page * PAGE, take: PAGE, select: { id: true, name: true, email: true, phone: true, points: true, createdAt: true, status: true, marketingOptIn: true } }),
+    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: page * PAGE, take: PAGE, select: { id: true, name: true, email: true, phone: true, points: true, createdAt: true, status: true, marketingOptIn: true, balanceStatus: true, balancePence: true } }),
   ]);
   const stats = users.length
     ? await prisma.order.groupBy({ by: ["userId"], where: { userId: { in: users.map((x) => x.id) }, status: { not: "cancelled" } }, _count: true, _sum: { total: true } })
@@ -31,7 +31,8 @@ export async function GET(req: Request) {
 
   const customers = users.map((usr) => {
     const s = byUser.get(usr.id);
-    return { ...usr, orders: s?._count ?? 0, spend: Math.round((s?._sum.total ?? 0) * 100) / 100 };
+    const { balancePence, ...rest } = usr;
+    return { ...rest, balance: balancePence / 100, orders: s?._count ?? 0, spend: Math.round((s?._sum.total ?? 0) * 100) / 100 };
   });
   return NextResponse.json({ customers, total, page, pageSize: PAGE });
 }

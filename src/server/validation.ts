@@ -52,6 +52,7 @@ export const quoteSchema = z.object({
   postcode: zPostcode.optional(),
   voucherCode: zCode(40).optional(),
   phone: zPhoneText.optional(),
+  useBalance: z.boolean().optional(), // signed-in customer pays (part of) it from their prepaid balance
 });
 
 export const createOrderSchema = z.object({
@@ -67,6 +68,7 @@ export const createOrderSchema = z.object({
   scheduledFor: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/).optional(), // "YYYY-MM-DD HH:MM", UK time
   voucherCode: zCode(40).optional(),
   payMethod: z.enum(["cash", "wechat"]).default("cash"),
+  useBalance: z.boolean().optional(), // pay from the prepaid balance; any remainder is paid in cash
   expectedTotal: z.number().nonnegative().max(100000).optional(),
   idempotencyKey: z.string().regex(/^[A-Za-z0-9-]{16,64}$/).optional(),
   locale,

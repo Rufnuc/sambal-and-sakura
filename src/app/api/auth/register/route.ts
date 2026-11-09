@@ -7,7 +7,7 @@ import { clientIp, limitOr429 } from "@/server/rate-limit";
 import { verifyHuman } from "@/server/turnstile";
 import { emailLink } from "@/server/email-links";
 import { canonicalPhone, phoneKey } from "@/server/phone";
-import { WELCOME_POINTS } from "@/server/points";
+import { getLoyalty } from "@/server/config";
 import { log } from "@/server/log";
 import { isEmailBlocked } from "@/server/accounts";
 import { getReferralConfig } from "@/server/config";
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   if (phoneLimited) return phoneLimited;
 
   const expiresAt = new Date(Date.now() + 30 * 86400000);
-  const passwordHash = await hashPassword(password);
+  const [passwordHash, { welcomePoints }] = await Promise.all([hashPassword(password), getLoyalty()]);
   const user = await withFreshIds(() => prisma.user.create({
     data: {
       name, email, phone: canonicalPhone(phone),
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       points: 0,
       // The sign-up bonus is pending: it becomes spendable when the first order is completed,
       // so creating accounts on its own earns nothing.
-      pointsEntries: { create: { delta: WELCOME_POINTS, reason: "welcome", status: "pending" } },
+      ...(welcomePoints > 0 ? { pointsEntries: { create: { delta: welcomePoints, reason: "welcome", status: "pending" } } } : {}),
       // The welcome reward is a first-order offer: one per phone number (enforced at checkout).
       rewards: { create: [
         { label: "10% off your first order", code: rewardCode("WELC"), kind: "percent", amount: 10, source: "welcome", expiresAt },
